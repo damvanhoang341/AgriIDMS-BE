@@ -1,0 +1,6 @@
+@AgriIDMS.API_HostAddress = http://localhost:5132
+
+GET {{AgriIDMS.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
