@@ -2,7 +2,6 @@
 using System.Security.Claims;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Application.DTOs.Auth;
-using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -72,7 +71,6 @@ public class AuthController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        // Lấy userId từ JWT claim (sub / NameIdentifier)
         var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
 
