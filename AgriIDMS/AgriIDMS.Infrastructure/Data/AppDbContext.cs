@@ -17,12 +17,22 @@ namespace AgriIDMS.Infrastructure.Data
         {
             base.OnModelCreating(builder);
 
-            builder.Entity<RefreshToken>(e =>
+            builder.Entity<RefreshToken>(entity =>
             {
-                e.ToTable("RefreshTokens");
-                e.HasIndex(x => x.Token).IsUnique();
-                e.Property(x => x.Token).HasMaxLength(500).IsRequired();
-                e.Property(x => x.UserId).HasMaxLength(450).IsRequired();
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Token)
+                      .IsRequired()
+                      .HasMaxLength(500); // rất quan trọng
+
+                entity.Property(x => x.UserId)
+                      .IsRequired()
+                      .HasMaxLength(450); // IdentityUser.Id
+
+                entity.HasOne(x => x.User)
+                      .WithMany()
+                      .HasForeignKey(x => x.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

@@ -1,4 +1,5 @@
 ﻿using AgriIDMS.Application.DTOs.Auth;
+using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -16,60 +17,64 @@ public class AuthService(IAuthRepository authRepo,
 {
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.UserNameOrEmail) || string.IsNullOrWhiteSpace(dto.Password))
-            throw new ArgumentException("Thiếu tài khoản hoặc mật khẩu.");
-
         var user = await userManager.FindByNameAsync(dto.UserNameOrEmail)
-               ?? await userManager.FindByEmailAsync(dto.UserNameOrEmail);
+            ?? await userManager.FindByEmailAsync(dto.UserNameOrEmail);
 
         if (user == null)
-            throw new InvalidOperationException("Sai tài khoản hoặc mật khẩu.");
+            throw new UnauthorizedException("Sai tài khoản hoặc mật khẩu.");
 
-        var result = await signInManager.PasswordSignInAsync(
-            user,
-            dto.Password,
-            isPersistent: false,
-            lockoutOnFailure: true
-        );
+        // 🔒 Check lockout trước
+        if (await userManager.IsLockedOutAsync(user))
+            throw new LockedException("Tài khoản đang bị khóa tạm thời.");
 
-        if (result.IsLockedOut)
-            throw new InvalidOperationException("Tài khoản đang bị khóa tạm thời.");
+        // 🔑 Check password
+        var validPassword = await userManager.CheckPasswordAsync(user, dto.Password);
 
-        if (!result.Succeeded)
-            throw new InvalidOperationException("Sai tài khoản hoặc mật khẩu.");
+        if (!validPassword)
+        {
+            await userManager.AccessFailedAsync(user);
+
+            if (await userManager.IsLockedOutAsync(user))
+                throw new LockedException("Tài khoản đang bị khóa tạm thời.");
+
+            throw new UnauthorizedException("Sai tài khoản hoặc mật khẩu.");
+        }
+
+        // ✅ Login đúng → reset fail count
+        await userManager.ResetAccessFailedCountAsync(user);
 
         var roles = await userManager.GetRolesAsync(user);
 
-        // Generate token
-        var access = tokenGen.GenerateAccessToken(user.Id, user.UserName!, roles);
-        var refresh = tokenGen.GenerateRefreshToken();
+        // 🔐 Generate JWT
+        var accessToken = tokenGen.GenerateAccessToken(user.Id, user.UserName!, roles);
+        var refreshToken = tokenGen.GenerateRefreshToken();
 
         var refreshDays = int.Parse(config["Jwt:RefreshTokenDays"] ?? "14");
         var expires = DateTime.UtcNow.AddDays(refreshDays);
 
-        await refreshRepo.AddAsync(new RefreshToken(refresh, user.Id, expires));
+        await refreshRepo.AddAsync(
+            new RefreshToken(refreshToken, user.Id, expires)
+        );
+
         await uow.SaveChangesAsync();
 
-        // Response
         return new AuthResponseDto
         {
-            AccessToken = access,
-            RefreshToken = refresh,
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
             UserId = user.Id,
             UserName = user.UserName!,
             Roles = roles
         };
-
     }
+
 
     public async Task<AuthResponseDto> RefreshAsync(RefreshRequestDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.RefreshToken))
-            throw new ArgumentException("Thiếu refresh token.");
 
         var oldToken = await refreshRepo.GetByTokenAsync(dto.RefreshToken);
         if (oldToken is null || !oldToken.IsActive)
-            throw new InvalidOperationException("Refresh token không hợp lệ hoặc đã hết hạn.");
+            throw new UnauthorizedException("Refresh token không hợp lệ hoặc đã hết hạn.");
 
         // revoke token cũ
         oldToken.Revoke();

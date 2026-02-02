@@ -23,25 +23,24 @@ public static class ServiceRegistration
         services.AddDbContext<AppDbContext>(opt =>
             opt.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
-        // Identity
-        services.AddIdentityCore<ApplicationUser>(options =>
+        // Identity (đầy đủ Cookie + SignInManager + Lockout)
+        services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {
-            //Email
+            // Email
             options.SignIn.RequireConfirmedEmail = true;
             options.User.RequireUniqueEmail = true;
-            //Password
+
+            // Password
             options.Password.RequiredLength = 8;
             options.Password.RequireNonAlphanumeric = false;
-            //Lockout
-            options.Lockout.AllowedForNewUsers = true;             
+
+            // Lockout
+            options.Lockout.AllowedForNewUsers = true;
             options.Lockout.MaxFailedAccessAttempts = 5;
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
-
         })
-                .AddRoles<IdentityRole>()
-                .AddEntityFrameworkStores<AppDbContext>()
-                .AddSignInManager()
-                .AddDefaultTokenProviders();
+        .AddEntityFrameworkStores<AppDbContext>()
+        .AddDefaultTokenProviders();
 
         var issuer = config["Jwt:Issuer"]!;
         var audience = config["Jwt:Audience"]!;
