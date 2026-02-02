@@ -19,12 +19,29 @@ public static class ServiceRegistration
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
+        // DbContext
         services.AddDbContext<AppDbContext>(opt =>
             opt.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
-        services.AddIdentity<ApplicationUser, IdentityRole>()
-            .AddEntityFrameworkStores<AppDbContext>()
-            .AddDefaultTokenProviders();
+        // Identity
+        services.AddIdentityCore<ApplicationUser>(options =>
+        {
+            //Email
+            options.SignIn.RequireConfirmedEmail = true;
+            options.User.RequireUniqueEmail = true;
+            //Password
+            options.Password.RequiredLength = 8;
+            options.Password.RequireNonAlphanumeric = false;
+            //Lockout
+            options.Lockout.AllowedForNewUsers = true;             
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
+
+        })
+                .AddRoles<IdentityRole>()
+                .AddEntityFrameworkStores<AppDbContext>()
+                .AddSignInManager()
+                .AddDefaultTokenProviders();
 
         var issuer = config["Jwt:Issuer"]!;
         var audience = config["Jwt:Audience"]!;
