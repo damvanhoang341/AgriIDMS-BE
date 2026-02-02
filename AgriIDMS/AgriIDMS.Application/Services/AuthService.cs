@@ -30,7 +30,15 @@ public class AuthService(IAuthRepository authRepo,
         await refreshRepo.AddAsync(new RefreshToken(refresh, userId, expires));
         await uow.SaveChangesAsync();
 
-        return new AuthResponseDto(access, refresh, userId, userName, roles);
+        return new AuthResponseDto
+        {
+            AccessToken = access,
+            RefreshToken = refresh,
+            UserId = userId,
+            UserName = userName,
+            Roles = roles
+        };
+
     }
 
     public async Task<AuthResponseDto> RefreshAsync(RefreshRequestDto dto)
@@ -59,7 +67,14 @@ public class AuthService(IAuthRepository authRepo,
         await refreshRepo.AddAsync(new RefreshToken(newRefresh, userId, expires));
         await uow.SaveChangesAsync();
 
-        return new AuthResponseDto(access, newRefresh, userId, userName, roles);
+        return new AuthResponseDto
+        {
+            AccessToken = access,
+            RefreshToken = newRefresh,
+            UserId = userId,
+            UserName = userName,
+            Roles = roles
+        };
     }
 
     public async Task LogoutAsync(string userId, LogoutRequestDto dto)
