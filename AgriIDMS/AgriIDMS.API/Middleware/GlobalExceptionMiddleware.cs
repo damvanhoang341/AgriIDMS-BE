@@ -29,6 +29,8 @@
 
             var statusCode = exception switch
             {
+                Application.Exceptions.UnauthorizedException => StatusCodes.Status401Unauthorized,
+                Application.Exceptions.LockedException => StatusCodes.Status423Locked,
                 Application.Exceptions.NotFoundException => StatusCodes.Status404NotFound,
                 Application.Exceptions.ConflictException => StatusCodes.Status409Conflict,
                 Application.Exceptions.ForbiddenException => StatusCodes.Status403Forbidden,
