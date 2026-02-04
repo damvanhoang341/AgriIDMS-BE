@@ -138,45 +138,57 @@ public class AuthService(IAuthRepository authRepo,
 
 
 
-    private async Task SendVerifyEmailAsync(ApplicationUser user, string password)
+    private string BuildVerifyEmailBody(
+    string email,
+    string userId,
+    string emailConfirmToken,
+    string password)
     {
-        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
-
         var confirmLink =
             $"{config["AppSettings:ClientUrl"]}/api/v1/Auth/ConfirmEmail/confirm-email" +
-            $"?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+            $"?userId={userId}&token={Uri.EscapeDataString(emailConfirmToken)}";
 
+        return $@"
+<p>Xin chào,</p>
 
-        var body = $@"
-            <p>Xin chào,</p>
+<p>Tài khoản nhân viên của bạn đã được tạo thành công. 🎉</p>
 
-            <p>
-            Tài khoản nhân viên của bạn đã được tạo thành công. 🎉
-            </p>
-            <p>
-                <b>Thông tin đăng nhập:</b><br>
-                - Email: {user.Email}<br>
-                - Mật khẩu tạm thời: <b>{password}</b>
-                </p>
+<p>
+<b>Thông tin đăng nhập:</b><br/>
+- Email: {email}<br/>
+- Mật khẩu tạm thời: <b>{password}</b>
+</p>
 
-                <p>
-                 Vui lòng xác nhận email tại đây:<br>
-                <a href='{confirmLink}'>{confirmLink}</a>
-                </p>
-                <p>
-                Sau khi đăng nhập lần đầu, hãy đổi mật khẩu ngay để đảm bảo an toàn.
-                </p>
-                <p>
-                Trân trọng,<br>
-                Hệ thống
-                </p>
-                ";
-        await emailService.SendAsync(
-            user.Email!,
-            "Tài khoản nhân viên & xác nhận email",
-            body
-        );
+<p>
+Vui lòng xác nhận email tại đây:<br/>
+<a href='{confirmLink}'>{confirmLink}</a>
+</p>
+
+<p>Sau khi đăng nhập lần đầu, hãy đổi mật khẩu ngay.</p>
+
+<p>Trân trọng,<br/>Hệ thống</p>
+";
     }
+
+    private void SendVerifyEmailInBackground(string email, string body)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendAsync(
+                    email,
+                    "Tài khoản nhân viên & xác nhận email",
+                    body
+                );
+            }
+            catch (Exception ex)
+            {
+                // TODO: log ex
+            }
+        });
+    }
+
 
 
     public async Task CreateEmployeeAsync(RegisterEmployeeDto request)
@@ -204,8 +216,14 @@ public class AuthService(IAuthRepository authRepo,
             throw new InvalidBusinessRuleException("Tạo nhân viên thất bại");
 
         await userManager.AddToRoleAsync(user, request.Role);
-        await SendVerifyEmailAsync(user, randomPassword);
-
+        var emailToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var emailBody = BuildVerifyEmailBody(
+        user.Email!,
+        user.Id,
+        emailToken,
+        randomPassword
+        );
+        SendVerifyEmailInBackground(user.Email!, emailBody);
     }
 
     public async Task RegisterCustomerAsync(RegisterCustomerRequest request)
@@ -238,6 +256,43 @@ public class AuthService(IAuthRepository authRepo,
         }
 
         await userManager.AddToRoleAsync(user, "Customer");
+    }
+
+    public async Task ForgotPasswordAndResetAsync(ForgotPasswordRequest dto)
+    {
+        var user = await userManager.FindByEmailAsync(dto.Email);
+
+        if (user == null || !user.EmailConfirmed)
+            throw new NotFoundException("Không tìm thấy user với email đã cho");
+
+        var newPassword = $"Aa1!{Guid.NewGuid():N}".Substring(0, 12);
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await userManager.ResetPasswordAsync(user, token, newPassword);
+
+        if (!result.Succeeded)
+            throw new ApplicationException("Reset password thất bại");
+
+        // 🔥 GỬI MAIL BACKGROUND
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendAsync(
+                    user.Email!,
+                    "Mật khẩu mới của bạn",
+                    $@"
+                <p>Hệ thống đã reset mật khẩu cho bạn.</p>
+                <p><b>Mật khẩu mới:</b> {newPassword}</p>
+                <p>Vui lòng đăng nhập và đổi mật khẩu ngay.</p>
+                "
+                );
+            }
+            catch (Exception ex)
+            {
+                // TODO: log lỗi
+            }
+        });
     }
 
 }
