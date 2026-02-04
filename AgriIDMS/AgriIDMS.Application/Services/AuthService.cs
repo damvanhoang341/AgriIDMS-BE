@@ -7,6 +7,7 @@ using AgriIDMS.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace AgriIDMS.Application.Services;
 
@@ -15,6 +16,7 @@ public class AuthService(IAuthRepository authRepo,
                         IRefreshTokenRepository refreshRepo,
                         ITokenGenerator tokenGen,
                         IUnitOfWork uow,
+                        IHttpContextAccessor httpContextAccessor,
                         ILogger<AuthService> logger,
                         IEmailService emailService,
                         IConfiguration config)
@@ -293,6 +295,37 @@ Vui lòng xác nhận email tại đây:<br/>
                 // TODO: log lỗi
             }
         });
+    }
+
+    public async Task ChangePasswordAsync(ChangePasswordRequest dto)
+    {
+        var userId = httpContextAccessor.HttpContext?
+            .User?
+            .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?
+            .Value;
+
+        if (string.IsNullOrEmpty(userId))
+            throw new UnauthorizedException("Bạn chưa đăng nhập");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+            throw new NotFoundException("Không tìm thấy người dùng");
+
+        var result = await userManager.ChangePasswordAsync(
+            user,
+            dto.CurrentPassword,
+            dto.NewPassword
+        );
+
+        if (!result.Succeeded)
+        {
+            var error = string.Join(
+                ", ",
+                result.Errors.Select(e => e.Description)
+            );
+
+            throw new InvalidBusinessRuleException(error);
+        }
     }
 
 }

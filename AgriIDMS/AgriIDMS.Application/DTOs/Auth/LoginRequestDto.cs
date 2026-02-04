@@ -13,8 +13,11 @@ namespace AgriIDMS.Application.DTOs.Auth
         [StringLength(256,MinimumLength = 3, ErrorMessage = "Username or Email must be between 3 and 256 characters")]
         public string UserNameOrEmail { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Password is required")]
-        [MinLength(8, ErrorMessage = "Password must be at least 8 characters long")]
+        [Required(ErrorMessage = "Password là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Password tối thiểu 8 ký tự")]
+        [RegularExpression(
+        @"^(?=.*[A-Z]).*$",
+        ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
         public string Password { get; set; } = string.Empty;
 
     }

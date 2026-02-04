@@ -128,4 +128,20 @@ public class AuthController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Đổi mật khẩu khi đã đăng nhập
+    /// </summary>
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request)
+    {
+        await _authService.ChangePasswordAsync(request);
+
+        return Ok(new
+        {
+            message = "Đổi mật khẩu thành công"
+        });
+    }
+
 }

@@ -1,3 +1,4 @@
+using AgriIDMS.API.Middleware;
 using AgriIDMS.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,10 +25,11 @@ builder.Services.AddCors(options =>
 
 // DI Infrastructure (Identity + EF + JWT + Services)
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
-app.UseMiddleware<AgriIDMS.API.Middleware.GlobalExceptionMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -44,6 +46,7 @@ using (var scope = app.Services.CreateScope())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowReact");
+app.UseStatusCodePages();
 
 // JWT
 app.UseAuthentication();

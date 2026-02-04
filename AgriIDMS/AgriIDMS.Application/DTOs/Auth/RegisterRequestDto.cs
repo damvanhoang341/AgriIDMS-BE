@@ -24,7 +24,7 @@ namespace AgriIDMS.Application.DTOs.Auth
         public string UserName { get; set; }=null!;
 
         [Required(ErrorMessage = "Password là bắt buộc")]
-        [MinLength(6, ErrorMessage = "Password tối thiểu 6 ký tự")]
+        [MinLength(6, ErrorMessage = "Password tối thiểu 8 ký tự")]
         [RegularExpression(
         @"^(?=.*[A-Z]).*$",
         ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
@@ -42,6 +42,22 @@ namespace AgriIDMS.Application.DTOs.Auth
         [Required(ErrorMessage = "Email là bắt buộc")]
         [EmailAddress(ErrorMessage = "Email không đúng định dạng")]
         public string Email { get; set; } = null!;
+    }
+
+    public class ChangePasswordRequest
+    {
+        [Required(ErrorMessage = "Password là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Password tối thiểu 8 ký tự")]
+        [RegularExpression(
+        @"^(?=.*[A-Z]).*$",
+        ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
+        public string CurrentPassword { get; set; } = null!;
+        [Required(ErrorMessage = "Password là bắt buộc")]
+        [MinLength(6, ErrorMessage = "Password tối thiểu 8 ký tự")]
+        [RegularExpression(
+        @"^(?=.*[A-Z]).*$",
+        ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
+        public string NewPassword { get; set; } = null!;
     }
 
 }
