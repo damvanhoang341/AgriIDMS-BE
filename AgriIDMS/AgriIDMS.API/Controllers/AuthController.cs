@@ -113,5 +113,35 @@ public class AuthController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// User quên mật khẩu → hệ thống reset và gửi mật khẩu mới qua email
+    /// </summary>
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request)
+    {
+        await _authService.ForgotPasswordAndResetAsync(request);
+
+        return Ok(new
+        {
+            message = "Mật khẩu mới đã được gửi về email nếu tài khoản tồn tại"
+        });
+    }
+
+    /// <summary>
+    /// Đổi mật khẩu khi đã đăng nhập
+    /// </summary>
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request)
+    {
+        await _authService.ChangePasswordAsync(request);
+
+        return Ok(new
+        {
+            message = "Đổi mật khẩu thành công"
+        });
+    }
 
 }
