@@ -79,9 +79,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged out." });
     }
 
-    //[Authorize(Roles = "Admin")]
-    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-
+    [Authorize(Roles = "Admin")]
     [HttpPost("admin/create-employee")]
     //[HttpPost]
     public async Task<IActionResult> CreateEmployee([FromBody] RegisterEmployeeDto request)

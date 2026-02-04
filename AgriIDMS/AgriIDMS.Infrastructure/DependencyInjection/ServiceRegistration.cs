@@ -46,7 +46,11 @@ public static class ServiceRegistration
         var audience = config["Jwt:Audience"]!;
         var key = config["Jwt:Key"]!;
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
             .AddJwtBearer(opt =>
             {
                 opt.TokenValidationParameters = new TokenValidationParameters
@@ -58,11 +62,11 @@ public static class ServiceRegistration
                     ValidAudience = audience,
 
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(key)),
 
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromSeconds(30),
-                    RoleClaimType = ClaimTypes.Role
+                    ClockSkew = TimeSpan.FromSeconds(30)
                 };
             });
 

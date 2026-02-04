@@ -138,7 +138,7 @@ public class AuthService(IAuthRepository authRepo,
 
 
 
-    private async Task SendVerifyEmailAsync(ApplicationUser user)
+    private async Task SendVerifyEmailAsync(ApplicationUser user, string password)
     {
         var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
 
@@ -147,13 +147,34 @@ public class AuthService(IAuthRepository authRepo,
             $"?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
 
+        var body = $@"
+            <p>Xin chào,</p>
+
+            <p>
+            Tài khoản nhân viên của bạn đã được tạo thành công. 🎉
+            </p>
+            <p>
+                <b>Thông tin đăng nhập:</b><br>
+                - Email: {user.Email}<br>
+                - Mật khẩu tạm thời: <b>{password}</b>
+                </p>
+
+                <p>
+                 Vui lòng xác nhận email tại đây:<br>
+                <a href='{confirmLink}'>{confirmLink}</a>
+                </p>
+                <p>
+                Sau khi đăng nhập lần đầu, hãy đổi mật khẩu ngay để đảm bảo an toàn.
+                </p>
+                <p>
+                Trân trọng,<br>
+                Hệ thống
+                </p>
+                ";
         await emailService.SendAsync(
             user.Email!,
-            "Xác nhận email",
-            $@"
-            <p>Vui lòng xác nhận email:</p>
-            <a href='{confirmLink}'>Xác nhận</a>
-        "
+            "Tài khoản nhân viên & xác nhận email",
+            body
         );
     }
 
@@ -166,6 +187,8 @@ public class AuthService(IAuthRepository authRepo,
         if (await userManager.FindByEmailAsync(request.Email) != null)
             throw new InvalidBusinessRuleException("Email đã tồn tại");
 
+        var randomPassword = $"Aa1!{Guid.NewGuid():N}".Substring(0, 12);
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
@@ -176,12 +199,12 @@ public class AuthService(IAuthRepository authRepo,
         user.SetUserType(UserType.Employee);
         user.SetRegisterMethod(RegisterMethod.AdminCreated);
 
-        var result = await userManager.CreateAsync(user, request.Password);
+        var result = await userManager.CreateAsync(user, randomPassword);
         if (!result.Succeeded)
             throw new InvalidBusinessRuleException("Tạo nhân viên thất bại");
 
         await userManager.AddToRoleAsync(user, request.Role);
-        await SendVerifyEmailAsync(user);
+        await SendVerifyEmailAsync(user, randomPassword);
 
     }
 
@@ -197,6 +220,7 @@ public class AuthService(IAuthRepository authRepo,
         var user = new ApplicationUser
         {
             UserName = request.UserName,
+            Email = $"{request.UserName}@system.local",
             EmailConfirmed = true 
         };
 
