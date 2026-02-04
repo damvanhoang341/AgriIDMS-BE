@@ -15,6 +15,9 @@ namespace AgriIDMS.Application.DTOs.Auth
 
         [Required(ErrorMessage = "Password là bắt buộc")]
         [MinLength(6, ErrorMessage = "Password tối thiểu 6 ký tự")]
+        [RegularExpression(
+        @"^(?=.*[A-Z]).*$",
+        ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
         public string Password { get; set; } = null!;
 
         [Required(ErrorMessage = "Role là bắt buộc")]
@@ -23,14 +26,18 @@ namespace AgriIDMS.Application.DTOs.Auth
 
     public class RegisterCustomerRequest
     {
+        [Required(ErrorMessage = "User Name là bắt buộc")]
         [MinLength(3, ErrorMessage = "UserName tối thiểu 3 ký tự")]
         public string? UserName { get; set; }
 
         [EmailAddress(ErrorMessage = "Email không đúng định dạng")]
-        public string? Email { get; set; }   // ❗ KHÔNG Required
+        public string? Email { get; set; }   
 
         [Required(ErrorMessage = "Password là bắt buộc")]
         [MinLength(6, ErrorMessage = "Password tối thiểu 6 ký tự")]
+        [RegularExpression(
+        @"^(?=.*[A-Z]).*$",
+        ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
         public string Password { get; set; } = null!;
     }
 

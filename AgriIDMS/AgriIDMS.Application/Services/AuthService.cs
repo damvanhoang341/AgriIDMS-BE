@@ -187,16 +187,6 @@ public class AuthService(IAuthRepository authRepo,
 
     public async Task RegisterCustomerAsync(RegisterCustomerRequest request)
     {
-        // Rule 1: Phải có UserName hoặc Email
-        if (string.IsNullOrWhiteSpace(request.UserName)
-            && string.IsNullOrWhiteSpace(request.Email))
-        {
-            throw new InvalidBusinessRuleException(
-                "Phải nhập UserName hoặc Email"
-            );
-        }
-
-        // Rule 2: Check trùng UserName (nếu có)
         if (!string.IsNullOrWhiteSpace(request.UserName))
         {
             var existedByUserName = await userManager.FindByNameAsync(request.UserName);
@@ -204,36 +194,15 @@ public class AuthService(IAuthRepository authRepo,
                 throw new InvalidBusinessRuleException("UserName đã tồn tại");
         }
 
-        // Rule 3: Check trùng Email (nếu có)
-        if (!string.IsNullOrWhiteSpace(request.Email))
-        {
-            var existedByEmail = await userManager.FindByEmailAsync(request.Email);
-            if (existedByEmail != null)
-                throw new InvalidBusinessRuleException("Email đã tồn tại");
-        }
-
-        // Tạo user
         var user = new ApplicationUser
         {
-            UserName = request.UserName ?? request.Email!, // ưu tiên UserName
-            Email = request.Email
+            UserName = request.UserName,
+            EmailConfirmed = true 
         };
 
         user.SetUserType(UserType.Customer);
-        RegisterMethod registerMethod;
+        user.SetRegisterMethod(RegisterMethod.Username);
 
-        if (!string.IsNullOrWhiteSpace(request.Email))
-        {
-            registerMethod = RegisterMethod.Email;
-        }
-        else
-        {
-            registerMethod = RegisterMethod.Username;
-        }
-
-        user.SetRegisterMethod(registerMethod);
-
-        // Create
         var result = await userManager.CreateAsync(user, request.Password);
 
         if (!result.Succeeded)
@@ -244,9 +213,7 @@ public class AuthService(IAuthRepository authRepo,
             );
         }
 
-        // Gán role Customer (nếu bạn có role)
         await userManager.AddToRoleAsync(user, "Customer");
     }
-
 
 }

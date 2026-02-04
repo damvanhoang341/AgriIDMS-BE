@@ -4,6 +4,7 @@ using AgriIDMS.Application.Services;
 using AgriIDMS.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace BaseApp.API.Controllers;
 
@@ -79,6 +80,8 @@ public class AuthController : ControllerBase
     }
 
     //[Authorize(Roles = "Admin")]
+    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+
     [HttpPost("admin/create-employee")]
     //[HttpPost]
     public async Task<IActionResult> CreateEmployee([FromBody] RegisterEmployeeDto request)
@@ -100,6 +103,17 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Xác nhận email thành công" });
     }
 
+    [HttpPost("register")]
+    public async Task<IActionResult> RegisterCustomer(
+        [FromBody] RegisterCustomerRequest request)
+    {
+        await _authService.RegisterCustomerAsync(request);
+
+        return Ok(new
+        {
+            message = "Đăng ký khách hàng thành công"
+        });
+    }
 
 
 }
