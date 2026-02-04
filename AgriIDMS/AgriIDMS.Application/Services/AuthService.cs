@@ -1,6 +1,9 @@
 ﻿using AgriIDMS.Application.DTOs.Auth;
 using AgriIDMS.Application.Exceptions;
+using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +12,6 @@ namespace AgriIDMS.Application.Services;
 
 public class AuthService(IAuthRepository authRepo,
                         UserManager<ApplicationUser> userManager,
-                        SignInManager<ApplicationUser> signInManager,
                         IRefreshTokenRepository refreshRepo,
                         ITokenGenerator tokenGen,
                         IUnitOfWork uow,
@@ -116,4 +118,93 @@ public class AuthService(IAuthRepository authRepo,
         refreshRepo.Update(token);
         await uow.SaveChangesAsync();
     }
+
+    public async Task CreateEmployeeAsync(RegisterEmployeeDto request)
+    {
+        if (!request.Email.EndsWith("@abc.com"))
+            throw new InvalidBusinessRuleException("Email không thuộc công ty");
+
+        if (await userManager.FindByEmailAsync(request.Email) != null)
+            throw new InvalidBusinessRuleException("Email đã tồn tại");
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email
+        };
+
+        user.SetUserType(UserType.Employee);
+        user.SetRegisterMethod(RegisterMethod.AdminCreated);
+
+        var result = await userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+            throw new InvalidBusinessRuleException("Tạo nhân viên thất bại");
+
+        await userManager.AddToRoleAsync(user, request.Role);
+    }
+
+    public async Task RegisterCustomerAsync(RegisterCustomerRequest request)
+    {
+        // Rule 1: Phải có UserName hoặc Email
+        if (string.IsNullOrWhiteSpace(request.UserName)
+            && string.IsNullOrWhiteSpace(request.Email))
+        {
+            throw new InvalidBusinessRuleException(
+                "Phải nhập UserName hoặc Email"
+            );
+        }
+
+        // Rule 2: Check trùng UserName (nếu có)
+        if (!string.IsNullOrWhiteSpace(request.UserName))
+        {
+            var existedByUserName = await userManager.FindByNameAsync(request.UserName);
+            if (existedByUserName != null)
+                throw new InvalidBusinessRuleException("UserName đã tồn tại");
+        }
+
+        // Rule 3: Check trùng Email (nếu có)
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var existedByEmail = await userManager.FindByEmailAsync(request.Email);
+            if (existedByEmail != null)
+                throw new InvalidBusinessRuleException("Email đã tồn tại");
+        }
+
+        // Tạo user
+        var user = new ApplicationUser
+        {
+            UserName = request.UserName ?? request.Email!, // ưu tiên UserName
+            Email = request.Email
+        };
+
+        user.SetUserType(UserType.Customer);
+        RegisterMethod registerMethod;
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            registerMethod = RegisterMethod.Email;
+        }
+        else
+        {
+            registerMethod = RegisterMethod.Username;
+        }
+
+        user.SetRegisterMethod(registerMethod);
+
+        // Create
+        var result = await userManager.CreateAsync(user, request.Password);
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(x => x.Description));
+            throw new InvalidBusinessRuleException(
+                $"Đăng ký khách hàng thất bại: {errors}"
+            );
+        }
+
+        // Gán role Customer (nếu bạn có role)
+        await userManager.AddToRoleAsync(user, "Customer");
+    }
+
+
 }

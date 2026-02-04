@@ -77,4 +77,13 @@ public class AuthController : ControllerBase
         await _authService.LogoutAsync(userId, dto);
         return Ok(new { message = "Logged out." });
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("admin/create-employee")]
+    public async Task<IActionResult> CreateEmployee(RegisterEmployeeDto request)
+    {
+        await _authService.CreateEmployeeAsync(request);
+        return Ok("Tạo nhân viên thành công");
+    }
+
 }
