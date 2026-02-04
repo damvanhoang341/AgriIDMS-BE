@@ -78,12 +78,28 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged out." });
     }
 
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
     [HttpPost("admin/create-employee")]
-    public async Task<IActionResult> CreateEmployee(RegisterEmployeeDto request)
+    //[HttpPost]
+    public async Task<IActionResult> CreateEmployee([FromBody] RegisterEmployeeDto request)
     {
         await _authService.CreateEmployeeAsync(request);
         return Ok("Tạo nhân viên thành công");
     }
+
+    /// <summary>
+    /// Xác nhận email người dùng
+    /// </summary>
+    [HttpGet("confirm-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
+    {
+        var x = 1;
+        await _authService.ConfirmEmailAsync(userId, token);
+
+        return Ok(new { message = "Xác nhận email thành công" });
+    }
+
+
 
 }

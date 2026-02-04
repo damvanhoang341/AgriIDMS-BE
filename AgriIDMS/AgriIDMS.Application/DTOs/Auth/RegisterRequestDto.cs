@@ -33,4 +33,11 @@ namespace AgriIDMS.Application.DTOs.Auth
         [MinLength(6, ErrorMessage = "Password tối thiểu 6 ký tự")]
         public string Password { get; set; } = null!;
     }
+
+    public class ConfirmEmailRequestDto
+    {
+        public string UserId { get; set; } = null!;
+        public string Token { get; set; } = null!;
+    }
+
 }
