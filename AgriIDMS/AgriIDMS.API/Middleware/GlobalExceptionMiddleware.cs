@@ -40,6 +40,10 @@
 
             context.Response.StatusCode = statusCode;
 
+            var message = statusCode == StatusCodes.Status500InternalServerError
+        ? "Đã xảy ra lỗi hệ thống"
+        : exception.Message;
+
             return context.Response.WriteAsJsonAsync(new
             {
                 error = exception.Message
