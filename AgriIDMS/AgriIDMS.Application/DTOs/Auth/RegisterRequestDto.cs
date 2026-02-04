@@ -12,7 +12,6 @@ namespace AgriIDMS.Application.DTOs.Auth
         [Required(ErrorMessage = "Email là bắt buộc")]
         [EmailAddress(ErrorMessage = "Email không đúng định dạng")]
         public string Email { get; set; } = null!;
-        public string Password { get; set; } = null!;
 
         [Required(ErrorMessage = "Role là bắt buộc")]
         public string Role { get; set; } = null!;
