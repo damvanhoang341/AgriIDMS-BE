@@ -16,5 +16,18 @@ namespace AgriIDMS.Domain.Entities
         public UserStatus Status { get; set; } = UserStatus.Active;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public UserType UserType { get; private set; }
+        public RegisterMethod RegisterMethod { get; private set; }
+
+        public void SetUserType(UserType type)
+        {
+            UserType = type;
+        }
+
+        public void SetRegisterMethod(RegisterMethod method)
+        {
+            RegisterMethod = method;
+        }
     }
 }

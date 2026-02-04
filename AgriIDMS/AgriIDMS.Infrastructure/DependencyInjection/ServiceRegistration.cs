@@ -1,4 +1,4 @@
-﻿// AgriIDMS.Infrastructure/DependencyInjection/ServiceRegistration.cs
+﻿using System.Security.Claims;
 using System.Text;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Entities;
@@ -61,7 +61,8 @@ public static class ServiceRegistration
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
 
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromSeconds(30)
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                    RoleClaimType = ClaimTypes.Role
                 };
             });
 
@@ -72,6 +73,7 @@ public static class ServiceRegistration
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITokenGenerator, TokenGenerator>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IEmailService, EmailService>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<AuthService>();

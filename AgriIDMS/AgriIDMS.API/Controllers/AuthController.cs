@@ -4,6 +4,7 @@ using AgriIDMS.Application.Services;
 using AgriIDMS.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace BaseApp.API.Controllers;
 
@@ -77,4 +78,42 @@ public class AuthController : ControllerBase
         await _authService.LogoutAsync(userId, dto);
         return Ok(new { message = "Logged out." });
     }
+
+    //[Authorize(Roles = "Admin")]
+    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+
+    [HttpPost("admin/create-employee")]
+    //[HttpPost]
+    public async Task<IActionResult> CreateEmployee([FromBody] RegisterEmployeeDto request)
+    {
+        await _authService.CreateEmployeeAsync(request);
+        return Ok("Tạo nhân viên thành công");
+    }
+
+    /// <summary>
+    /// Xác nhận email người dùng
+    /// </summary>
+    [HttpGet("confirm-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
+    {
+        var x = 1;
+        await _authService.ConfirmEmailAsync(userId, token);
+
+        return Ok(new { message = "Xác nhận email thành công" });
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> RegisterCustomer(
+        [FromBody] RegisterCustomerRequest request)
+    {
+        await _authService.RegisterCustomerAsync(request);
+
+        return Ok(new
+        {
+            message = "Đăng ký khách hàng thành công"
+        });
+    }
+
+
 }
