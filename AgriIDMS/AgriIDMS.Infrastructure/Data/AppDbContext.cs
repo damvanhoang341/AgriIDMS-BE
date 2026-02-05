@@ -11,8 +11,11 @@ namespace AgriIDMS.Infrastructure.Data
 {
     public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options){}
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -49,6 +52,60 @@ namespace AgriIDMS.Infrastructure.Data
                 entity.Property(x => x.Status)
                       .HasConversion<int>();
             });
+
+            builder.Entity<Product>(entity =>
+            {
+                entity.ToTable("Products");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Name)
+                      .IsRequired()
+                      .HasMaxLength(200);
+
+                entity.Property(x => x.Description)
+                      .HasMaxLength(1000);
+
+                entity.Property(x => x.Price)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(x => x.Unit)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(x => x.ImageUrl)
+                      .HasMaxLength(500);
+
+                entity.Property(x => x.Status)
+                      .HasConversion<int>()
+                      .IsRequired();
+
+                entity.HasOne(x => x.Category)
+                      .WithMany(c => c.Products)
+                      .HasForeignKey(x => x.CategoryId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<Category>(entity =>
+            {
+                entity.ToTable("Categories");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Name)
+                      .IsRequired()
+                      .HasMaxLength(150);
+                entity.Property(x => x.Description)
+                      .HasMaxLength(500);
+                entity.Property(x => x.Status)
+                      .HasConversion<int>()
+                      .IsRequired();
+                entity.HasMany(x => x.Products)
+                      .WithOne(p => p.Category)
+                      .HasForeignKey(p => p.CategoryId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
         }
     }
 }
