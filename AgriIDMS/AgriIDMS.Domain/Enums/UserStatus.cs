@@ -11,6 +11,6 @@ namespace AgriIDMS.Domain.Enums
         Active = 1,
         Inactive = 2,
         Locked = 3,
-        Banned = 4
+        Deleted = 4
     }
 }
