@@ -29,11 +29,9 @@ public class AuthService(IAuthRepository authRepo,
         if (user == null)
             throw new UnauthorizedException("Sai tài khoản hoặc mật khẩu.");
 
-        // 🔒 Check lockout trước
         if (await userManager.IsLockedOutAsync(user))
             throw new LockedException("Tài khoản đang bị khóa tạm thời.");
 
-        // 🔑 Check password
         var validPassword = await userManager.CheckPasswordAsync(user, dto.Password);
 
         if (!validPassword)
@@ -46,12 +44,11 @@ public class AuthService(IAuthRepository authRepo,
             throw new UnauthorizedException("Sai tài khoản hoặc mật khẩu.");
         }
 
-        // ✅ Login đúng → reset fail count
         await userManager.ResetAccessFailedCountAsync(user);
 
         var roles = await userManager.GetRolesAsync(user);
 
-        // 🔐 Generate JWT
+        //Generate JWT
         var accessToken = tokenGen.GenerateAccessToken(user.Id, user.UserName!, roles);
         var refreshToken = tokenGen.GenerateRefreshToken();
 
@@ -151,25 +148,25 @@ public class AuthService(IAuthRepository authRepo,
             $"?userId={userId}&token={Uri.EscapeDataString(emailConfirmToken)}";
 
         return $@"
-<p>Xin chào,</p>
+            <p>Xin chào,</p>
 
-<p>Tài khoản nhân viên của bạn đã được tạo thành công. 🎉</p>
+            <p>Tài khoản nhân viên của bạn đã được tạo thành công. 🎉</p>
 
-<p>
-<b>Thông tin đăng nhập:</b><br/>
-- Email: {email}<br/>
-- Mật khẩu tạm thời: <b>{password}</b>
-</p>
+            <p>
+            <b>Thông tin đăng nhập:</b><br/>
+            - Email: {email}<br/>
+            - Mật khẩu tạm thời: <b>{password}</b>
+            </p>
 
-<p>
-Vui lòng xác nhận email tại đây:<br/>
-<a href='{confirmLink}'>{confirmLink}</a>
-</p>
+            <p>
+            Vui lòng xác nhận email tại đây:<br/>
+            <a href='{confirmLink}'>{confirmLink}</a>
+            </p>
 
-<p>Sau khi đăng nhập lần đầu, hãy đổi mật khẩu ngay.</p>
+            <p>Sau khi đăng nhập lần đầu, hãy đổi mật khẩu ngay.</p>
 
-<p>Trân trọng,<br/>Hệ thống</p>
-";
+            <p>Trân trọng,<br/>Hệ thống</p>
+            ";
     }
 
     private void SendVerifyEmailInBackground(string email, string body)
@@ -186,7 +183,6 @@ Vui lòng xác nhận email tại đây:<br/>
             }
             catch (Exception ex)
             {
-                // TODO: log ex
             }
         });
     }
@@ -275,7 +271,6 @@ Vui lòng xác nhận email tại đây:<br/>
         if (!result.Succeeded)
             throw new ApplicationException("Reset password thất bại");
 
-        // 🔥 GỬI MAIL BACKGROUND
         _ = Task.Run(async () =>
         {
             try
@@ -292,7 +287,6 @@ Vui lòng xác nhận email tại đây:<br/>
             }
             catch (Exception ex)
             {
-                // TODO: log lỗi
             }
         });
     }
