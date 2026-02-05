@@ -8,7 +8,6 @@ namespace AgriIDMS.Domain.Interfaces
 {
     public interface IAuthRepository
     {
-        Task<(bool ok, string userId, string userName)> ValidateUserAsync(string userNameOrEmail, string password);
         Task<IList<string>> GetRolesAsync(string userId);
         Task<string> GetUserNameAsync(string userId);
     }

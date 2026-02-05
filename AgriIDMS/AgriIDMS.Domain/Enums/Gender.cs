@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Enums
 {
-    public enum UserStatus
+    public enum Gender
     {
-        Active = 1,
-        Inactive = 2,
-        Locked = 3,
-        Deleted = 4
+        Unknown = 0,
+        Male = 1,
+        Female = 2
     }
 }

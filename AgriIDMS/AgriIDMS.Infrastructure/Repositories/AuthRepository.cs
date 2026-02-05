@@ -7,19 +7,6 @@ namespace AgriIDMS.Infrastructure.Repositories;
 
 public class AuthRepository(UserManager<ApplicationUser> userManager) : IAuthRepository
 {
-    public async Task<(bool ok, string userId, string userName)> ValidateUserAsync(string userNameOrEmail, string password)
-    {
-        ApplicationUser? user = userNameOrEmail.Contains("@")
-            ? await userManager.FindByEmailAsync(userNameOrEmail)
-            : await userManager.FindByNameAsync(userNameOrEmail);
-
-        if (user is null) return (false, "", "");
-
-        var ok = await userManager.CheckPasswordAsync(user, password);
-        if (!ok) return (false, "", "");
-
-        return (true, user.Id, user.UserName ?? "");
-    }
 
     public async Task<IList<string>> GetRolesAsync(string userId)
     {

@@ -78,6 +78,7 @@ public static class ServiceRegistration
         services.AddScoped<ITokenGenerator, TokenGenerator>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<UserService>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<AuthService>();
