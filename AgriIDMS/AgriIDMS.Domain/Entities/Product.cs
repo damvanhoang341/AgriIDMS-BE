@@ -17,7 +17,7 @@ namespace AgriIDMS.Domain.Entities
         public string? ImageUrl { get; private set; }
 
         public int CategoryId { get; private set; }
-        //public Category Category { get; private set; } = null!;
+        public Category Category { get; private set; } = null!;
 
         public ProductStatus Status { get; private set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
