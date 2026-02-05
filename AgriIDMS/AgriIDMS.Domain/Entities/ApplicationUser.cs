@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,6 +11,8 @@ namespace AgriIDMS.Domain.Entities
 {
     public class ApplicationUser : IdentityUser
     {
+        public Gender Gender { get; private set; }
+        public DateTime? Dob { get; private set; }
         public string? FullName { get; set; }
         public string? Address { get; set; }
 
@@ -28,6 +31,27 @@ namespace AgriIDMS.Domain.Entities
         public void SetRegisterMethod(RegisterMethod method)
         {
             RegisterMethod = method;
+        }
+
+        // Domain methods
+        public void SetProfile(string fullName, DateTime? dob, Gender gender, string? address)
+        {
+            FullName = fullName;
+            Dob = dob;
+            Gender = gender;
+            Address = address;
+        }
+
+        public int? Age
+        {
+            get
+            {
+                if (Dob == null) return null;
+                var today = DateTime.Today;
+                var age = today.Year - Dob.Value.Year;
+                if (Dob.Value.Date > today.AddYears(-age)) age--;
+                return age;
+            }
         }
     }
 }

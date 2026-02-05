@@ -34,6 +34,21 @@ namespace AgriIDMS.Infrastructure.Data
                       .HasForeignKey(x => x.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+
+            builder.Entity<ApplicationUser>(entity =>
+            {
+                entity.Property(x => x.FullName)
+                      .HasMaxLength(150);
+
+                entity.Property(x => x.Address)
+                      .HasMaxLength(255);
+
+                entity.Property(x => x.Gender)
+                      .HasConversion<int>();
+
+                entity.Property(x => x.Status)
+                      .HasConversion<int>();
+            });
         }
     }
 }
