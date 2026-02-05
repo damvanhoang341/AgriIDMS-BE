@@ -10,7 +10,7 @@ namespace AgriIDMS.Domain.Entities
     {
         public int Id { get; private set; }
 
-        public Guid UserId { get; private set; }
+        public string UserId { get; private set; }
         public ApplicationUser User { get; private set; } = null!;
 
         public int NotificationId { get; private set; }
@@ -21,7 +21,7 @@ namespace AgriIDMS.Domain.Entities
 
         private UserNotification() { }
 
-        public UserNotification(Guid userId, int notificationId)
+        public UserNotification(string userId, int notificationId)
         {
             UserId = userId;
             NotificationId = notificationId;
