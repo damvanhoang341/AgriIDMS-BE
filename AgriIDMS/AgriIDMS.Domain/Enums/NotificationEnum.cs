@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Enums
 {
-    public enum Gender
+    public enum NotificationType
     {
-        Unknown = 0,
-        Male = 1,
-        Female = 2
+        System = 1,
+        Order = 2,
+        Promotion = 3,
+        Warning = 4
     }
 }
