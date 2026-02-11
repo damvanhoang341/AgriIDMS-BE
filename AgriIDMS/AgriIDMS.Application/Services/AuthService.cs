@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace AgriIDMS.Application.Services;
 
@@ -233,11 +234,37 @@ public class AuthService(IAuthRepository authRepo,
                 throw new InvalidBusinessRuleException("UserName đã tồn tại");
         }
 
+        var existedByPhone = await userManager.Users
+            .AnyAsync(x => x.PhoneNumber == request.PhoneNumber.Trim());
+
+        if (existedByPhone)
+            throw new InvalidBusinessRuleException("Số điện thoại đã tồn tại");
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var existedByEmail = await userManager.FindByEmailAsync(request.Email.Trim());
+            if (existedByEmail != null)
+                throw new InvalidBusinessRuleException("Email đã tồn tại");
+        }
+
+        // Email: nếu có thì lấy email user nhập, nếu không thì dùng email hệ thống
+        var email = string.IsNullOrWhiteSpace(request.Email)
+            ? $"{request.UserName}@system.local"
+            : request.Email.Trim();
+
         var user = new ApplicationUser
         {
-            UserName = request.UserName,
-            Email = $"{request.UserName}@system.local",
-            EmailConfirmed = true 
+            UserName = request.UserName.Trim(),
+            Email = email,
+            EmailConfirmed = true,
+
+            PhoneNumber = request.PhoneNumber.Trim(),
+            PhoneNumberConfirmed = true,
+
+            FullName = request.FullName.Trim(),
+            Address = request.Address?.Trim(),
+            Gender = request.Gender,
+            Dob = request.Dob
         };
 
         user.SetUserType(UserType.Customer);

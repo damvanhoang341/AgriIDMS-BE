@@ -29,6 +29,31 @@ namespace AgriIDMS.Application.DTOs.Auth
         @"^(?=.*[A-Z]).*$",
         ErrorMessage = "Password phải chứa ít nhất 1 chữ in hoa")]
         public string Password { get; set; } = null!;
+
+
+        [Required(ErrorMessage = "Số điện thoại là bắt buộc")]
+        [Phone(ErrorMessage = "Số điện thoại không đúng định dạng")]
+        [MaxLength(20, ErrorMessage = "Số điện thoại tối đa 20 ký tự")]
+        public string PhoneNumber { get; set; } = null!;
+
+        [Required(ErrorMessage = "Giới tính là bắt buộc")]
+        public bool Gender { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateTime? Dob { get; set; }
+
+        [Required(ErrorMessage = "Họ tên là bắt buộc")]
+        [MaxLength(100, ErrorMessage = "Họ tên tối đa 100 ký tự")]
+        public string FullName { get; set; } = null!;
+
+        [MaxLength(255, ErrorMessage = "Địa chỉ tối đa 255 ký tự")]
+        public string? Address { get; set; }
+
+        // ===== Optional =====
+
+        [EmailAddress(ErrorMessage = "Email không đúng định dạng")]
+        [MaxLength(150, ErrorMessage = "Email tối đa 150 ký tự")]
+        public string? Email { get; set; }
     }
 
     public class ConfirmEmailRequestDto

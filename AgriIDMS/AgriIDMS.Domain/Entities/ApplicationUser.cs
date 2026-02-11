@@ -11,8 +11,8 @@ namespace AgriIDMS.Domain.Entities
 {
     public class ApplicationUser : IdentityUser
     {
-        public bool Gender { get; private set; }
-        public DateTime? Dob { get; private set; }
+        public bool Gender { get;  set; }
+        public DateTime? Dob { get;  set; }
         public string? FullName { get; set; }
         public string? Address { get; set; }
 
