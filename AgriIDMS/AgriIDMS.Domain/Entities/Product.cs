@@ -9,37 +9,23 @@ namespace AgriIDMS.Domain.Entities
 {
     public class Product
     {
-        public int Id { get; private set; }          
-        public string Name { get; private set; } = null!;
-        public string? Description { get; private set; }
-        public decimal Price { get; private set; }
-        public string Unit { get; private set; } = null!;
-        public string? ImageUrl { get; private set; }
+        public int Id { get;  set; }          
+        public string Name { get;  set; } = null!;
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public string Unit { get; set; } = null!;
+        public bool IsActive { get; set; }
 
-        public int CategoryId { get; private set; }
-        public Category Category { get; private set; } = null!;
+        public int CategoryId { get; set; }
+        public Category Category { get; set; } = null!;
 
-        public ProductStatus Status { get; private set; }
-        public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+        public ProductStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
-        private Product() { }
 
-        public Product(
-            string name,
-            decimal price,
-            string unit,
-            int categoryId,
-            string? description = null,
-            string? imageUrl = null)
-        {
-            Name = name;
-            Price = price;
-            Unit = unit;
-            CategoryId = categoryId;
-            Description = description;
-            ImageUrl = imageUrl;
-            Status = ProductStatus.Active;
-        }
+        public ICollection<Lot> Lots { get; set; } = new List<Lot>();
+        public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
+        public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
 
     }
 }

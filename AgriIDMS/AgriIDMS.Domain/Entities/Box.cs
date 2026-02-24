@@ -24,7 +24,7 @@ namespace AgriIDMS.Domain.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<InventoryTransaction> Transactions { get; set; }
-            = new List<InventoryTransaction>();
+        public ICollection<InventoryTransaction> Transactions { get; set; } = new List<InventoryTransaction>();
+        public ICollection<OrderAllocation> Allocations { get; set; } = new List<OrderAllocation>();
     }
 }

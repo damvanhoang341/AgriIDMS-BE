@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260224142828_AddE-commerce_Flow")]
+    partial class AddEcommerce_Flow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -159,8 +162,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("LotId", "Status", "CreatedAt");
-
                     b.ToTable("Boxes", (string)null);
                 });
 
@@ -247,84 +248,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Categories", (string)null);
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportDetail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("ActualQuantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("BoxId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ExportReceiptId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoxId");
-
-                    b.HasIndex("ExportReceiptId");
-
-                    b.HasIndex("ExportReceiptId", "BoxId")
-                        .IsUnique();
-
-                    b.ToTable("ExportDetails", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ExportDetail_ActualQty_Positive", "[ActualQuantity] > 0");
-                        });
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportReceipt", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("ExportCode")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("ExportCode")
-                        .IsUnique();
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("ExportReceipts", (string)null);
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.GoodsReceipt", b =>
@@ -443,11 +366,11 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.InventoryRequest", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("RequestId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestId"));
 
                     b.Property<DateTime?>("ApprovedAt")
                         .HasColumnType("datetime2");
@@ -488,7 +411,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.HasKey("Id");
+                    b.HasKey("RequestId");
 
                     b.HasIndex("ApprovedBy");
 
@@ -557,8 +480,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasIndex("TransactionType");
 
-                    b.HasIndex("ReferenceType", "ReferenceRequestId");
-
                     b.ToTable("InventoryTransactions", (string)null);
                 });
 
@@ -616,8 +537,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("Status");
-
-                    b.HasIndex("ProductId", "ExpiryDate", "Status");
 
                     b.ToTable("Lots", (string)null);
                 });
@@ -689,61 +608,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.ToTable("Orders", (string)null);
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderAllocation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BoxId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("ExpiredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("OrderDetailId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("PickedQuantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("ReservedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<decimal>("ReservedQuantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoxId");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("OrderDetailId", "BoxId")
-                        .IsUnique();
-
-                    b.ToTable("OrderAllocations", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_OrderAllocation_PickedQty_Valid", "[PickedQuantity] IS NULL OR [PickedQuantity] >= 0");
-
-                            t.HasCheckConstraint("CK_OrderAllocation_ReservedQty_Positive", "[ReservedQuantity] > 0");
-                        });
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderDetail", b =>
                 {
                     b.Property<int>("Id")
@@ -752,9 +616,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("FulfilledQuantity")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
@@ -762,9 +623,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ShortageQuantity")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnitPrice")
@@ -777,47 +635,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderDetails", (string)null);
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Payment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("OrderId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("PaymentMethod")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PaymentStatus")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TransactionCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("TransactionCode")
-                        .IsUnique()
-                        .HasFilter("[TransactionCode] IS NOT NULL");
-
-                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Product", b =>
@@ -930,40 +747,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Refund", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("PaymentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RefundTransactionCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaymentId");
-
-                    b.ToTable("Refunds", (string)null);
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Slot", b =>
                 {
                     b.Property<int>("Id")
@@ -981,9 +764,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("CurrentCapacity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("QrCode")
                         .HasMaxLength(200)
@@ -1407,44 +1188,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportDetail", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.Box", "Box")
-                        .WithMany()
-                        .HasForeignKey("BoxId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.ExportReceipt", "ExportReceipt")
-                        .WithMany("Details")
-                        .HasForeignKey("ExportReceiptId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Box");
-
-                    b.Navigation("ExportReceipt");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportReceipt", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "CreatedUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CreatedUser");
-
-                    b.Navigation("Order");
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.GoodsReceipt", b =>
                 {
                     b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "ApprovedUser")
@@ -1587,33 +1330,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderAllocation", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.Box", "Box")
-                        .WithMany("Allocations")
-                        .HasForeignKey("BoxId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.OrderDetail", "OrderDetail")
-                        .WithMany("Allocations")
-                        .HasForeignKey("OrderDetailId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.Order", "Order")
-                        .WithMany("Allocations")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Box");
-
-                    b.Navigation("Order");
-
-                    b.Navigation("OrderDetail");
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderDetail", b =>
                 {
                     b.HasOne("AgriIDMS.Domain.Entities.Order", "Order")
@@ -1631,17 +1347,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Payment", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.Order", "Order")
-                        .WithMany("Payments")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Product", b =>
@@ -1675,17 +1380,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Refund", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.Payment", "Payment")
-                        .WithMany("Refunds")
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Slot", b =>
@@ -1839,8 +1533,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Box", b =>
                 {
-                    b.Navigation("Allocations");
-
                     b.Navigation("Transactions");
                 });
 
@@ -1852,11 +1544,6 @@ namespace AgriIDMS.Infrastructure.Migrations
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Products");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportReceipt", b =>
-                {
-                    b.Navigation("Details");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.GoodsReceipt", b =>
@@ -1886,21 +1573,7 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Order", b =>
                 {
-                    b.Navigation("Allocations");
-
                     b.Navigation("Details");
-
-                    b.Navigation("Payments");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderDetail", b =>
-                {
-                    b.Navigation("Allocations");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Payment", b =>
-                {
-                    b.Navigation("Refunds");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Product", b =>

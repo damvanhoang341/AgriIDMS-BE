@@ -28,6 +28,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StockCheck> StockChecks => Set<StockCheck>();
     public DbSet<StockCheckDetail> StockCheckDetails => Set<StockCheckDetail>();
     public DbSet<InventoryRequest> InventoryRequest => Set<InventoryRequest>();
+    public DbSet<Cart> Carts => Set<Cart>();
+    public DbSet<CartItem> CartItems => Set<CartItem>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderDetail> OrderDetails => Set<OrderDetail>();
+    public DbSet<OrderAllocation> OrderAllocations => Set<OrderAllocation>();
+    public DbSet<ExportReceipt> ExportReceipts => Set<ExportReceipt>();
+    public DbSet<ExportDetail> ExportDetails => Set<ExportDetail>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Refund> Refunds => Set<Refund>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -91,8 +100,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("Products");
 
+            // =============================
             // Primary Key
+            // =============================
             entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Id)
+                  .ValueGeneratedOnAdd();
 
             // =============================
             // Properties
@@ -113,29 +127,50 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired()
                   .HasMaxLength(50);
 
-            entity.Property(x => x.ImageUrl)
-                  .HasMaxLength(500);
-
             entity.Property(x => x.Status)
                   .HasConversion<string>()
                   .HasMaxLength(30)
                   .IsRequired();
 
+            entity.Property(x => x.IsActive)
+                  .HasDefaultValue(true);
+
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .ValueGeneratedOnAdd();
 
             // =============================
             // Relationships
             // =============================
 
+            // Category (1 - N)
             entity.HasOne(x => x.Category)
                   .WithMany(c => c.Products)
                   .HasForeignKey(x => x.CategoryId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            // GoodsReceiptDetail (1 - N)
             entity.HasMany(x => x.GoodsReceiptDetails)
                   .WithOne(d => d.Product)
                   .HasForeignKey(d => d.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Lot (1 - N)  🔥 QUAN TRỌNG CHO FEFO
+            entity.HasMany(x => x.Lots)
+                  .WithOne(l => l.Product)
+                  .HasForeignKey(l => l.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // CartItem (1 - N)
+            entity.HasMany(x => x.CartItems)
+                  .WithOne(ci => ci.Product)
+                  .HasForeignKey(ci => ci.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // OrderDetail (1 - N)
+            entity.HasMany(x => x.OrderDetails)
+                  .WithOne(od => od.Product)
+                  .HasForeignKey(od => od.ProductId)
                   .OnDelete(DeleteBehavior.Restrict);
 
             // =============================
@@ -143,7 +178,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             // =============================
 
             entity.HasIndex(x => x.Name);
+
             entity.HasIndex(x => x.Status);
+
+            entity.HasIndex(x => new { x.CategoryId, x.Status });
         });
 
         // ===================== Notification =====================
@@ -320,17 +358,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey<Lot>(l => l.GoodsReceiptDetailId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // ==============================
-            // Index tối ưu query
-            // ==============================
-
             entity.HasIndex(x => x.GoodsReceiptId);
             entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.QCResult);
             entity.HasIndex(x => x.ExpiryDate);
         });
 
-        //lot
+        //============================== lot ==============================
         builder.Entity<Lot>(entity =>
         {
             entity.ToTable("Lots");
@@ -375,12 +409,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             // Relationships
             // =============================
 
-            // Product (1 - many)
-            entity.HasOne(x => x.Product)
-                  .WithMany()
-                  .HasForeignKey(x => x.ProductId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
             // GoodsReceiptDetail (1 - 1)
             entity.HasOne(x => x.GoodsReceiptDetail)
                   .WithOne(d => d.Lot)
@@ -400,9 +428,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.ExpiryDate);
             entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => new { x.ProductId, x.ExpiryDate, x.Status });
         });
 
-        //box
+        //============================= box =============================
         builder.Entity<Box>(entity =>
         {
             entity.ToTable("Boxes");
@@ -458,13 +487,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(t => t.BoxId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // =============================
-            // Index tối ưu truy vấn
-            // =============================
-
             entity.HasIndex(x => x.LotId);
             entity.HasIndex(x => x.SlotId);
             entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => new { x.LotId, x.Status, x.CreatedAt });
         });
 
         //Supplier
@@ -503,34 +529,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
 
-            // =============================
-            // Relationships
-            // =============================
 
             entity.HasMany(x => x.GoodsReceipts)
                   .WithOne(r => r.Supplier)
                   .HasForeignKey(r => r.SupplierId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // =============================
-            // Index
-            // =============================
-
             entity.HasIndex(x => x.Name);
             entity.HasIndex(x => x.Status);
         });
 
-        //inventory transaction
+        // ===================== InventoryTransaction =====================
         builder.Entity<InventoryTransaction>(entity =>
         {
             entity.ToTable("InventoryTransactions");
 
-            // Primary Key
             entity.HasKey(x => x.Id);
-
-            // =============================
-            // Properties
-            // =============================
 
             entity.Property(x => x.TransactionType)
                   .HasConversion<string>()
@@ -547,10 +561,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
-
-            // =============================
-            // Relationships
-            // =============================
 
             // Box (1 - many)
             entity.HasOne(x => x.Box)
@@ -580,9 +590,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
               .WithMany(x => x.Transactions)
               .HasForeignKey(x => x.ReferenceRequestId)
               .OnDelete(DeleteBehavior.Restrict);
-            // =============================
-            // Index
-            // =============================
 
             entity.HasIndex(x => x.BoxId);
             entity.HasIndex(x => x.TransactionType);
@@ -594,7 +601,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("InventoryRequest");
 
-            entity.HasKey(x => x.RequestId);
+            entity.HasKey(x => x.Id);
 
             entity.Property(x => x.RequestType)
                   .HasConversion<int>()
@@ -716,7 +723,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsUnique();
         });
 
-        //slot
+        //===================== Slot =====================
         builder.Entity<Slot>(entity =>
         {
             entity.ToTable("Slots");
@@ -727,13 +734,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired()
                   .HasMaxLength(100);
 
+            entity.Property(x => x.CurrentCapacity)
+                  .HasColumnType("decimal(18,2)")
+                  .HasDefaultValue(0);
+
             entity.Property(x => x.QrCode)
                   .HasMaxLength(200);
 
             entity.Property(x => x.Capacity)
-                  .HasColumnType("decimal(18,2)");
-
-            entity.Property(x => x.CurrentCapacity)
                   .HasColumnType("decimal(18,2)");
 
             // Rack - Slot (1 - many)
@@ -829,6 +837,387 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(x => x.StockCheckId);
             entity.HasIndex(x => x.BoxId);
+        });
+
+        // ===================== Cart =====================
+        builder.Entity<Cart>(entity =>
+        {
+            entity.ToTable("Carts");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.Property(x => x.UpdatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            // Mỗi user chỉ có 1 cart
+            entity.HasIndex(x => x.UserId)
+                  .IsUnique();
+
+            entity.HasOne<ApplicationUser>()
+                  .WithMany()
+                  .HasForeignKey(x => x.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(x => x.Items)
+                  .WithOne(i => i.Cart)
+                  .HasForeignKey(i => i.CartId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ===================== CartItem =====================
+        builder.Entity<CartItem>(entity =>
+        {
+            entity.ToTable("CartItems");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Quantity)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.UnitPrice)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            // 1 sản phẩm chỉ xuất hiện 1 lần trong 1 cart
+            entity.HasIndex(x => new { x.CartId, x.ProductId })
+                  .IsUnique();
+
+            entity.HasOne(x => x.Cart)
+                  .WithMany(c => c.Items)
+                  .HasForeignKey(x => x.CartId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Product)
+                  .WithMany(p => p.CartItems)
+                  .HasForeignKey(x => x.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+        });
+
+        // ===================== Order =====================
+        builder.Entity<Order>(entity =>
+        {
+            entity.ToTable("Orders");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.TotalAmount)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.HasOne<ApplicationUser>()
+                  .WithMany()
+                  .HasForeignKey(x => x.UserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(x => x.Details)
+                  .WithOne(d => d.Order)
+                  .HasForeignKey(d => d.OrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.Status);
+        });
+
+        // ===================== OrderDetail =====================
+        builder.Entity<OrderDetail>(entity =>
+        {
+            entity.ToTable("OrderDetails");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Quantity)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.UnitPrice)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+            entity.Property(x => x.FulfilledQuantity)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.ShortageQuantity)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.HasOne(x => x.Order)
+                  .WithMany(o => o.Details)
+                  .HasForeignKey(x => x.OrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Product)
+                  .WithMany(p => p.OrderDetails)
+                  .HasForeignKey(x => x.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.OrderId);
+            entity.HasIndex(x => x.ProductId);
+        });
+
+        // ===================== Payment =====================
+        builder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("Payments");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.PaymentStatus)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.TransactionCode)
+                  .HasMaxLength(100);
+
+            entity.Property(x => x.Amount)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.PaidAt)
+                  .IsRequired(false);
+
+            entity.Property(x => x.CreatedAt)
+                  .IsRequired();
+
+            entity.HasOne(x => x.Order)
+                  .WithMany(o => o.Payments)
+                  .HasForeignKey(x => x.OrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.TransactionCode)
+                  .IsUnique()
+                  .HasFilter("[TransactionCode] IS NOT NULL");
+        });
+
+        // ===================== Refund =====================
+        builder.Entity<Refund>(entity =>
+        {
+            entity.ToTable("Refunds");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Amount)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.Status)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.RefundTransactionCode)
+                  .HasMaxLength(100);
+
+            entity.Property(x => x.CreatedAt)
+                  .IsRequired();
+
+            entity.Property(x => x.CompletedAt)
+                  .IsRequired(false);
+
+            entity.HasOne(x => x.Payment)
+                  .WithMany(p => p.Refunds)
+                  .HasForeignKey(x => x.PaymentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<InventoryTransaction>()
+               .HasIndex(x => new { x.ReferenceType, x.ReferenceRequestId });
+
+        // ===================== OrderAllocation =====================
+        builder.Entity<OrderAllocation>(entity =>
+        {
+            entity.ToTable("OrderAllocations");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.ReservedQuantity)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.PickedQuantity)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .IsRequired();
+
+            entity.Property(x => x.ReservedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.Property(x => x.ExpiredAt)
+                  .IsRequired(false);
+
+            // =============================
+            // Check Constraints
+            // =============================
+
+            entity.HasCheckConstraint(
+                "CK_OrderAllocation_ReservedQty_Positive",
+                "[ReservedQuantity] > 0");
+
+            entity.HasCheckConstraint(
+                "CK_OrderAllocation_PickedQty_Valid",
+                "[PickedQuantity] IS NULL OR [PickedQuantity] >= 0");
+
+            // =============================
+            // Relationships
+            // =============================
+
+            // Order (1 - many)
+            entity.HasOne(x => x.Order)
+                  .WithMany(o => o.Allocations)
+                  .HasForeignKey(x => x.OrderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // OrderDetail (1 - many)
+            entity.HasOne(x => x.OrderDetail)
+                  .WithMany(o => o.Allocations)
+                  .HasForeignKey(x => x.OrderDetailId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Box (1 - many)
+            entity.HasOne(x => x.Box)
+                  .WithMany(o => o.Allocations)
+                  .HasForeignKey(x => x.BoxId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // =============================
+            // Index tối ưu outbound
+            // =============================
+
+            // Query theo Order
+            entity.HasIndex(x => x.OrderId);
+
+            // Query theo Box (kiểm tra box đã reserve chưa)
+            entity.HasIndex(x => x.BoxId);
+
+            // Query theo trạng thái
+            entity.HasIndex(x => x.Status);
+
+            // Ngăn 1 box được reserve 2 lần cùng 1 order detail
+            entity.HasIndex(x => new { x.OrderDetailId, x.BoxId })
+                  .IsUnique();
+        });
+
+        // ===================== ExportReceipt =====================
+        builder.Entity<ExportReceipt>(entity =>
+        {
+            entity.ToTable("ExportReceipts");
+
+            // =============================
+            // Primary Key
+            // =============================
+            entity.HasKey(x => x.Id);
+
+            // =============================
+            // Properties
+            // =============================
+
+            entity.Property(x => x.ExportCode)
+                  .IsRequired()
+                  .HasMaxLength(100);
+
+            entity.HasIndex(x => x.ExportCode)
+                  .IsUnique();
+
+            entity.Property(x => x.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            // =============================
+            // Relationships
+            // =============================
+
+            // Order (1 - many ExportReceipt nếu cho phép partial shipment)
+            entity.HasOne(x => x.Order)
+                  .WithMany()
+                  .HasForeignKey(x => x.OrderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // CreatedUser
+            entity.HasOne(x => x.CreatedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.CreatedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Details (1 - many)
+            entity.HasMany(x => x.Details)
+                  .WithOne(d => d.ExportReceipt)
+                  .HasForeignKey(d => d.ExportReceiptId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // =============================
+            // Index tối ưu outbound
+            // =============================
+
+            entity.HasIndex(x => x.OrderId);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.CreatedAt);
+        });
+
+        // ===================== ExportDetail =====================
+        builder.Entity<ExportDetail>(entity =>
+        {
+            entity.ToTable("ExportDetails");
+
+            // =============================
+            // Primary Key
+            // =============================
+            entity.HasKey(x => x.Id);
+
+            // =============================
+            // Properties
+            // =============================
+
+            entity.Property(x => x.ActualQuantity)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.HasCheckConstraint(
+                "CK_ExportDetail_ActualQty_Positive",
+                "[ActualQuantity] > 0");
+
+            // =============================
+            // Relationships
+            // =============================
+
+            // ExportReceipt (1 - many)
+            entity.HasOne(x => x.ExportReceipt)
+                  .WithMany(r => r.Details)
+                  .HasForeignKey(x => x.ExportReceiptId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Box (1 - many)
+            entity.HasOne(x => x.Box)
+                  .WithMany()
+                  .HasForeignKey(x => x.BoxId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // =============================
+            // Index tối ưu outbound
+            // =============================
+
+            entity.HasIndex(x => x.ExportReceiptId);
+
+            entity.HasIndex(x => x.BoxId);
+
+            // Không cho 1 box xuất 2 lần trong cùng 1 phiếu
+            entity.HasIndex(x => new { x.ExportReceiptId, x.BoxId })
+                  .IsUnique();
         });
     }
 }
