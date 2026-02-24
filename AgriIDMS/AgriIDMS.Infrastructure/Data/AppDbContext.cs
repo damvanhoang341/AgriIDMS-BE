@@ -1,4 +1,5 @@
 ﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Zone> Zones => Set<Zone>();
     public DbSet<Rack> Racks => Set<Rack>();
     public DbSet<Slot> Slots => Set<Slot>();
+    public DbSet<StockCheck> StockChecks => Set<StockCheck>();
+    public DbSet<StockCheckDetail> StockCheckDetails => Set<StockCheckDetail>();
+    public DbSet<InventoryRequest> InventoryRequest => Set<InventoryRequest>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -572,6 +576,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.ToSlotId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(x => x.InventoryRequest)
+              .WithMany(x => x.Transactions)
+              .HasForeignKey(x => x.ReferenceRequestId)
+              .OnDelete(DeleteBehavior.Restrict);
             // =============================
             // Index
             // =============================
@@ -579,6 +587,41 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.BoxId);
             entity.HasIndex(x => x.TransactionType);
             entity.HasIndex(x => x.CreatedAt);
+        });
+
+        //InventoryRequest
+        builder.Entity<InventoryRequest>(entity =>
+        {
+            entity.ToTable("InventoryRequest");
+
+            entity.HasKey(x => x.RequestId);
+
+            entity.Property(x => x.RequestType)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.ReferenceType)
+                  .HasConversion<int>();
+
+            entity.Property(x => x.Status)
+                  .HasConversion<int>()
+                  .HasDefaultValue(InventoryRequestStatus.Pending);
+
+            entity.Property(x => x.Reason)
+                  .HasMaxLength(255);
+
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETDATE()");
+
+            entity.HasOne(x => x.CreatedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.CreatedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ApprovedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.ApprovedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         //Warehouse
@@ -705,6 +748,87 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             // Index tìm nhanh theo QR
             entity.HasIndex(x => x.QrCode);
+        });
+
+        // ===================== StockCheck =====================
+        builder.Entity<StockCheck>(entity =>
+        {
+            entity.ToTable("StockChecks");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.CheckType)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.Status)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            entity.Property(x => x.SnapshotAt);
+
+            entity.HasOne(x => x.Warehouse)
+                  .WithMany()
+                  .HasForeignKey(x => x.WarehouseId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.CreatedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.CreatedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ApprovedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.ApprovedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(x => x.Details)
+                  .WithOne(d => d.StockCheck)
+                  .HasForeignKey(d => d.StockCheckId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.WarehouseId);
+            entity.HasIndex(x => x.Status);
+        });
+
+        // ===================== StockCheckDetail =====================
+        builder.Entity<StockCheckDetail>(entity =>
+        {
+            entity.ToTable("StockCheckDetails");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.SnapshotWeight)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.CurrentSystemWeight)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.CountedWeight)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.DifferenceWeight)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.VarianceType)
+                  .HasConversion<int>();
+
+            entity.HasOne(x => x.Box)
+                  .WithMany()
+                  .HasForeignKey(x => x.BoxId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.CountedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.CountedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.StockCheckId);
+            entity.HasIndex(x => x.BoxId);
         });
     }
 }
