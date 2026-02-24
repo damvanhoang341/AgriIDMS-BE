@@ -25,9 +25,11 @@ namespace AgriIDMS.Domain.Enums
     public enum BoxStatus
     {
         Stored,
-        Moved,
         Reserved,
-        Exported
+        Picking,
+        Exported,
+        Damaged,
+        Expired
     }
 
     public enum QCResult

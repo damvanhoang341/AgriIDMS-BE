@@ -9,7 +9,7 @@ namespace AgriIDMS.Domain.Entities
 {
     public class InventoryRequest
     {
-        public int RequestId { get; set; }
+        public int Id { get; set; }
 
         public InventoryRequestType RequestType { get; set; }
 
