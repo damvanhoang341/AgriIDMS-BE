@@ -22,11 +22,13 @@ namespace AgriIDMS.Domain.Entities
         public decimal Quantity { get; set; }
 
         public ReferenceType? ReferenceType { get; set; }
-        public int? ReferenceId { get; set; }
+        public int? ReferenceRequestId { get; set; }
 
         public string CreatedBy { get; set; }
         public ApplicationUser CreatedUser { get; set; } = null!;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public int? InventoryRequestId { get; set; }
+        public InventoryRequest? InventoryRequest { get; set; }
     }
 }
