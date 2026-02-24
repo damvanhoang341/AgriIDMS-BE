@@ -13,4 +13,9 @@ namespace AgriIDMS.Domain.Enums
         Locked = 3,
         Deleted = 4
     }
+    public enum SupplierStatus
+    {
+        Active = 0,
+        Inactive = 1
+    }
 }

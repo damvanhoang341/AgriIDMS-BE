@@ -12,6 +12,8 @@ namespace AgriIDMS.Domain.Entities
         public int Id { get; private set; }
         public NotificationType Type { get; private set; }
         public string Message { get; private set; } = null!;
+        public string? ReferenceType { get; set; }
+        public int? ReferenceId { get; set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
 
         public ICollection<UserNotification> UserNotifications { get; private set; }

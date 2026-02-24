@@ -21,7 +21,7 @@ namespace AgriIDMS.Domain.Entities
 
         public ProductStatus Status { get; private set; }
         public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-
+        public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
         private Product() { }
 
         public Product(
@@ -40,5 +40,6 @@ namespace AgriIDMS.Domain.Entities
             ImageUrl = imageUrl;
             Status = ProductStatus.Active;
         }
+
     }
 }
