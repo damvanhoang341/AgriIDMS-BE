@@ -20,6 +20,7 @@ namespace AgriIDMS.Domain.Entities
 
         public ICollection<Lot> Lots { get; set; } = new List<Lot>();
         public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
+        public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
     }
 }

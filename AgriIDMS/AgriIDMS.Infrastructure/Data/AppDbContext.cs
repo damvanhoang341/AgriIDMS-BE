@@ -318,10 +318,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.GoodsReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // Product (1 - many)
-            entity.HasOne(x => x.Product)
+            // ProductVariant (1 - many)
+            entity.HasOne(x => x.ProductVariant)
                   .WithMany(p => p.GoodsReceiptDetails)
-                  .HasForeignKey(x => x.ProductId)
+                  .HasForeignKey(x => x.ProductVariantId)
                   .OnDelete(DeleteBehavior.Restrict);
 
             // InspectedBy (User) (1 - many)
@@ -337,7 +337,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(x => x.GoodsReceiptId);
-            entity.HasIndex(x => x.ProductId);
+            entity.HasIndex(x => x.ProductVariantId);
             entity.HasIndex(x => x.QCResult);
             entity.HasIndex(x => x.ExpiryDate);
         });

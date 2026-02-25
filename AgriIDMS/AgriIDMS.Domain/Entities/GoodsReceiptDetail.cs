@@ -14,8 +14,8 @@ namespace AgriIDMS.Domain.Entities
         public int GoodsReceiptId { get; set; }
         public GoodsReceipt GoodsReceipt { get; set; } = null!;
 
-        public int ProductId { get; set; }
-        public Product Product { get; set; } = null!;
+        public int ProductVariantId { get; set; }
+        public ProductVariant ProductVariant { get; set; } = null!;
 
         public decimal EstimatedQuantity { get; set; }
         public decimal? ActualQuantity { get; set; }
