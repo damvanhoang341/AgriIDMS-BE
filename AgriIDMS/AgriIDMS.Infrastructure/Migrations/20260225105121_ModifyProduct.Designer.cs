@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260225105121_ModifyProduct")]
+    partial class ModifyProduct
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1048,52 +1051,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.ToTable("Refunds", (string)null);
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Review", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<bool>("IsApproved")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("OrderDetailId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductVariantId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Rating")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsApproved");
-
-                    b.HasIndex("OrderDetailId")
-                        .IsUnique();
-
-                    b.HasIndex("ProductVariantId");
-
-                    b.ToTable("Reviews", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
-                        });
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Slot", b =>
                 {
                     b.Property<int>("Id")
@@ -1862,25 +1819,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("Payment");
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Review", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.OrderDetail", "OrderDetail")
-                        .WithOne("Review")
-                        .HasForeignKey("AgriIDMS.Domain.Entities.Review", "OrderDetailId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
-                        .WithMany("Reviews")
-                        .HasForeignKey("ProductVariantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("OrderDetail");
-
-                    b.Navigation("ProductVariant");
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Slot", b =>
                 {
                     b.HasOne("AgriIDMS.Domain.Entities.Rack", "Rack")
@@ -2094,8 +2032,6 @@ namespace AgriIDMS.Infrastructure.Migrations
             modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderDetail", b =>
                 {
                     b.Navigation("Allocations");
-
-                    b.Navigation("Review");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Payment", b =>
@@ -2115,8 +2051,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("Lots");
 
                     b.Navigation("OrderDetails");
-
-                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>
