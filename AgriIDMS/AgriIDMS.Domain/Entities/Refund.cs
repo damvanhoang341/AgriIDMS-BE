@@ -23,5 +23,7 @@ namespace AgriIDMS.Domain.Entities
         public DateTime CreatedAt { get; set; }
 
         public DateTime? CompletedAt { get; set; }
+        public int? ComplaintId { get; set; }
+        public Complaint? Complaint { get; set; }
     }
 }

@@ -37,6 +37,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ExportDetail> ExportDetails => Set<ExportDetail>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Refund> Refunds => Set<Refund>();
+    public DbSet<Complaint> Complaints => Set<Complaint>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -100,17 +101,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("Products");
 
-            // =============================
-            // Primary Key
-            // =============================
             entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.Id)
-                  .ValueGeneratedOnAdd();
-
-            // =============================
-            // Properties
-            // =============================
 
             entity.Property(x => x.Name)
                   .IsRequired()
@@ -119,29 +110,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Description)
                   .HasMaxLength(1000);
 
-            entity.Property(x => x.Price)
-                  .HasColumnType("decimal(18,2)")
-                  .IsRequired();
-
-            entity.Property(x => x.Unit)
-                  .IsRequired()
-                  .HasMaxLength(50);
-
-            entity.Property(x => x.Status)
-                  .HasConversion<string>()
-                  .HasMaxLength(30)
-                  .IsRequired();
-
             entity.Property(x => x.IsActive)
                   .HasDefaultValue(true);
 
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()")
-                  .ValueGeneratedOnAdd();
-
-            // =============================
-            // Relationships
-            // =============================
+                  .HasDefaultValueSql("GETUTCDATE()");
 
             // Category (1 - N)
             entity.HasOne(x => x.Category)
@@ -149,39 +122,55 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.CategoryId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // GoodsReceiptDetail (1 - N)
-            entity.HasMany(x => x.GoodsReceiptDetails)
-                  .WithOne(d => d.Product)
-                  .HasForeignKey(d => d.ProductId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            // Lot (1 - N)  🔥 QUAN TRỌNG CHO FEFO
-            entity.HasMany(x => x.Lots)
-                  .WithOne(l => l.Product)
-                  .HasForeignKey(l => l.ProductId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            // CartItem (1 - N)
-            entity.HasMany(x => x.CartItems)
-                  .WithOne(ci => ci.Product)
-                  .HasForeignKey(ci => ci.ProductId)
+            // Product - Variants (1 - N)
+            entity.HasMany(x => x.Variants)
+                  .WithOne(v => v.Product)
+                  .HasForeignKey(v => v.ProductId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // OrderDetail (1 - N)
-            entity.HasMany(x => x.OrderDetails)
-                  .WithOne(od => od.Product)
-                  .HasForeignKey(od => od.ProductId)
+            entity.HasIndex(x => x.Name);
+            entity.HasIndex(x => x.CategoryId);
+        });
+
+        // ===================== ProductVariant =====================
+        builder.Entity<ProductVariant>(entity =>
+        {
+            entity.ToTable("ProductVariants");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Grade)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.Price)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.IsActive)
+                  .HasDefaultValue(true);
+
+            // Product (1 - N)
+            entity.HasOne(x => x.Product)
+                  .WithMany(p => p.Variants)
+                  .HasForeignKey(x => x.ProductId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Variant - Lot (1 - N)
+            entity.HasMany(x => x.Lots)
+                  .WithOne(l => l.ProductVariant)
+                  .HasForeignKey(l => l.ProductVariantId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // =============================
-            // Index
-            // =============================
+            // Variant - OrderDetail
+            entity.HasMany(x => x.OrderDetails)
+                  .WithOne(o => o.ProductVariant)
+                  .HasForeignKey(o => o.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(x => x.Name);
-
-            entity.HasIndex(x => x.Status);
-
-            entity.HasIndex(x => new { x.CategoryId, x.Status });
+            // Unique: 1 Product chỉ có 1 Grade A
+            entity.HasIndex(x => new { x.ProductId, x.Grade })
+                  .IsUnique();
         });
 
         // ===================== Notification =====================
@@ -302,12 +291,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("GoodsReceiptDetails");
 
-            // Primary Key
             entity.HasKey(x => x.Id);
 
-            // ==============================
-            // Decimal precision
-            // ==============================
             entity.Property(x => x.EstimatedQuantity)
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
@@ -319,9 +304,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
 
-            // ==============================
-            // Enum
-            // ==============================
             entity.Property(x => x.QCResult)
                   .HasConversion<string>()
                   .HasMaxLength(30)
@@ -329,10 +311,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.QCNote)
                   .HasMaxLength(500);
-
-            // ==============================
-            // Relationships
-            // ==============================
 
             // GoodsReceipt (1 - many)
             entity.HasOne(x => x.GoodsReceipt)
@@ -369,12 +347,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("Lots");
 
-            // Primary Key
             entity.HasKey(x => x.Id);
-
-            // =============================
-            // Properties
-            // =============================
 
             entity.Property(x => x.LotCode)
                   .IsRequired()
@@ -405,10 +378,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ReceivedDate)
                   .IsRequired();
 
-            // =============================
-            // Relationships
-            // =============================
-
             // GoodsReceiptDetail (1 - 1)
             entity.HasOne(x => x.GoodsReceiptDetail)
                   .WithOne(d => d.Lot)
@@ -421,14 +390,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(b => b.LotId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // =============================
-            // Index tối ưu FEFO
-            // =============================
+            entity.HasIndex(x => x.ProductVariantId);
+            entity.HasIndex(x => new { x.ProductVariantId, x.ExpiryDate, x.Status });
 
-            entity.HasIndex(x => x.ProductId);
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany(v => v.Lots)
+                  .HasForeignKey(x => x.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(x => x.ExpiryDate);
             entity.HasIndex(x => x.Status);
-            entity.HasIndex(x => new { x.ProductId, x.ExpiryDate, x.Status });
         });
 
         //============================= box =============================
@@ -594,6 +565,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.BoxId);
             entity.HasIndex(x => x.TransactionType);
             entity.HasIndex(x => x.CreatedAt);
+            entity.HasIndex(x => new { x.ReferenceType, x.ReferenceRequestId });
         });
 
         //InventoryRequest
@@ -883,7 +855,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
 
             // 1 sản phẩm chỉ xuất hiện 1 lần trong 1 cart
-            entity.HasIndex(x => new { x.CartId, x.ProductId })
+            entity.HasIndex(x => new { x.CartId, x.ProductVariantId })
                   .IsUnique();
 
             entity.HasOne(x => x.Cart)
@@ -891,10 +863,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.CartId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(x => x.Product)
-                  .WithMany(p => p.CartItems)
-                  .HasForeignKey(x => x.ProductId)
-                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany()
+                  .HasForeignKey(x => x.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
         });
 
@@ -956,13 +928,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.OrderId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(x => x.Product)
-                  .WithMany(p => p.OrderDetails)
-                  .HasForeignKey(x => x.ProductId)
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany(v => v.OrderDetails)
+                  .HasForeignKey(x => x.ProductVariantId)
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(x => x.OrderId);
-            entity.HasIndex(x => x.ProductId);
+            entity.HasIndex(x => x.ProductVariantId);
         });
 
         // ===================== Payment =====================
@@ -1027,10 +999,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(p => p.Refunds)
                   .HasForeignKey(x => x.PaymentId)
                   .OnDelete(DeleteBehavior.Cascade);
-        });
 
-        builder.Entity<InventoryTransaction>()
-               .HasIndex(x => new { x.ReferenceType, x.ReferenceRequestId });
+            entity.HasOne(x => x.Complaint)
+                  .WithMany(c => c.Refunds)
+                  .HasForeignKey(x => x.ComplaintId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
 
         // ===================== OrderAllocation =====================
         builder.Entity<OrderAllocation>(entity =>
@@ -1057,10 +1031,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ExpiredAt)
                   .IsRequired(false);
 
-            // =============================
-            // Check Constraints
-            // =============================
-
             entity.HasCheckConstraint(
                 "CK_OrderAllocation_ReservedQty_Positive",
                 "[ReservedQuantity] > 0");
@@ -1068,10 +1038,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasCheckConstraint(
                 "CK_OrderAllocation_PickedQty_Valid",
                 "[PickedQuantity] IS NULL OR [PickedQuantity] >= 0");
-
-            // =============================
-            // Relationships
-            // =============================
 
             // Order (1 - many)
             entity.HasOne(x => x.Order)
@@ -1090,10 +1056,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(o => o.Allocations)
                   .HasForeignKey(x => x.BoxId)
                   .OnDelete(DeleteBehavior.Restrict);
-
-            // =============================
-            // Index tối ưu outbound
-            // =============================
 
             // Query theo Order
             entity.HasIndex(x => x.OrderId);
@@ -1114,14 +1076,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("ExportReceipts");
 
-            // =============================
-            // Primary Key
-            // =============================
             entity.HasKey(x => x.Id);
-
-            // =============================
-            // Properties
-            // =============================
 
             entity.Property(x => x.ExportCode)
                   .IsRequired()
@@ -1137,10 +1092,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
-
-            // =============================
-            // Relationships
-            // =============================
 
             // Order (1 - many ExportReceipt nếu cho phép partial shipment)
             entity.HasOne(x => x.Order)
@@ -1160,10 +1111,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(d => d.ExportReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // =============================
-            // Index tối ưu outbound
-            // =============================
-
             entity.HasIndex(x => x.OrderId);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.CreatedAt);
@@ -1174,14 +1121,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.ToTable("ExportDetails");
 
-            // =============================
-            // Primary Key
-            // =============================
             entity.HasKey(x => x.Id);
-
-            // =============================
-            // Properties
-            // =============================
 
             entity.Property(x => x.ActualQuantity)
                   .HasColumnType("decimal(18,2)")
@@ -1190,10 +1130,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasCheckConstraint(
                 "CK_ExportDetail_ActualQty_Positive",
                 "[ActualQuantity] > 0");
-
-            // =============================
-            // Relationships
-            // =============================
 
             // ExportReceipt (1 - many)
             entity.HasOne(x => x.ExportReceipt)
@@ -1207,10 +1143,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.BoxId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // =============================
-            // Index tối ưu outbound
-            // =============================
-
             entity.HasIndex(x => x.ExportReceiptId);
 
             entity.HasIndex(x => x.BoxId);
@@ -1218,6 +1150,104 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             // Không cho 1 box xuất 2 lần trong cùng 1 phiếu
             entity.HasIndex(x => new { x.ExportReceiptId, x.BoxId })
                   .IsUnique();
+        });
+
+        // ============================= Complaint =============================
+        builder.Entity<Complaint>(entity =>
+        {
+            entity.ToTable("Complaints");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Type)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.Status)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.DamagedQuantity)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.Description)
+                  .HasMaxLength(500);
+
+            entity.Property(x => x.CustomerEvidenceUrl)
+                  .HasMaxLength(500);
+
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            // Order
+            entity.HasOne(x => x.Order)
+                  .WithMany()
+                  .HasForeignKey(x => x.OrderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Box
+            entity.HasOne(x => x.Box)
+                  .WithMany()
+                  .HasForeignKey(x => x.BoxId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Verified user
+            entity.HasOne(x => x.VerifiedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.VerifiedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.OrderId);
+            entity.HasIndex(x => x.BoxId);
+            entity.HasIndex(x => x.Status);
+        });
+
+        // ============================= Review =============================
+        builder.Entity<Review>(entity =>
+        {
+            entity.ToTable("Reviews");
+
+            entity.HasKey(x => x.Id);
+
+            // Rating
+            entity.Property(x => x.Rating)
+                  .IsRequired();
+
+            // Giới hạn rating 1-5 (DB level constraint)
+            entity.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+
+            // Comment
+            entity.Property(x => x.Comment)
+                  .HasMaxLength(1000);
+
+            // IsApproved
+            entity.Property(x => x.IsApproved)
+                  .HasDefaultValue(false);
+
+            // CreatedAt
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
+
+            // ===== 1-1: Review - OrderDetail =====
+            entity.HasOne(x => x.OrderDetail)
+                  .WithOne(od => od.Review)
+                  .HasForeignKey<Review>(x => x.OrderDetailId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.OrderDetailId)
+                  .IsUnique();
+
+            // ===== N-1: Review - ProductVariant =====
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany(v => v.Reviews)
+                  .HasForeignKey(x => x.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.ProductVariantId);
+
+            // Optional: index cho admin filter
+            entity.HasIndex(x => x.IsApproved);
         });
     }
 }

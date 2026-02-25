@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260225092516_AddComplaint_Flow")]
+    partial class AddComplaint_Flow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -205,7 +208,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Property<int>("CartId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ProductVariantId")
+                    b.Property<int>("ProductId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("Quantity")
@@ -216,9 +219,9 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductVariantId");
+                    b.HasIndex("ProductId");
 
-                    b.HasIndex("CartId", "ProductVariantId")
+                    b.HasIndex("CartId", "ProductId")
                         .IsUnique();
 
                     b.ToTable("CartItems", (string)null);
@@ -650,7 +653,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int>("ProductVariantId")
+                    b.Property<int>("ProductId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("ReceivedDate")
@@ -677,11 +680,11 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasIndex("LotCode")
                         .IsUnique();
 
-                    b.HasIndex("ProductVariantId");
+                    b.HasIndex("ProductId");
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("ProductVariantId", "ExpiryDate", "Status");
+                    b.HasIndex("ProductId", "ExpiryDate", "Status");
 
                     b.ToTable("Lots", (string)null);
                 });
@@ -822,7 +825,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ProductVariantId")
+                    b.Property<int>("ProductId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("Quantity")
@@ -838,7 +841,7 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.HasIndex("ProductVariantId");
+                    b.HasIndex("ProductId");
 
                     b.ToTable("OrderDetails", (string)null);
                 });
@@ -914,43 +917,28 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("Name");
-
-                    b.ToTable("Products", (string)null);
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ProductVariant", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Grade")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductId", "Grade")
-                        .IsUnique();
+                    b.HasIndex("Name");
 
-                    b.ToTable("ProductVariants", (string)null);
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CategoryId", "Status");
+
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>
@@ -1046,52 +1034,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasIndex("PaymentId");
 
                     b.ToTable("Refunds", (string)null);
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Review", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Comment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<bool>("IsApproved")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("OrderDetailId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductVariantId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Rating")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsApproved");
-
-                    b.HasIndex("OrderDetailId")
-                        .IsUnique();
-
-                    b.HasIndex("ProductVariantId");
-
-                    b.ToTable("Reviews", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
-                        });
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Slot", b =>
@@ -1526,15 +1468,15 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
-                        .WithMany()
-                        .HasForeignKey("ProductVariantId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                    b.HasOne("AgriIDMS.Domain.Entities.Product", "Product")
+                        .WithMany("CartItems")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Cart");
 
-                    b.Navigation("ProductVariant");
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Complaint", b =>
@@ -1723,15 +1665,15 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
+                    b.HasOne("AgriIDMS.Domain.Entities.Product", "Product")
                         .WithMany("Lots")
-                        .HasForeignKey("ProductVariantId")
+                        .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("GoodsReceiptDetail");
 
-                    b.Navigation("ProductVariant");
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Order", b =>
@@ -1778,15 +1720,15 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
+                    b.HasOne("AgriIDMS.Domain.Entities.Product", "Product")
                         .WithMany("OrderDetails")
-                        .HasForeignKey("ProductVariantId")
+                        .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Order");
 
-                    b.Navigation("ProductVariant");
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Payment", b =>
@@ -1809,17 +1751,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ProductVariant", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.Product", "Product")
-                        .WithMany("Variants")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>
@@ -1860,25 +1791,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("Complaint");
 
                     b.Navigation("Payment");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.Review", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.OrderDetail", "OrderDetail")
-                        .WithOne("Review")
-                        .HasForeignKey("AgriIDMS.Domain.Entities.Review", "OrderDetailId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
-                        .WithMany("Reviews")
-                        .HasForeignKey("ProductVariantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("OrderDetail");
-
-                    b.Navigation("ProductVariant");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Slot", b =>
@@ -2094,8 +2006,6 @@ namespace AgriIDMS.Infrastructure.Migrations
             modelBuilder.Entity("AgriIDMS.Domain.Entities.OrderDetail", b =>
                 {
                     b.Navigation("Allocations");
-
-                    b.Navigation("Review");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Payment", b =>
@@ -2105,18 +2015,13 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Product", b =>
                 {
+                    b.Navigation("CartItems");
+
                     b.Navigation("GoodsReceiptDetails");
 
-                    b.Navigation("Variants");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.ProductVariant", b =>
-                {
                     b.Navigation("Lots");
 
                     b.Navigation("OrderDetails");
-
-                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>

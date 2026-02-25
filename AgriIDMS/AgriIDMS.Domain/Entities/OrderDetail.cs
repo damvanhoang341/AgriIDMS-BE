@@ -13,13 +13,14 @@ namespace AgriIDMS.Domain.Entities
         public int OrderId { get; set; }
         public Order Order { get; set; } = null!;
 
-        public int ProductId { get; set; }
-        public Product Product { get; set; } 
+        public int ProductVariantId { get; set; }
+        public ProductVariant ProductVariant { get; set; } = null!;
 
         public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal FulfilledQuantity { get; set; }
         public decimal ShortageQuantity { get; set; }
+        public Review? Review { get; set; }
 
         public ICollection<OrderAllocation> Allocations { get; set; }
             = new List<OrderAllocation>();
