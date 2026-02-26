@@ -20,6 +20,7 @@ namespace AgriIDMS.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISupplierRepository _supplierRepo;
         private readonly IWarehouseRepository _warehouseRepo;
+        private readonly IProductVariantRepository _productVariantRepo;
 
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
@@ -27,7 +28,8 @@ namespace AgriIDMS.Application.Services
             ILotRepository lotRepo,
             IUnitOfWork unitOfWork,
             ISupplierRepository supplierRepository,
-            IWarehouseRepository warehouseRepo)
+            IWarehouseRepository warehouseRepo,
+            IProductVariantRepository ProductVariantRepository)
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
@@ -35,9 +37,15 @@ namespace AgriIDMS.Application.Services
             _unitOfWork = unitOfWork;
             _supplierRepo = supplierRepository;
             _warehouseRepo = warehouseRepo;
+            _productVariantRepo = ProductVariantRepository;
         }
 
-        public async Task<int> CreateAsync(CreateGoodsReceiptRequest request,string currentUserId)
+        private string GenerateLotCode(int productVariantId, DateTime receivedDate)
+        {
+            return $"LOT-{productVariantId}-{receivedDate:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 6)}";
+        }
+
+        public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request,string currentUserId)
         {
                 await _unitOfWork.BeginTransactionAsync();
 
@@ -79,8 +87,10 @@ namespace AgriIDMS.Application.Services
                 {
                     if (d.ActualQuantity <= 0)
                         throw new InvalidBusinessRuleException("Số lượng thực tế phải lớn hơn 0");
-
-                    var detail = new GoodsReceiptDetail
+                var productVariant = await _productVariantRepo.GetProductVariantByIdAsync(d.ProductVariantId);
+                if (productVariant == null)
+                    throw new InvalidBusinessRuleException("Mặt hàng nông sản không tồn tại");
+                var detail = new GoodsReceiptDetail
                     {
                         GoodsReceiptId = receipt.Id,
                         ProductVariantId = d.ProductVariantId,
@@ -100,7 +110,7 @@ namespace AgriIDMS.Application.Services
 
                     var lots = d.Lots.Select(l => new Lot
                     {
-                        LotCode = l.LotCode,
+                        LotCode = GenerateLotCode(d.ProductVariantId, request.ReceivedDate),
                         GoodsReceiptDetailId = detail.Id,
                         TotalQuantity = l.Quantity,
                         RemainingQuantity = l.Quantity,
