@@ -35,7 +35,7 @@ namespace AgriIDMS.API.Controllers
             {
                 var currentUserId = User?.Identity?.Name ?? "065cc85f-bcca-4076-85e5-b913741f5df9";
 
-                var id = await _receiptService.CreateAsync(request, currentUserId);
+                var id = await _receiptService.CreateGoodsReceiptAsync(request, currentUserId);
 
                 return Ok(new
                 {

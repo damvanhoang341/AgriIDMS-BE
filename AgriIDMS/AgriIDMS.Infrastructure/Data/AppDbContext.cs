@@ -10,6 +10,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
