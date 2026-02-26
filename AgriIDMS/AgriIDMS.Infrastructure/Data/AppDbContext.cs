@@ -156,12 +156,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.ProductId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // Variant - Lot (1 - N)
-            entity.HasMany(x => x.Lots)
-                  .WithOne(l => l.ProductVariant)
-                  .HasForeignKey(l => l.ProductVariantId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
             // Variant - OrderDetail
             entity.HasMany(x => x.OrderDetails)
                   .WithOne(o => o.ProductVariant)
@@ -222,127 +216,168 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
         });
 
-        //GoodsReceipt
+        // ============================== GOODS RECEIPT ==============================
         builder.Entity<GoodsReceipt>(entity =>
         {
             entity.ToTable("GoodsReceipts");
 
-            // Primary Key
             entity.HasKey(x => x.Id);
 
-            // Enum -> string (dễ đọc DB hơn int)
+            // ================= STATUS =================
             entity.Property(x => x.Status)
-                  .HasConversion<string>()
-                  .HasMaxLength(30)
+                  .HasConversion<int>()
                   .IsRequired();
 
-            // Decimal precision
+            // ================= TRANSPORT =================
+            entity.Property(x => x.VehicleNumber)
+                  .HasMaxLength(20)
+                  .IsRequired();
+
+            entity.Property(x => x.DriverName)
+                  .HasMaxLength(100);
+
+            entity.Property(x => x.TransportCompany)
+                  .HasMaxLength(150);
+
+            // ================= WEIGHT =================
+            entity.Property(x => x.GrossWeight)
+                  .HasPrecision(18, 2);
+
+            entity.Property(x => x.TareWeight)
+                  .HasPrecision(18, 2);
+
             entity.Property(x => x.TotalEstimatedQuantity)
-                  .HasColumnType("decimal(18,2)")
-                  .HasDefaultValue(0);
+                  .HasPrecision(18, 2);
 
             entity.Property(x => x.TotalActualQuantity)
-                  .HasColumnType("decimal(18,2)");
+                  .HasPrecision(18, 2);
 
-            // Date config
-            entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETDATE()");
-
+            // ================= DATES =================
             entity.Property(x => x.ReceivedDate)
                   .IsRequired();
 
-            // =============================
-            // Relationships
-            // =============================
+            entity.Property(x => x.CreatedAt)
+                  .HasDefaultValueSql("GETUTCDATE()");
 
-            // Supplier (1 Supplier - many GoodsReceipt)
+            entity.Property(x => x.ApprovedAt);
+
+            // ================= RELATIONSHIPS =================
+
+            // Supplier (1 - N)
             entity.HasOne(x => x.Supplier)
                   .WithMany(s => s.GoodsReceipts)
                   .HasForeignKey(x => x.SupplierId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // Warehouse (1 Warehouse - many GoodsReceipt)
+            // Warehouse (1 - N)
             entity.HasOne(x => x.Warehouse)
                   .WithMany(w => w.GoodsReceipts)
                   .HasForeignKey(x => x.WarehouseId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // CreatedBy (User)
+            // CreatedUser
             entity.HasOne(x => x.CreatedUser)
                   .WithMany()
                   .HasForeignKey(x => x.CreatedBy)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // ApprovedBy (User - optional)
+            // ApprovedUser
             entity.HasOne(x => x.ApprovedUser)
                   .WithMany()
                   .HasForeignKey(x => x.ApprovedBy)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // Details (1 - many)
+            // GoodsReceipt (1 - N) GoodsReceiptDetail
             entity.HasMany(x => x.Details)
                   .WithOne(d => d.GoodsReceipt)
                   .HasForeignKey(d => d.GoodsReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            // ================= INDEX =================
+
+            entity.HasIndex(x => x.SupplierId);
+            entity.HasIndex(x => x.WarehouseId);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.ReceivedDate);
+
+            entity.HasIndex(x => new { x.WarehouseId, x.Status });
         });
 
-        //GoodsReceiptDetail
+        // ===================== GoodsReceiptDetail =====================
         builder.Entity<GoodsReceiptDetail>(entity =>
         {
             entity.ToTable("GoodsReceiptDetails");
 
             entity.HasKey(x => x.Id);
 
+            // ================= QUANTITY =================
+
             entity.Property(x => x.EstimatedQuantity)
-                  .HasColumnType("decimal(18,2)")
+                  .HasPrecision(18, 2)
                   .IsRequired();
 
             entity.Property(x => x.ActualQuantity)
-                  .HasColumnType("decimal(18,2)");
+                  .HasPrecision(18, 2);
 
             entity.Property(x => x.UnitPrice)
-                  .HasColumnType("decimal(18,2)")
+                  .HasPrecision(18, 2)
                   .IsRequired();
 
+            // ================= QC =================
+
             entity.Property(x => x.QCResult)
-                  .HasConversion<string>()
-                  .HasMaxLength(30)
+                  .HasConversion<int>()
+                  .HasDefaultValue(QCResult.Pending)
                   .IsRequired();
 
             entity.Property(x => x.QCNote)
                   .HasMaxLength(500);
 
-            // GoodsReceipt (1 - many)
+            entity.Property(x => x.InspectedBy)
+                  .HasMaxLength(450);
+
+            entity.Property(x => x.InspectedAt);
+
+            // ================= RELATIONSHIPS =================
+
+            // GoodsReceipt (1 - N)
             entity.HasOne(x => x.GoodsReceipt)
-                  .WithMany(r => r.Details)
+                  .WithMany(gr => gr.Details)
                   .HasForeignKey(x => x.GoodsReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
+            // Xoá phiếu => xoá chi tiết
 
-            // ProductVariant (1 - many)
+            // ProductVariant (1 - N)
             entity.HasOne(x => x.ProductVariant)
-                  .WithMany(p => p.GoodsReceiptDetails)
+                  .WithMany(pv => pv.GoodsReceiptDetails)
                   .HasForeignKey(x => x.ProductVariantId)
                   .OnDelete(DeleteBehavior.Restrict);
+            // Không cho xoá Variant nếu đã nhập kho
 
-            // InspectedBy (User) (1 - many)
+            // InspectedUser
             entity.HasOne(x => x.InspectedUser)
                   .WithMany()
                   .HasForeignKey(x => x.InspectedBy)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // Lot (1 - 1)
-            entity.HasOne(x => x.Lot)
+            // Detail - Lot (1 - N)
+            entity.HasMany(x => x.Lots)
                   .WithOne(l => l.GoodsReceiptDetail)
-                  .HasForeignKey<Lot>(l => l.GoodsReceiptDetailId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                  .HasForeignKey(l => l.GoodsReceiptDetailId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // ================= INDEX =================
 
             entity.HasIndex(x => x.GoodsReceiptId);
+
             entity.HasIndex(x => x.ProductVariantId);
-            entity.HasIndex(x => x.QCResult);
-            entity.HasIndex(x => x.ExpiryDate);
+
+            // 1 phiếu không nên có trùng cùng 1 Variant
+            entity.HasIndex(x => new { x.GoodsReceiptId, x.ProductVariantId })
+                  .IsUnique();
         });
 
-        //============================== lot ==============================
+        // ============================== LOT ==============================
         builder.Entity<Lot>(entity =>
         {
             entity.ToTable("Lots");
@@ -357,16 +392,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsUnique();
 
             entity.Property(x => x.TotalQuantity)
-                  .HasColumnType("decimal(18,2)")
+                  .HasPrecision(18, 2)
                   .IsRequired();
 
             entity.Property(x => x.RemainingQuantity)
-                  .HasColumnType("decimal(18,2)")
+                  .HasPrecision(18, 2)
                   .IsRequired();
 
             entity.Property(x => x.Status)
-                  .HasConversion<string>()
-                  .HasMaxLength(30)
+                  .HasConversion<int>() // lưu enum dạng int
                   .IsRequired();
 
             entity.Property(x => x.CreatedAt)
@@ -378,28 +412,35 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ReceivedDate)
                   .IsRequired();
 
-            // GoodsReceiptDetail (1 - 1)
-            entity.HasOne(x => x.GoodsReceiptDetail)
-                  .WithOne(d => d.Lot)
-                  .HasForeignKey<Lot>(x => x.GoodsReceiptDetailId)
-                  .OnDelete(DeleteBehavior.Restrict);
+            // ================= RELATIONSHIPS =================
 
-            // Box (1 - many)
+            // GoodsReceiptDetail (1 - N)
+            entity.HasOne(x => x.GoodsReceiptDetail)
+                  .WithMany(d => d.Lots)
+                  .HasForeignKey(x => x.GoodsReceiptDetailId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            // Xóa detail → xóa luôn lot (đúng logic phiếu nhập nháp)
+
+            // Box (1 - N)
             entity.HasMany(x => x.Boxes)
                   .WithOne(b => b.Lot)
                   .HasForeignKey(b => b.LotId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(x => x.ProductVariantId);
-            entity.HasIndex(x => new { x.ProductVariantId, x.ExpiryDate, x.Status });
+            // ================= INDEX =================
 
-            entity.HasOne(x => x.ProductVariant)
-                  .WithMany(v => v.Lots)
-                  .HasForeignKey(x => x.ProductVariantId)
-                  .OnDelete(DeleteBehavior.Restrict);
+            // Tối ưu query theo receipt detail
+            entity.HasIndex(x => x.GoodsReceiptDetailId);
 
-            entity.HasIndex(x => x.ExpiryDate);
-            entity.HasIndex(x => x.Status);
+            // Tối ưu xuất kho FEFO (lọc theo status + hạn)
+            entity.HasIndex(x => new { x.Status, x.ExpiryDate });
+
+            // ================= CONSTRAINT =================
+
+            entity.HasCheckConstraint(
+                "CK_Lot_RemainingQuantity",
+                "[RemainingQuantity] >= 0 AND [RemainingQuantity] <= [TotalQuantity]"
+            );
         });
 
         //============================= box =============================

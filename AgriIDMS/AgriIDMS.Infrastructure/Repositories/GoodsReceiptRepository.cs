@@ -21,7 +21,7 @@ namespace AgriIDMS.Infrastructure.Repositories
             await _context.GoodsReceipts.AddAsync(goodsReceipt);
         }
 
-        public async Task DeleteGoodsReceiptAsync(string goodsReceiptId)
+        public async Task DeleteGoodsReceiptAsync(int goodsReceiptId)
         {
             var goodsReceipt = await _context.GoodsReceipts.FindAsync(goodsReceiptId);
             if (goodsReceipt != null)

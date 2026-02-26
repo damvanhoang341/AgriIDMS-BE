@@ -17,21 +17,22 @@ namespace AgriIDMS.Domain.Entities
         public int ProductVariantId { get; set; }
         public ProductVariant ProductVariant { get; set; } = null!;
 
+        // ===== SỐ LƯỢNG =====
         public decimal EstimatedQuantity { get; set; }
         public decimal? ActualQuantity { get; set; }
 
         public decimal UnitPrice { get; set; }
-        public DateTime ExpiryDate { get; set; }
 
+        // ===== QC =====
         public QCResult QCResult { get; set; } = QCResult.Pending;
-
         public string? QCNote { get; set; }
 
         public string? InspectedBy { get; set; }
         public ApplicationUser? InspectedUser { get; set; }
-
         public DateTime? InspectedAt { get; set; }
 
-        public Lot? Lot { get; set; }
+        // ===== LOT (1 Detail -> N Lot) =====
+        public ICollection<Lot> Lots { get; set; }
+            = new List<Lot>();
     }
 }

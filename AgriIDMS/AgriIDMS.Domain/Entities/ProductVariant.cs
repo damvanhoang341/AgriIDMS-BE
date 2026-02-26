@@ -10,7 +10,6 @@ namespace AgriIDMS.Domain.Entities
     public class ProductVariant
     {
         public int Id { get; set; }
-
         public int ProductId { get; set; }
         public Product Product { get; set; } = null!;
         public ProductGrade Grade { get; set; } 
@@ -18,7 +17,6 @@ namespace AgriIDMS.Domain.Entities
 
         public bool IsActive { get; set; } = true;
 
-        public ICollection<Lot> Lots { get; set; } = new List<Lot>();
         public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
         public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();

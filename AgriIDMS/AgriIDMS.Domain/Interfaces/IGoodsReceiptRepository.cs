@@ -10,9 +10,9 @@ namespace AgriIDMS.Domain.Interfaces
     public interface IGoodsReceiptRepository
     {
         Task<IEnumerable<GoodsReceipt>> GetAllGoodsReceiptsAsync();
-        Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(string goodsReceiptId);
+        Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(int goodsReceiptId);
         Task AddGoodsReceiptAsync(GoodsReceipt goodsReceipt);
         Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt);
-        Task DeleteGoodsReceiptAsync(string goodsReceiptId);
+        Task DeleteGoodsReceiptAsync(int goodsReceiptId);
     }
 }
