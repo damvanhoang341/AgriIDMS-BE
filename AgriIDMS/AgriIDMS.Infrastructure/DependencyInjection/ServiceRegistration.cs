@@ -82,6 +82,11 @@ public static class ServiceRegistration
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ProductService>();
         services.AddScoped<IGoodsReceiptRepository, GoodsReceiptRepository>();
+        services.AddScoped<IGoodsReceiptDetailRepository, GoodsReceiptDetailRepository>();
+        services.AddScoped<ILotRepository, LotRepository>();
+        services.AddScoped<GoodsReceiptService>();
+        services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<AuthService>();
