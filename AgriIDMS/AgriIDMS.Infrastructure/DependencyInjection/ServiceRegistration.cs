@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Entities;
@@ -91,6 +91,7 @@ public static class ServiceRegistration
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<AuthService>();
+        services.AddScoped<WarehouseService>();
 
         return services;
     }
