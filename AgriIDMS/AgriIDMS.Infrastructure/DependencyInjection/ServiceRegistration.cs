@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Entities;
@@ -87,10 +87,17 @@ public static class ServiceRegistration
         services.AddScoped<GoodsReceiptService>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
+        services.AddScoped<IZoneRepository, ZoneRepository>();
+        services.AddScoped<IRackRepository, RackRepository>();
+        services.AddScoped<ISlotRepository, SlotRepository>();
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<AuthService>();
+        services.AddScoped<WarehouseService>();
+        services.AddScoped<ZoneService>();
+        services.AddScoped<RackService>();
+        services.AddScoped<SlotService>();
 
         return services;
     }
