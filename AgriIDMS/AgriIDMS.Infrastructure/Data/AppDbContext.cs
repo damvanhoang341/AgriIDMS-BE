@@ -247,11 +247,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.TareWeight)
                   .HasPrecision(18, 2);
 
-            entity.Property(x => x.TotalEstimatedQuantity)
-                  .HasPrecision(18, 2);
-
-            entity.Property(x => x.TotalActualQuantity)
-                  .HasPrecision(18, 2);
+            entity.Property(x => x.TolerancePercent)
+                  .HasPrecision(5, 2);
 
             // ================= DATES =================
             entity.Property(x => x.ReceivedDate)
@@ -313,12 +310,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             // ================= QUANTITY =================
 
-            entity.Property(x => x.EstimatedQuantity)
-                  .HasPrecision(18, 2)
-                  .IsRequired();
+            entity.Property(x => x.OrderedWeight)
+         .HasPrecision(18, 3)
+         .IsRequired();
 
-            entity.Property(x => x.ActualQuantity)
-                  .HasPrecision(18, 2);
+            entity.Property(x => x.UsableWeight)
+                  .HasPrecision(18, 3);
+
+            entity.Property(x => x.RejectWeight)
+                  .HasPrecision(18, 3);
 
             entity.Property(x => x.UnitPrice)
                   .HasPrecision(18, 2)

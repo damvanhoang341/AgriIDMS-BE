@@ -17,19 +17,20 @@ namespace AgriIDMS.Domain.Entities
         public int ProductVariantId { get; set; }
         public ProductVariant ProductVariant { get; set; } = null!;
 
-        // ===== SỐ LƯỢNG =====
-        public decimal EstimatedQuantity { get; set; }
-        public decimal? ActualQuantity { get; set; }
+        public decimal OrderedWeight { get; set; } // Số lượng đặt hàng (kg)
+        public decimal RejectWeight { get; private set; }
+        public void CalculateRejectWeight()
+        {
+            RejectWeight = OrderedWeight - (UsableWeight ?? 0);
+        }
+        public decimal? UsableWeight { get; set; } // Số lượng sử dụng được sau khi QC (kg)
 
-        public decimal UnitPrice { get; set; }
-
-        // ===== QC =====
         public QCResult QCResult { get; set; } = QCResult.Pending;
         public string? QCNote { get; set; }
-
-        public string? InspectedBy { get; set; }
+        public string? InspectedBy { get; set; } // Tên người QC
         public ApplicationUser? InspectedUser { get; set; }
         public DateTime? InspectedAt { get; set; }
+        public decimal UnitPrice { get; set; }
 
         // ===== LOT (1 Detail -> N Lot) =====
         public ICollection<Lot> Lots { get; set; }

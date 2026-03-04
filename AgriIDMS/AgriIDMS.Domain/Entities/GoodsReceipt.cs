@@ -28,15 +28,30 @@ namespace AgriIDMS.Domain.Entities
         public decimal? TareWeight { get; set; }      // Cân xe rỗng
         public decimal? NetWeight =>GrossWeight.HasValue && TareWeight.HasValue? GrossWeight - TareWeight: null;
 
-        // ===== TỔNG PHÂN LOẠI =====
-        public decimal? TotalEstimatedQuantity { get; set; }
-        public decimal? TotalActualQuantity { get; set; }
+        // ===== TỔNG TÍNH TỪ DETAIL =====
+        public decimal TotalOrderedWeight =>
+            Details.Sum(x => x.OrderedWeight);
 
-        // ===== CHÊNH LỆCH =====
-        public decimal? WeightDifference =>
-            NetWeight.HasValue && TotalActualQuantity.HasValue
-                ? NetWeight - TotalActualQuantity
-                : null;
+        public decimal TotalUsableWeight =>
+            Details.Sum(x => x.UsableWeight ?? 0);
+
+        // Hao hụt vận chuyển
+        public decimal TransportLossWeight => NetWeight.HasValue ? NetWeight.Value - TotalOrderedWeight : 0;
+
+        // Hao hụt QC
+        public decimal QCLossWeight => TotalOrderedWeight - TotalUsableWeight;
+
+        public decimal TotalLossWeight { get; private set; }
+        public void CalculateTotalLossWeight()
+        {
+            TotalLossWeight = TransportLossWeight + QCLossWeight;
+        }
+
+        public decimal TolerancePercent { get; set; }   // dung sai
+        public decimal AllowedLossWeight => TotalOrderedWeight * (TolerancePercent / 100);
+
+        public decimal ClaimableWeight =>TotalLossWeight > AllowedLossWeight ? TotalLossWeight - AllowedLossWeight: 0;    // Phần vượt dung sai
+
         // ===== THÔNG TIN NGƯỜI TẠO =====
         public string CreatedBy { get; set; } = null!;
         public ApplicationUser CreatedUser { get; set; } = null!;
