@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260302134136_modifyEntityGoodsReceipt")]
+    partial class modifyEntityGoodsReceipt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -422,6 +425,10 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("PreOrderQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("ReceivedDate")
                         .HasColumnType("datetime2");
 
@@ -435,11 +442,8 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("TolerancePercent")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<decimal>("TotalLossWeight")
+                    b.Property<decimal?>("TotalActualQuantity")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("TransportCompany")
@@ -481,6 +485,14 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal?>("ActualQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("EstimatedQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("GoodsReceiptId")
                         .HasColumnType("int");
 
@@ -490,10 +502,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Property<string>("InspectedBy")
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<decimal>("OrderedWeight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int>("ProductVariantId")
                         .HasColumnType("int");
@@ -507,17 +515,9 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<decimal>("RejectWeight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("UsableWeight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
 

@@ -94,8 +94,8 @@ namespace AgriIDMS.Application.Services
                     {
                         GoodsReceiptId = receipt.Id,
                         ProductVariantId = d.ProductVariantId,
-                        EstimatedQuantity = d.EstimatedQuantity,
-                        ActualQuantity = d.ActualQuantity,
+                        //EstimatedQuantity = d.EstimatedQuantity,
+                        //ActualQuantity = d.ActualQuantity,
                         UnitPrice = d.UnitPrice
                     };
 
@@ -126,8 +126,8 @@ namespace AgriIDMS.Application.Services
                     await _lotRepo.AddRangeAsync(lots);
                 }
 
-                receipt.TotalActualQuantity = totalActual;
-                receipt.TotalEstimatedQuantity = totalEstimated;
+                //receipt.TotalActualQuantity = totalActual;
+                //receipt.PreOrderQuantity = totalEstimated;
 
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
