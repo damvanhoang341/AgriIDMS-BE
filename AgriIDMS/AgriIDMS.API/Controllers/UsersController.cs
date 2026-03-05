@@ -4,6 +4,7 @@ using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
 {
@@ -50,6 +51,19 @@ namespace AgriIDMS.API.Controllers
                 return NotFound("User không tồn tại.");
 
             return Ok(result);
+        }
+
+        [HttpGet("my-profile")]
+        [Authorize]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var profile = await _userService.GetUserByIdAsync(userId);
+
+            return Ok(profile);
         }
     }
 }
