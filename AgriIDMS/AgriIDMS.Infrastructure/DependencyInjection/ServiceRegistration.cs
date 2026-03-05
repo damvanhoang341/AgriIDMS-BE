@@ -96,13 +96,14 @@ public static class ServiceRegistration
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IUserService,UserService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IProductVariantService, ProductVariantService>();
         services.AddScoped<AuthService>();
         services.AddScoped<WarehouseService>();
         services.AddScoped<ZoneService>();
         services.AddScoped<RackService>();
         services.AddScoped<SlotService>();
         services.AddScoped<GoodsReceiptService>();
-        services.AddScoped<ProductService>();
 
 
 

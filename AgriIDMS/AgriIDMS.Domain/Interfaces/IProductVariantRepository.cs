@@ -10,5 +10,12 @@ namespace AgriIDMS.Domain.Interfaces
     public interface IProductVariantRepository
     {
         Task<ProductVariant> GetProductVariantByIdAsync(int productVariantId);
+        Task<IEnumerable<ProductVariant>> GetAllAsync();
+
+        Task AddAsync(ProductVariant variant);
+
+        void Update(ProductVariant variant);
+
+        void Delete(ProductVariant variant);
     }
 }
