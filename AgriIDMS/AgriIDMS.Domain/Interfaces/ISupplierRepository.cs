@@ -9,6 +9,10 @@ namespace AgriIDMS.Domain.Interfaces
 {
     public interface ISupplierRepository
     {
-        Task<Supplier> GetByIdAsync(int supplierId);
+        Task<Supplier?> GetByIdAsync(int supplierId);
+        Task<IEnumerable<Supplier>> GetAllAsync();
+        Task AddAsync(Supplier supplier);
+        void Update(Supplier supplier);
+        void Delete(Supplier supplier);
     }
 }

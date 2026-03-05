@@ -1,5 +1,7 @@
 ﻿using AgriIDMS.Application.DTOs.GoodsReceipt;
 using AgriIDMS.Application.Services;
+using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Exceptions;
 using BaseApp.API.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -25,31 +27,34 @@ namespace AgriIDMS.API.Controllers
         /// Tạo phiếu nhập kho
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> Create(
-            [FromBody] CreateGoodsReceiptRequest request)
+        public async Task<IActionResult> CreateGoodsReceipt(
+        [FromBody] CreateGoodsReceiptRequest request)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            try
-            {
-                var currentUserId = User?.Identity?.Name ?? "065cc85f-bcca-4076-85e5-b913741f5df9";
+            var currentUserId = User.FindFirst("sub")?.Value;
 
-                var id = await _receiptService.CreateGoodsReceiptAsync(request, currentUserId);
+            var receiptId = await _receiptService.CreateGoodsReceiptAsync(request, currentUserId!);
 
-                return Ok(new
-                {
-                    message = "Tạo phiếu nhập kho thành công",
-                    id
-                });
-            }
-            catch (Exception ex)
+            return Ok(new
             {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
-            }
+                Message = "Tạo phiếu nhập thành công",
+                ReceiptId = receiptId
+            });
+        }
+
+        [HttpPost("{id}/approve")]
+        public async Task<IActionResult> ApproveGoodsReceipt(int id)
+        {
+            var currentUserId = User.FindFirst("sub")?.Value;
+
+            await _receiptService.ApproveGoodsReceiptAsync(id, currentUserId!);
+
+            return Ok(new
+            {
+                Message = "Duyệt phiếu nhập thành công"
+            });
         }
     }
 }

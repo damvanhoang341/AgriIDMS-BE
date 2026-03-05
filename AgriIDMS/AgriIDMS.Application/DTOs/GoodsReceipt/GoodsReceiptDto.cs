@@ -28,12 +28,28 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Range(0, double.MaxValue, ErrorMessage = "Trọng lượng bì phải lớn hơn hoặc bằng 0.")]
         public decimal? TareWeight { get; set; }
 
+        [Range(0, 100, ErrorMessage = "Dung sai phải nằm trong khoảng 0 - 100%.")]
+        public decimal TolerancePercent { get; set; }
+
         [Required(ErrorMessage = "Ngày nhập kho không được để trống.")]
         public DateTime ReceivedDate { get; set; }
 
         [Required(ErrorMessage = "Danh sách sản phẩm không được để trống.")]
         [MinLength(1, ErrorMessage = "Phiếu nhập phải có ít nhất một sản phẩm.")]
         public List<CreateGoodsReceiptDetailRequest> Details { get; set; } = new();
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (GrossWeight.HasValue && TareWeight.HasValue)
+            {
+                if (GrossWeight < TareWeight)
+                {
+                    yield return new ValidationResult(
+                        "Trọng lượng tổng phải lớn hơn hoặc bằng trọng lượng bì.",
+                        new[] { nameof(GrossWeight), nameof(TareWeight) });
+                }
+            }
+        }
     }
 
     public class CreateGoodsReceiptDetailRequest

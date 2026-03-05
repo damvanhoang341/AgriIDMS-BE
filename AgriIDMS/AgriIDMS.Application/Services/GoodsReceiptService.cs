@@ -45,15 +45,17 @@ namespace AgriIDMS.Application.Services
             return $"LOT-{productVariantId}-{receivedDate:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 6)}";
         }
 
-        public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request,string currentUserId)
+
+        // Tạo phiếu nhập Draft
+        public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string currentUserId)
         {
-                await _unitOfWork.BeginTransactionAsync();
+            await _unitOfWork.BeginTransactionAsync();
 
-                if (request == null)
-                    throw new InvalidBusinessRuleException("Dữ liệu không được để trống");
+            if (request == null)
+                throw new InvalidBusinessRuleException("Dữ liệu không được để trống");
 
-                if (request.Details == null || !request.Details.Any())
-                    throw new InvalidBusinessRuleException("Phiếu nhập phải có ít nhất một sản phẩm.");
+            if (request.Details == null || !request.Details.Any())
+                throw new InvalidBusinessRuleException("Phiếu nhập phải có ít nhất một sản phẩm");
 
             var supplier = await _supplierRepo.GetByIdAsync(request.SupplierId);
             if (supplier == null)
@@ -64,76 +66,102 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Kho không tồn tại");
 
             var receipt = new GoodsReceipt
-                {
-                    SupplierId = request.SupplierId,
-                    WarehouseId = request.WarehouseId,
-                    VehicleNumber = request.VehicleNumber,
-                    DriverName = request.DriverName,
-                    TransportCompany = request.TransportCompany,
-                    GrossWeight = request.GrossWeight,
-                    TareWeight = request.TareWeight,
-                    ReceivedDate = request.ReceivedDate,
-                    Status = GoodsReceiptStatus.Draft,
-                    CreatedBy = currentUserId
-                };
+            {
+                SupplierId = request.SupplierId,
+                WarehouseId = request.WarehouseId,
+                VehicleNumber = request.VehicleNumber,
+                DriverName = request.DriverName,
+                TransportCompany = request.TransportCompany,
+                GrossWeight = request.GrossWeight,
+                TareWeight = request.TareWeight,
+                ReceivedDate = request.ReceivedDate,
+                Status = GoodsReceiptStatus.Draft,
+                CreatedBy = currentUserId,
+                TolerancePercent = request.TolerancePercent
+            };
 
-                await _receiptRepo.AddGoodsReceiptAsync(receipt);
-                await _unitOfWork.SaveChangesAsync();
+            await _receiptRepo.AddGoodsReceiptAsync(receipt);
+            await _unitOfWork.SaveChangesAsync();
 
-                decimal totalActual = 0;
-                decimal totalEstimated = 0;
+            foreach (var d in request.Details)
+            {
+                if (d.ActualQuantity <= 0)
+                    throw new InvalidBusinessRuleException("Số lượng thực tế phải lớn hơn 0");
 
-                foreach (var d in request.Details)
-                {
-                    if (d.ActualQuantity <= 0)
-                        throw new InvalidBusinessRuleException("Số lượng thực tế phải lớn hơn 0");
                 var productVariant = await _productVariantRepo.GetProductVariantByIdAsync(d.ProductVariantId);
                 if (productVariant == null)
                     throw new InvalidBusinessRuleException("Mặt hàng nông sản không tồn tại");
+
                 var detail = new GoodsReceiptDetail
-                    {
-                        GoodsReceiptId = receipt.Id,
-                        ProductVariantId = d.ProductVariantId,
-                        //EstimatedQuantity = d.EstimatedQuantity,
-                        //ActualQuantity = d.ActualQuantity,
-                        UnitPrice = d.UnitPrice
-                    };
+                {
+                    GoodsReceiptId = receipt.Id,
+                    ProductVariantId = d.ProductVariantId,
+                    OrderedWeight = d.EstimatedQuantity,
+                    UsableWeight = d.ActualQuantity,
+                    UnitPrice = d.UnitPrice
+                };
 
-                    await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
-                    await _unitOfWork.SaveChangesAsync();
+                detail.CalculateRejectWeight();
 
-                    totalActual += d.ActualQuantity;
-                    totalEstimated += d.EstimatedQuantity;
-
-                    if (d.Lots == null || !d.Lots.Any())
-                        throw new InvalidBusinessRuleException("Mỗi sản phẩm phải có ít nhất một lô");
-
-                    var lots = d.Lots.Select(l => new Lot
-                    {
-                        LotCode = GenerateLotCode(d.ProductVariantId, request.ReceivedDate),
-                        GoodsReceiptDetailId = detail.Id,
-                        TotalQuantity = l.Quantity,
-                        RemainingQuantity = l.Quantity,
-                        ExpiryDate = l.ExpiryDate,
-                        ReceivedDate = request.ReceivedDate,
-                        Status = LotStatus.Active
-                    }).ToList();
-
-                    if (lots.Sum(x => x.TotalQuantity) != d.ActualQuantity)
-                        throw new InvalidBusinessRuleException(
-                            $"Tổng số lượng lô không khớp.");
-
-                    await _lotRepo.AddRangeAsync(lots);
-                }
-
-                //receipt.TotalActualQuantity = totalActual;
-                //receipt.PreOrderQuantity = totalEstimated;
-
+                await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
                 await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitAsync();
 
-                return receipt.Id;
+                if (d.Lots == null || !d.Lots.Any())
+                    throw new InvalidBusinessRuleException("Mỗi sản phẩm phải có ít nhất một lô");
+
+                var lots = d.Lots.Select(l => new Lot
+                {
+                    LotCode = GenerateLotCode(d.ProductVariantId, request.ReceivedDate),
+                    GoodsReceiptDetailId = detail.Id,
+                    TotalQuantity = l.Quantity,
+                    RemainingQuantity = l.Quantity,
+                    ExpiryDate = l.ExpiryDate,
+                    ReceivedDate = request.ReceivedDate,
+                    Status = LotStatus.Active
+                }).ToList();
+
+                if (lots.Sum(x => x.TotalQuantity) != d.ActualQuantity)
+                    throw new InvalidBusinessRuleException("Tổng số lượng các lô phải bằng số lượng thực tế");
+
+                await _lotRepo.AddRangeAsync(lots);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+
+            return receipt.Id;
         }
 
+        // Duyệt phiếu nhập
+        public async Task ApproveGoodsReceiptAsync(int receiptId, string approvedBy)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(receiptId);
+
+            if (receipt == null)
+                throw new InvalidBusinessRuleException("Phiếu nhập không tồn tại");
+
+            if (receipt.Status != GoodsReceiptStatus.Draft)
+                throw new InvalidBusinessRuleException("Chỉ có thể duyệt phiếu ở trạng thái Draft");
+
+            foreach (var detail in receipt.Details)
+            {
+                detail.CalculateRejectWeight();
+            }
+
+            receipt.CalculateTotalLossWeight();
+
+            if (receipt.TotalLossWeight > receipt.AllowedLossWeight)
+            {
+                throw new InvalidBusinessRuleException(
+                    $"Hao hụt {receipt.TotalLossWeight}kg vượt dung sai cho phép {receipt.AllowedLossWeight}kg"
+                );
+            }
+
+            receipt.Status = GoodsReceiptStatus.Approved;
+            receipt.ApprovedBy = approvedBy;
+            receipt.ApprovedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync();
+        }
     }
 }
