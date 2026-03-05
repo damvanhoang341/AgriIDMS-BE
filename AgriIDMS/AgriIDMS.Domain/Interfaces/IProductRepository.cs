@@ -10,10 +10,10 @@ namespace AgriIDMS.Domain.Interfaces
     public interface IProductRepository
     {
         Task<IEnumerable<Product>> GetAllProductsAsync();
-        Task<Product?> GetProductByIdAsync(string productId);
+        Task<Product?> GetProductByIdAsync(int productId);
         Task AddProductAsync(Product product);
         Task UpdateProductAsync(Product product);
-        Task DeleteProductAsync(string productId);
+        Task<bool> ExistsByNameAsync(string name);
 
     }
 }
