@@ -1,18 +1,146 @@
-﻿using AgriIDMS.Domain.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AgriIDMS.Application.DTOs.Product;
+using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Interfaces;
+using AgriIDMS.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
+using AgriIDMS.Application.Exceptions;
 
 namespace AgriIDMS.Application.Services
 {
-    public class ProductService
+    public class ProductService : IProductService
     {
-        private readonly IProductRepository _productRepository;
-        public ProductService(IProductRepository productRepository)
+        private readonly IProductRepository _productRepo;
+        private readonly ICategoryRepository _categoryRepo;
+        private readonly IUnitOfWork _uow;
+        private readonly ILogger<ProductService> _logger;
+
+        public ProductService(
+            IProductRepository productRepo,
+            ICategoryRepository categoryRepo,
+            IUnitOfWork uow,
+            ILogger<ProductService> logger)
         {
-            _productRepository = productRepository;
+            _productRepo = productRepo;
+            _categoryRepo = categoryRepo;
+            _uow = uow;
+            _logger = logger;
+        }
+
+        public async Task<int> CreateAsync(CreateProductRequest request)
+        {
+            _logger.LogInformation("Creating product: {Name}", request.Name);
+
+            var existed = await _productRepo.ExistsByNameAsync(request.Name);
+            if (existed)
+                throw new InvalidBusinessRuleException("Sản phẩm đã tồn tại");
+
+            var category = await _categoryRepo.GetByIdAsync(request.CategoryId);
+            if (category == null)
+                throw new NotFoundException("Danh mục không tồn tại");
+
+            var product = new Product
+            {
+                Name = request.Name,
+                Description = request.Description,
+                CategoryId = request.CategoryId
+            };
+
+            await _productRepo.AddProductAsync(product);
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Product created: {Id}", product.Id);
+
+            return product.Id;
+        }
+
+        public async Task<IEnumerable<object>> GetAllProducts()
+        {
+            _logger.LogInformation("Getting all products");
+
+            var products = await _productRepo.GetAllProductsAsync();
+            return products.Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Description,
+                Category = x.Category.Name,
+                x.IsActive,
+                x.CreatedAt
+            });
+        }
+
+        public async Task<object> GetByIdAsync(int id)
+        {
+            _logger.LogInformation("Getting product by id: {Id}", id);
+
+            var product = await _productRepo.GetProductByIdAsync(id);
+
+            if (product == null)
+                throw new NotFoundException("Sản phẩm không tồn tại");
+
+            return new
+            {
+                product.Id,
+                product.Name,
+                product.Description,
+                Category = product.Category.Name,
+                product.IsActive,
+                product.CreatedAt
+            };
+        }
+
+        public async Task UpdateAsync(int id, UpdateProductRequest request)
+        {
+            _logger.LogInformation("Updating product: {Id}", id);
+
+            var product = await _productRepo.GetProductByIdAsync(id);
+
+            if (product == null)
+                throw new NotFoundException("Sản phẩm không tồn tại");
+
+            if (request.Name != null)
+                product.Name = request.Name;
+
+            if (request.Description != null)
+                product.Description = request.Description;
+
+            if (request.CategoryId.HasValue)
+            {
+                var category = await _categoryRepo.GetByIdAsync(request.CategoryId.Value);
+                if (category == null)
+                    throw new NotFoundException("Danh mục không tồn tại");
+
+                product.CategoryId = request.CategoryId.Value;
+            }
+
+            if (request.IsActive.HasValue)
+                product.IsActive = request.IsActive.Value;
+
+            _productRepo.UpdateProductAsync(product);
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Product updated: {Id}", id);
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            _logger.LogInformation("Deleting product: {Id}", id);
+
+            var product = await _productRepo.GetProductByIdAsync(id);
+
+            if (product == null)
+                throw new NotFoundException("Sản phẩm không tồn tại");
+
+            product.IsActive = false;
+
+            _productRepo.UpdateProductAsync(product);
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Product deleted: {Id}", id);
         }
     }
 }
