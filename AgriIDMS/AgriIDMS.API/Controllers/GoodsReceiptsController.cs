@@ -1,4 +1,5 @@
 ﻿using AgriIDMS.Application.DTOs.GoodsReceipt;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
@@ -14,10 +15,10 @@ namespace AgriIDMS.API.Controllers
     //[Authorize] // nếu có JWT
     public class GoodsReceiptsController : ControllerBase
     {
-        private readonly ILogger<AuthController> _logger;
-        private readonly GoodsReceiptService _receiptService;
+        private readonly ILogger<GoodsReceiptsController> _logger;
+        private readonly IGoodsReceiptService _receiptService;
 
-        public GoodsReceiptsController(ILogger<AuthController> logger, GoodsReceiptService receiptService)
+        public GoodsReceiptsController(ILogger<GoodsReceiptsController> logger, IGoodsReceiptService receiptService)
         {
             _logger = logger;
             _receiptService = receiptService;
@@ -30,12 +31,16 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> CreateGoodsReceipt(
         [FromBody] CreateGoodsReceiptRequest request)
         {
+            _logger.LogInformation("CreateGoodsReceipt API called");
+
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             var currentUserId = User.FindFirst("sub")?.Value;
 
             var receiptId = await _receiptService.CreateGoodsReceiptAsync(request, currentUserId!);
+
+            _logger.LogInformation("GoodsReceipt created successfully with Id {Id}", receiptId);
 
             return Ok(new
             {
@@ -49,7 +54,18 @@ namespace AgriIDMS.API.Controllers
         {
             var currentUserId = User.FindFirst("sub")?.Value;
 
+            _logger.LogInformation(
+                "User {UserId} is approving GoodsReceipt {ReceiptId}",
+                currentUserId,
+                id
+            );
+
             await _receiptService.ApproveGoodsReceiptAsync(id, currentUserId!);
+
+            _logger.LogInformation(
+                "GoodsReceipt {ReceiptId} approved successfully",
+                id
+            );
 
             return Ok(new
             {
