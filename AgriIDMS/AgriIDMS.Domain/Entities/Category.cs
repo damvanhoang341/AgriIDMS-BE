@@ -14,5 +14,29 @@ namespace AgriIDMS.Domain.Entities
         public string? Description { get; private set; }
         public CategoryStatus Status { get; private set; }
         public ICollection<Product> Products { get; private set; }= new List<Product>();
+        // Constructor cho EF
+        private Category() { }
+
+        // Constructor tạo mới
+        public Category(string name, string? description)
+        {
+            Name = name;
+            Description = description;
+            Status = CategoryStatus.Active;
+        }
+
+        // Update
+        public void Update(string name, string? description, CategoryStatus status)
+        {
+            Name = name;
+            Description = description;
+            Status = status;
+        }
+
+        // Soft delete
+        public void Delete()
+        {
+            Status = CategoryStatus.Deleted;
+        }
     }
 }
