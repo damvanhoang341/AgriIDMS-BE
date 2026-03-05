@@ -1,4 +1,5 @@
-﻿using AgriIDMS.Application.Pagination;
+﻿using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Application.Pagination;
 using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -10,9 +11,9 @@ namespace AgriIDMS.API.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
 
-        public UsersController(UserService userService)
+        public UsersController(IUserService userService)
         {
             _userService = userService;
         }
@@ -34,10 +35,21 @@ namespace AgriIDMS.API.Controllers
 
         [HttpDelete("{userId:guid}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteUser([FromRoute] Guid userId)
+        public async Task<IActionResult> DeleteUser([FromRoute] string userId)
         {
             await _userService.DeleteAsync(userId);
             return Ok("xóa thành công");
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetUserById(string id)
+        {
+            var result = await _userService.GetUserByIdAsync(id);
+
+            if (result == null)
+                return NotFound("User không tồn tại.");
+
+            return Ok(result);
         }
     }
 }

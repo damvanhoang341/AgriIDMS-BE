@@ -79,7 +79,6 @@ public static class ServiceRegistration
         services.AddScoped<ITokenGenerator, TokenGenerator>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<UserService>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ProductService>();
         services.AddScoped<IGoodsReceiptRepository, GoodsReceiptRepository>();
@@ -92,9 +91,11 @@ public static class ServiceRegistration
         services.AddScoped<IRackRepository, RackRepository>();
         services.AddScoped<ISlotRepository, SlotRepository>();
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<IUserService,UserService>();
         services.AddScoped<AuthService>();
         services.AddScoped<WarehouseService>();
         services.AddScoped<ZoneService>();
