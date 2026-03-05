@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
@@ -93,6 +94,7 @@ public static class ServiceRegistration
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
 
         // Application use-case service (implementation ở Application)
+        services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<AuthService>();
         services.AddScoped<WarehouseService>();
         services.AddScoped<ZoneService>();
