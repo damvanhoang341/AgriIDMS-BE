@@ -96,10 +96,10 @@ public static class ServiceRegistration
         // Application use-case service (implementation ở Application)
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<AuthService>();
-        services.AddScoped<WarehouseService>();
-        services.AddScoped<ZoneService>();
-        services.AddScoped<RackService>();
-        services.AddScoped<SlotService>();
+        services.AddScoped<IWarehouseService, WarehouseService>();
+        services.AddScoped<IZoneService, ZoneService>();
+        services.AddScoped<IRackService, RackService>();
+        services.AddScoped<ISlotService, SlotService>();
 
         return services;
     }
