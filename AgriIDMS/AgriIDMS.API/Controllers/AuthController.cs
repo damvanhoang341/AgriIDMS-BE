@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
-namespace BaseApp.API.Controllers;
+namespace AgriIDMS.API.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]/[action]")]

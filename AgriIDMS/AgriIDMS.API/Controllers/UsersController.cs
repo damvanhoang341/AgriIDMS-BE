@@ -1,4 +1,5 @@
-﻿using AgriIDMS.Application.Interfaces;
+﻿using AgriIDMS.Application.DTOs.User;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Pagination;
 using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -64,6 +65,17 @@ namespace AgriIDMS.API.Controllers
             var profile = await _userService.GetUserByIdAsync(userId);
 
             return Ok(profile);
+        }
+
+        [HttpPut("profile/{id}")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile(string id,[FromBody] UpdateUserProfileDto dto)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            await _userService.UpdateProfileAsync(userId, dto);
+
+            return Ok("Cập nhật thành công");
         }
     }
 }
