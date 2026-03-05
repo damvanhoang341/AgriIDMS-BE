@@ -1,6 +1,6 @@
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
-using AgriIDMS.Application.Services;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,9 +10,9 @@ namespace AgriIDMS.API.Controllers
     [ApiController]
     public class RacksController : ControllerBase
     {
-        private readonly RackService _rackService;
+        private readonly IRackService _rackService;
 
-        public RacksController(RackService rackService)
+        public RacksController(IRackService rackService)
         {
             _rackService = rackService;
         }
