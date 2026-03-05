@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.DTOs.User
@@ -13,7 +14,11 @@ namespace AgriIDMS.Application.DTOs.User
         public string UserName { get; set; } = default!;
         public string Email { get; set; } = default!;
         public string FullName { get; set; } = default!;
-        public UserType UserType { get; set; }
+
+        //[JsonConverter(typeof(JsonStringEnumConverter))]
+        //public UserType UserType { get; set; }
+
+        public List<string> Roles { get; set; } = new();
     }
 
 }
