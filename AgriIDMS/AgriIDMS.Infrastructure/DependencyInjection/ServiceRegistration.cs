@@ -80,11 +80,9 @@ public static class ServiceRegistration
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IProductRepository, ProductRepository>();
-        services.AddScoped<ProductService>();
         services.AddScoped<IGoodsReceiptRepository, GoodsReceiptRepository>();
         services.AddScoped<IGoodsReceiptDetailRepository, GoodsReceiptDetailRepository>();
         services.AddScoped<ILotRepository, LotRepository>();
-        services.AddScoped<GoodsReceiptService>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IZoneRepository, ZoneRepository>();
@@ -92,8 +90,10 @@ public static class ServiceRegistration
         services.AddScoped<ISlotRepository, SlotRepository>();
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
 
         // Application use-case service (implementation ở Application)
+        services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IUserService,UserService>();
         services.AddScoped<AuthService>();
@@ -101,6 +101,10 @@ public static class ServiceRegistration
         services.AddScoped<ZoneService>();
         services.AddScoped<RackService>();
         services.AddScoped<SlotService>();
+        services.AddScoped<GoodsReceiptService>();
+        services.AddScoped<ProductService>();
+
+
 
         return services;
     }
