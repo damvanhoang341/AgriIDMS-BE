@@ -1,6 +1,6 @@
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
-using AgriIDMS.Application.Services;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,9 +10,9 @@ namespace AgriIDMS.API.Controllers
     [ApiController]
     public class ZonesController : ControllerBase
     {
-        private readonly ZoneService _zoneService;
+        private readonly IZoneService _zoneService;
 
-        public ZonesController(ZoneService zoneService)
+        public ZonesController(IZoneService zoneService)
         {
             _zoneService = zoneService;
         }

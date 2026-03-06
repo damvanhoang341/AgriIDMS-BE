@@ -104,10 +104,10 @@ public static class ServiceRegistration
         services.AddScoped<IGoodsReceiptService,GoodsReceiptService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<AuthService>();
-        services.AddScoped<WarehouseService>();
-        services.AddScoped<ZoneService>();
-        services.AddScoped<RackService>();
-        services.AddScoped<SlotService>();
+        services.AddScoped<IWarehouseService, WarehouseService>();
+        services.AddScoped<IZoneService, ZoneService>();
+        services.AddScoped<IRackService, RackService>();
+        services.AddScoped<ISlotService, SlotService>();
 
 
 
