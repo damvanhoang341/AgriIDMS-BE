@@ -2,6 +2,7 @@
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace AgriIDMS.Infrastructure.Repositories;
 
@@ -20,4 +21,5 @@ public class AuthRepository(UserManager<ApplicationUser> userManager) : IAuthRep
         var user = await userManager.FindByIdAsync(userId);
         return user?.UserName ?? "";
     }
+    
 }

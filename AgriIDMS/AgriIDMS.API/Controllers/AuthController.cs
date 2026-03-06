@@ -6,10 +6,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
-namespace BaseApp.API.Controllers;
+namespace AgriIDMS.API.Controllers;
 
 [ApiController]
-[Route("api/v1/[controller]/[action]")]
+[Route("api/[controller]/[action]")]
 public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;

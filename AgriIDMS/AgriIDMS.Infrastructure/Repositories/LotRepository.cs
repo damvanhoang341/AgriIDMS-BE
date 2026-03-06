@@ -21,5 +21,10 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             await _context.Lots.AddRangeAsync(lots);
         }
+
+        public async Task<Lot?> GetByIdAsync(int id)
+        {
+            return await _context.Lots.FindAsync(id);
+        }
     }
 }

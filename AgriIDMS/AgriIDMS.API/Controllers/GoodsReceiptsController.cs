@@ -1,11 +1,12 @@
 ﻿using AgriIDMS.Application.DTOs.GoodsReceipt;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
-using BaseApp.API.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
 {
@@ -14,28 +15,24 @@ namespace AgriIDMS.API.Controllers
     //[Authorize] // nếu có JWT
     public class GoodsReceiptsController : ControllerBase
     {
-        private readonly ILogger<AuthController> _logger;
-        private readonly GoodsReceiptService _receiptService;
+        private readonly ILogger<GoodsReceiptsController> _logger;
+        private readonly IGoodsReceiptService _goodsReceiptService;
 
-        public GoodsReceiptsController(ILogger<AuthController> logger, GoodsReceiptService receiptService)
+        public GoodsReceiptsController(ILogger<GoodsReceiptsController> logger, IGoodsReceiptService receiptService)
         {
             _logger = logger;
-            _receiptService = receiptService;
+            _goodsReceiptService = receiptService;
         }
 
-        /// <summary>
-        /// Tạo phiếu nhập kho
-        /// </summary>
+        // ===============================
+        // CREATE RECEIPT
+        // ===============================
         [HttpPost]
-        public async Task<IActionResult> CreateGoodsReceipt(
-        [FromBody] CreateGoodsReceiptRequest request)
+        public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var currentUserId = User.FindFirst("sub")?.Value;
-
-            var receiptId = await _receiptService.CreateGoodsReceiptAsync(request, currentUserId!);
+            var receiptId = await _goodsReceiptService.CreateGoodsReceiptAsync(request, userId);
 
             return Ok(new
             {
@@ -44,16 +41,77 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
-        [HttpPost("{id}/approve")]
-        public async Task<IActionResult> ApproveGoodsReceipt(int id)
+        // ===============================
+        // ADD RECEIPT DETAIL
+        // ===============================
+        [HttpPost("detail")]
+        public async Task<IActionResult> AddDetail([FromBody] AddGoodsReceiptDetailRequest request)
         {
-            var currentUserId = User.FindFirst("sub")?.Value;
-
-            await _receiptService.ApproveGoodsReceiptAsync(id, currentUserId!);
+            await _goodsReceiptService.AddGoodsReceiptDetailAsync(request);
 
             return Ok(new
             {
-                Message = "Duyệt phiếu nhập thành công"
+                Message = "Thêm chi tiết phiếu nhập thành công"
+            });
+        }
+
+        // ===============================
+        // UPDATE TRUCK WEIGHT
+        // ===============================
+        [HttpPut("truck-weight")]
+        public async Task<IActionResult> UpdateTruckWeight([FromBody] UpdateTruckWeightRequest request)
+        {
+            await _goodsReceiptService.UpdateTruckWeightAsync(request);
+
+            return Ok(new
+            {
+                Message = "Cập nhật trọng lượng xe thành công"
+            });
+        }
+
+        // ===============================
+        // QC INSPECTION
+        // ===============================
+        [HttpPost("qc")]
+        public async Task<IActionResult> QCInspection([FromBody] QCInspectionRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+
+            await _goodsReceiptService.QCInspectionAsync(request, userId);
+
+            return Ok(new
+            {
+                Message = "QC kiểm tra thành công"
+            });
+        }
+
+        // ===============================
+        // GENERATE BOXES
+        // ===============================
+        [HttpPost("boxes")]
+        public async Task<IActionResult> GenerateBoxes([FromBody] CreateBoxesRequest request)
+        {
+            await _goodsReceiptService.GenerateBoxesAsync(request);
+
+            return Ok(new
+            {
+                Message = "Tạo box thành công"
+            });
+        }
+
+        // ===============================
+        // APPROVE RECEIPT
+        // ===============================
+        [HttpPost("{receiptId}/approve")]
+        public async Task<IActionResult> ApproveReceipt(int receiptId)
+        {
+            var userId = User.Identity?.Name ?? "system";
+
+            await _goodsReceiptService.ApproveGoodsReceiptAsync(receiptId, userId);
+
+            return Ok(new
+            {
+                Message = "Phiếu nhập đã được duyệt"
             });
         }
     }

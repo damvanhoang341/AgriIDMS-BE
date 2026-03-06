@@ -10,5 +10,6 @@ namespace AgriIDMS.Domain.Interfaces
     public interface IGoodsReceiptDetailRepository
     {
         Task AddGoodsReceiptDetaiAsync(GoodsReceiptDetail entity);
+        Task<GoodsReceiptDetail?> GetByIdAsync(int id);
     }
 }

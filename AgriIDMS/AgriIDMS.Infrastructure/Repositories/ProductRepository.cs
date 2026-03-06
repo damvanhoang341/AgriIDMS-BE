@@ -28,11 +28,11 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<Product?> GetProductByIdAsync(string productId)
+        public async Task<Product?> GetProductByIdAsync(int productId)
         {
             return await _context.Products
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id.ToString() == productId);
+                .FirstOrDefaultAsync(p => p.Id == productId);
         }
 
         public Task UpdateProductAsync(Product product)
@@ -41,15 +41,9 @@ namespace AgriIDMS.Infrastructure.Repositories
             return Task.CompletedTask;
         }
 
-        public async Task DeleteProductAsync(string productId)
+        public async Task<bool> ExistsByNameAsync(string name)
         {
-            var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id.ToString() == productId);
-
-            if (product == null)
-                return;
-
-            _context.Products.Remove(product);
+            return await _context.Products.AnyAsync(x => x.Name == name);
         }
     }
 }

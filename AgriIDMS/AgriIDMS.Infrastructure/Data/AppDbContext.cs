@@ -39,6 +39,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<Complaint> Complaints => Set<Complaint>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -1290,6 +1292,69 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             // Optional: index cho admin filter
             entity.HasIndex(x => x.IsApproved);
+        });
+
+        // ===================== PURCHASE ORDER =====================
+        builder.Entity<PurchaseOrder>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.OrderCode)
+                  .IsRequired()
+                  .HasMaxLength(50);
+
+            entity.Property(x => x.Status)
+                  .HasConversion<int>();
+
+            entity.Property(x => x.CreatedBy)
+                  .IsRequired();
+
+            entity.Property(x => x.ApprovedBy)
+                  .IsRequired(false);
+
+            entity.Property(x => x.ApprovedAt)
+                  .IsRequired(false);
+
+            // Supplier
+            entity.HasOne(x => x.Supplier)
+                  .WithMany()
+                  .HasForeignKey(x => x.SupplierId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Created User
+            entity.HasOne(x => x.CreatedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.CreatedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Approved User
+            entity.HasOne(x => x.ApprovedUser)
+                  .WithMany()
+                  .HasForeignKey(x => x.ApprovedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Details
+            entity.HasMany(x => x.Details)
+                  .WithOne(d => d.PurchaseOrder)
+                  .HasForeignKey(d => d.PurchaseOrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ===================== PURCHASE ORDER DETAIL =====================
+        builder.Entity<PurchaseOrderDetail>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.OrderedWeight)
+                  .HasPrecision(18, 3);
+
+            entity.Property(x => x.UnitPrice)
+                  .HasPrecision(18, 2);
+
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany()
+                  .HasForeignKey(x => x.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

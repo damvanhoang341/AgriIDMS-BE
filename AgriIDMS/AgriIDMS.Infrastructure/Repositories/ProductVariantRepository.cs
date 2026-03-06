@@ -1,5 +1,6 @@
 ﻿using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,27 @@ namespace AgriIDMS.Infrastructure.Repositories
                 throw new KeyNotFoundException($"ProductVariant with id {productVariantId} not found.");
 
             return productVariant;
+        }
+        public async Task<IEnumerable<ProductVariant>> GetAllAsync()
+        {
+            return await _context.ProductVariants
+                .Include(x => x.Product)
+                .ToListAsync();
+        }
+
+        public async Task AddAsync(ProductVariant variant)
+        {
+            await _context.ProductVariants.AddAsync(variant);
+        }
+
+        public void Update(ProductVariant variant)
+        {
+            _context.ProductVariants.Update(variant);
+        }
+
+        public void Delete(ProductVariant variant)
+        {
+            _context.ProductVariants.Remove(variant);
         }
     }
 }
