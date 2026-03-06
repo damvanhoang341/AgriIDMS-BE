@@ -6,6 +6,7 @@ using AgriIDMS.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
 {
@@ -29,7 +30,7 @@ namespace AgriIDMS.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
-            var userId = User.Identity?.Name ?? "system";
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var receiptId = await _goodsReceiptService.CreateGoodsReceiptAsync(request, userId);
 
@@ -74,7 +75,7 @@ namespace AgriIDMS.API.Controllers
         [HttpPost("qc")]
         public async Task<IActionResult> QCInspection([FromBody] QCInspectionRequest request)
         {
-            var userId = User.Identity?.Name ?? "system";
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
 
             await _goodsReceiptService.QCInspectionAsync(request, userId);
 
