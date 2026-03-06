@@ -8,6 +8,7 @@ using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -21,11 +22,13 @@ namespace AgriIDMS.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<UserService> _logger;
 
-        public UserService(IUserRepository userRepository, IUnitOfWork unitOfWork)
+        public UserService(IUserRepository userRepository, IUnitOfWork unitOfWork,ILogger<UserService> logger)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task DeleteAsync(string userId)
@@ -105,6 +108,37 @@ namespace AgriIDMS.Application.Services
                 UserType = user.UserType.ToString(),
                 CreatedAt = user.CreatedAt
             };
+        }
+
+        public async Task UpdateProfileAsync(string userId, UpdateUserProfileDto dto)
+        {
+            _logger.LogInformation("Updating profile for user {UserId}", userId);
+
+            var user = await _userRepository.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new NotFoundException("User không tồn tại");
+
+            if (dto.FullName != null)
+                user.FullName = dto.FullName;
+
+            if (dto.PhoneNumber != null)
+                user.PhoneNumber = dto.PhoneNumber;
+
+            if (dto.Gender.HasValue)
+                user.Gender = dto.Gender.Value;
+
+            if (dto.Dob.HasValue)
+                user.Dob = dto.Dob.Value;
+
+            if (dto.Address != null)
+                user.Address = dto.Address;
+
+            _userRepository.UpdateUser(user);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("Profile updated for user {UserId}", userId);
         }
     }
 }

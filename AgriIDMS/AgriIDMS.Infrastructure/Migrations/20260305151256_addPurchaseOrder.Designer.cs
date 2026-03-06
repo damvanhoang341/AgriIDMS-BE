@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305151256_addPurchaseOrder")]
+    partial class addPurchaseOrder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -987,14 +990,11 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ApprovedBy")
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("CreatedBy")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CreatedUserId")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("OrderCode")
@@ -1013,9 +1013,7 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApprovedBy");
-
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedUserId");
 
                     b.HasIndex("SupplierId");
 
@@ -1924,24 +1922,15 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrder", b =>
                 {
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "ApprovedUser")
-                        .WithMany()
-                        .HasForeignKey("ApprovedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "CreatedUser")
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("CreatedUserId");
 
                     b.HasOne("AgriIDMS.Domain.Entities.Supplier", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("ApprovedUser");
 
                     b.Navigation("CreatedUser");
 

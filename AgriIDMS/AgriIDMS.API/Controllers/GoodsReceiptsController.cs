@@ -3,7 +3,6 @@ using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
-using BaseApp.API.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

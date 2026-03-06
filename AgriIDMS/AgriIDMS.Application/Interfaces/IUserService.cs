@@ -13,5 +13,6 @@ namespace AgriIDMS.Application.Interfaces
         Task<UserDetailDto?> GetUserByIdAsync(string id);
         Task<PaginationResult<UserDto>> GetPagedAsync(PaginationRequest request);
         Task DeleteAsync(string userId);
+        Task UpdateProfileAsync(string userId, UpdateUserProfileDto dto);
     }
 }

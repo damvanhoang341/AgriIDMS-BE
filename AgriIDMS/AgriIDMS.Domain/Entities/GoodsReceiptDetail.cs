@@ -16,7 +16,8 @@ namespace AgriIDMS.Domain.Entities
 
         public int ProductVariantId { get; set; }
         public ProductVariant ProductVariant { get; set; } = null!;
-
+        public int PurchaseOrderDetailId { get; set; }
+        public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
         public decimal OrderedWeight { get; set; } // Số lượng đặt hàng (kg)
         public decimal RejectWeight { get; private set; }
         public void CalculateRejectWeight()
