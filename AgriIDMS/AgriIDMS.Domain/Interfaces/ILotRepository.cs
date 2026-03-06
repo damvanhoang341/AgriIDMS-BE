@@ -10,5 +10,6 @@ namespace AgriIDMS.Domain.Interfaces
     public interface ILotRepository
     {
         Task AddRangeAsync(IEnumerable<Lot> lots);
+        Task<Lot?> GetByIdAsync(int id);
     }
 }

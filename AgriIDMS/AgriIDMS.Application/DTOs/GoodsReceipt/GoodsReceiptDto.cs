@@ -13,55 +13,86 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public int WarehouseId { get; set; }
 
         [Required(ErrorMessage = "Biển số xe không được để trống")]
-        [StringLength(50, ErrorMessage = "Biển số xe tối đa 50 ký tự")]
+        [MaxLength(50, ErrorMessage = "Biển số xe tối đa 50 ký tự")]
         public string VehicleNumber { get; set; } = null!;
 
-        [StringLength(100, ErrorMessage = "Tên tài xế tối đa 100 ký tự")]
-        public string? DriverName { get; set; }
+        [Required(ErrorMessage = "Tên tài xế không được để trống")]
+        [MaxLength(100, ErrorMessage = "Tên tài xế tối đa 100 ký tự")]
+        public string DriverName { get; set; } = null!;
 
-        [StringLength(150, ErrorMessage = "Tên công ty vận chuyển tối đa 150 ký tự")]
+        [MaxLength(100, ErrorMessage = "Tên công ty vận chuyển tối đa 100 ký tự")]
         public string? TransportCompany { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "GrossWeight phải >= 0")]
-        public decimal? GrossWeight { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "TareWeight phải >= 0")]
-        public decimal? TareWeight { get; set; }
 
         [Range(0, 100, ErrorMessage = "TolerancePercent phải từ 0 đến 100")]
         public decimal TolerancePercent { get; set; }
-
-        [Required(ErrorMessage = "Danh sách sản phẩm không được rỗng")]
-        [MinLength(1, ErrorMessage = "Phiếu nhập phải có ít nhất một sản phẩm")]
-        public List<CreateGoodsReceiptDetailRequest> Details { get; set; } = new();
     }
 
-    public class CreateGoodsReceiptDetailRequest
+    public class AddGoodsReceiptDetailRequest
     {
+        [Required(ErrorMessage = "GoodsReceiptId không được để trống")]
+        public int GoodsReceiptId { get; set; }
+
         [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
         public int PurchaseOrderDetailId { get; set; }
 
         [Required(ErrorMessage = "ProductVariantId không được để trống")]
         public int ProductVariantId { get; set; }
 
-        [Range(0.0001, double.MaxValue, ErrorMessage = "OrderedWeight phải > 0")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "OrderedWeight phải lớn hơn 0")]
         public decimal OrderedWeight { get; set; }
 
-        [Range(0.0001, double.MaxValue, ErrorMessage = "UnitPrice phải > 0")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "UnitPrice phải lớn hơn 0")]
         public decimal UnitPrice { get; set; }
+    }
+
+    public class UpdateTruckWeightRequest
+    {
+        [Required(ErrorMessage = "GoodsReceiptId không được để trống")]
+        public int GoodsReceiptId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "GrossWeight phải lớn hơn 0")]
+        public decimal GrossWeight { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "TareWeight phải lớn hơn 0")]
+        public decimal TareWeight { get; set; }
+    }
+
+    public class QCInspectionRequest
+    {
+        [Required(ErrorMessage = "DetailId không được để trống")]
+        public int DetailId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "UsableWeight phải lớn hơn 0")]
+        public decimal UsableWeight { get; set; }
+
+        [Required(ErrorMessage = "QCResult không được để trống")]
+        public string QCResult { get; set; } = null!;
+
+        [MaxLength(500, ErrorMessage = "QCNote tối đa 500 ký tự")]
+        public string? QCNote { get; set; }
     }
 
     public class CreateLotRequest
     {
-        [Required(ErrorMessage = "Mã lô không được để trống.")]
-        [StringLength(100, ErrorMessage = "Mã lô tối đa 100 ký tự.")]
+        [Required(ErrorMessage = "GoodsReceiptDetailId không được để trống")]
+        public int GoodsReceiptDetailId { get; set; }
+
+        [Required(ErrorMessage = "LotCode không được để trống")]
+        [MaxLength(100, ErrorMessage = "LotCode tối đa 100 ký tự")]
         public string LotCode { get; set; } = null!;
 
-        [Required(ErrorMessage = "Số lượng lô không được để trống.")]
-        [Range(0.0001, double.MaxValue, ErrorMessage = "Số lượng lô phải lớn hơn 0.")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Quantity phải lớn hơn 0")]
         public decimal Quantity { get; set; }
 
-        [Required(ErrorMessage = "Hạn sử dụng không được để trống.")]
-        public DateTime ExpiryDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+    }
+
+    public class CreateBoxesRequest
+    {
+        [Required(ErrorMessage = "LotId không được để trống")]
+        public int LotId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "BoxSize phải lớn hơn 0")]
+        public decimal BoxSize { get; set; }
     }
 }

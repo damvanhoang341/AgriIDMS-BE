@@ -21,5 +21,10 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             await _context.GoodsReceiptDetails.AddAsync(entity);
         }
+
+        public async Task<GoodsReceiptDetail?> GetByIdAsync(int id)
+        {
+            return await _context.GoodsReceiptDetails.FindAsync(id);
+        }
     }
 }
