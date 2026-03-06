@@ -8,23 +8,16 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Infrastructure.Repositories
 {
-    public class LotRepository : ILotRepository
+    public class InventoryTransactionRepository : IInventoryTransactionRepository
     {
         private readonly AppDbContext _context;
-
-        public LotRepository(AppDbContext context)
+        public InventoryTransactionRepository(AppDbContext context)
         {
             _context = context;
         }
-
-        public async Task AddRangeAsync(IEnumerable<Lot> lots)
+        public async Task CreadAsyn(InventoryTransaction transaction)
         {
-            await _context.Lots.AddRangeAsync(lots);
-        }
-
-        public async Task<Lot?> GetByIdAsync(int id)
-        {
-            return await _context.Lots.FindAsync(id);
+            await _context.InventoryTransactions.AddAsync(transaction);
         }
     }
 }

@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Interfaces
 {
-    public interface IGoodsReceiptDetailRepository
+    public interface IBoxRepository
     {
-        Task AddGoodsReceiptDetaiAsync(GoodsReceiptDetail entity);
-        Task<GoodsReceiptDetail?> GetByIdAsync(int id);
+        Task<Box?> GetByIdAsync(int id);
+        Task CreateAsync(Box box);
     }
 }
