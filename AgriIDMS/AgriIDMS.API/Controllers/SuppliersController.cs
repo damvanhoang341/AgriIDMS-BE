@@ -1,4 +1,5 @@
 ﻿using AgriIDMS.Application.DTOs.Supplier;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,9 +10,9 @@ namespace AgriIDMS.API.Controllers
     [ApiController]
     public class SuppliersController : ControllerBase
     {
-        private readonly SupplierService _supplierService;
+        private readonly ISupplierService _supplierService;
 
-        public SuppliersController(SupplierService supplierService)
+        public SuppliersController(ISupplierService supplierService)
         {
             _supplierService = supplierService;
         }

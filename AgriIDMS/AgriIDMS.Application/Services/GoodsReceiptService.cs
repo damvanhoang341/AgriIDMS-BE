@@ -24,6 +24,7 @@ namespace AgriIDMS.Application.Services
         private readonly IWarehouseRepository _warehouseRepo;
         private readonly IProductVariantRepository _productVariantRepo;
         private readonly ILogger<GoodsReceiptService> _logger;
+        private readonly IPurchaseOrderRepository _purchaseOrderRepo;
 
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
@@ -33,7 +34,8 @@ namespace AgriIDMS.Application.Services
             ISupplierRepository supplierRepository,
             IWarehouseRepository warehouseRepo,
             IProductVariantRepository ProductVariantRepository,
-            ILogger<GoodsReceiptService> logger)
+            ILogger<GoodsReceiptService> logger,
+            IPurchaseOrderRepository purchaseOrderRepo)
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
@@ -43,6 +45,7 @@ namespace AgriIDMS.Application.Services
             _warehouseRepo = warehouseRepo;
             _productVariantRepo = ProductVariantRepository;
             _logger = logger;
+            _purchaseOrderRepo = purchaseOrderRepo;
         }
 
         private string GenerateLotCode(int productVariantId, DateTime receivedDate)
@@ -52,123 +55,105 @@ namespace AgriIDMS.Application.Services
 
 
         // Tạo phiếu nhập Draft
-        public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string currentUserId)
+        public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string userId)
         {
-            _logger.LogInformation("Start creating GoodsReceipt by user {UserId}", currentUserId);
+            _logger.LogInformation("Bắt đầu tạo phiếu nhập kho bởi người dùng {UserId}", userId);
 
             await _unitOfWork.BeginTransactionAsync();
 
-            if (request == null)
+            try
             {
-                _logger.LogWarning("CreateGoodsReceipt failed: request is null");
-                throw new InvalidBusinessRuleException("Dữ liệu không được để trống");
-            }
+                if (request == null)
+                    throw new InvalidBusinessRuleException("Dữ liệu phiếu nhập không hợp lệ");
 
-            if (request.Details == null || !request.Details.Any())
-            {
-                _logger.LogWarning("CreateGoodsReceipt failed: no product details");
-                throw new InvalidBusinessRuleException("Phiếu nhập phải có ít nhất một sản phẩm");
-            }
+                if (request.Details == null || !request.Details.Any())
+                    throw new InvalidBusinessRuleException("Phiếu nhập phải có ít nhất một sản phẩm");
 
-            var supplier = await _supplierRepo.GetByIdAsync(request.SupplierId);
-            if (supplier == null)
-            {
-                _logger.LogWarning("Supplier {SupplierId} not found", request.SupplierId);
-                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại");
-            }
-
-            var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
-            if (warehouse == null)
-            {
-                _logger.LogWarning("Warehouse {WarehouseId} not found", request.WarehouseId);
-                throw new InvalidBusinessRuleException("Kho không tồn tại");
-            }
-
-            var receipt = new GoodsReceipt
-            {
-                SupplierId = request.SupplierId,
-                WarehouseId = request.WarehouseId,
-                VehicleNumber = request.VehicleNumber,
-                DriverName = request.DriverName,
-                TransportCompany = request.TransportCompany,
-                GrossWeight = request.GrossWeight,
-                TareWeight = request.TareWeight,
-                ReceivedDate = request.ReceivedDate,
-                Status = GoodsReceiptStatus.Draft,
-                CreatedBy = currentUserId,
-                TolerancePercent = request.TolerancePercent
-            };
-
-            await _receiptRepo.AddGoodsReceiptAsync(receipt);
-            await _unitOfWork.SaveChangesAsync();
-
-            _logger.LogInformation("Created GoodsReceipt draft with Id {ReceiptId}", receipt.Id);
-
-            foreach (var d in request.Details)
-            {
-                if (d.ActualQuantity <= 0)
+                var supplier = await _supplierRepo.GetByIdAsync(request.SupplierId);
+                if (supplier == null)
                 {
-                    _logger.LogWarning("Invalid actual quantity for productVariant {ProductVariantId}", d.ProductVariantId);
-                    throw new InvalidBusinessRuleException("Số lượng thực tế phải lớn hơn 0");
+                    _logger.LogWarning("Không tìm thấy nhà cung cấp {SupplierId}", request.SupplierId);
+                    throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại");
                 }
 
-                var productVariant = await _productVariantRepo.GetProductVariantByIdAsync(d.ProductVariantId);
-                if (productVariant == null)
+                var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
+                if (warehouse == null)
                 {
-                    _logger.LogWarning("ProductVariant {ProductVariantId} not found", d.ProductVariantId);
-                    throw new InvalidBusinessRuleException("Mặt hàng nông sản không tồn tại");
+                    _logger.LogWarning("Không tìm thấy kho {WarehouseId}", request.WarehouseId);
+                    throw new InvalidBusinessRuleException("Kho không tồn tại");
                 }
 
-                var detail = new GoodsReceiptDetail
+                var receipt = new GoodsReceipt
                 {
-                    GoodsReceiptId = receipt.Id,
-                    ProductVariantId = d.ProductVariantId,
-                    OrderedWeight = d.EstimatedQuantity,
-                    UsableWeight = d.ActualQuantity,
-                    UnitPrice = d.UnitPrice
+                    SupplierId = request.SupplierId,
+                    WarehouseId = request.WarehouseId,
+                    VehicleNumber = request.VehicleNumber,
+                    DriverName = request.DriverName,
+                    TransportCompany = request.TransportCompany,
+                    GrossWeight = request.GrossWeight,
+                    TareWeight = request.TareWeight,
+                    TolerancePercent = request.TolerancePercent,
+                    CreatedBy = userId,
+                    ReceivedDate = DateTime.UtcNow,
+                    Status = GoodsReceiptStatus.Draft
                 };
 
-                detail.CalculateRejectWeight();
+                await _receiptRepo.AddGoodsReceiptAsync(receipt);
 
-                await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
+                foreach (var item in request.Details)
+                {
+                    var poDetail = await _purchaseOrderRepo.GetByIdAsync(item.PurchaseOrderDetailId);
+
+                    if (poDetail == null)
+                    {
+                        _logger.LogWarning("Không tìm thấy chi tiết đơn mua {PurchaseOrderDetailId}", item.PurchaseOrderDetailId);
+                        throw new InvalidBusinessRuleException("Chi tiết đơn mua không tồn tại");
+                    }
+
+                    if (poDetail.Status != PurchaseOrderStatus.Approved)
+                    {
+                        _logger.LogWarning("Đơn mua {PurchaseOrderId} chưa được duyệt", poDetail.Id);
+                        throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, không thể nhập kho");
+                    }
+
+                    var productVariant = await _productVariantRepo.GetProductVariantByIdAsync(item.ProductVariantId);
+
+                    if (productVariant == null)
+                    {
+                        _logger.LogWarning("Không tìm thấy sản phẩm {ProductVariantId}", item.ProductVariantId);
+                        throw new InvalidBusinessRuleException("Sản phẩm không tồn tại");
+                    }
+
+                    if (item.OrderedWeight <= 0)
+                        throw new InvalidBusinessRuleException("Số lượng nhập phải lớn hơn 0");
+
+                    var detail = new GoodsReceiptDetail
+                    {
+                        GoodsReceiptId = receipt.Id,
+                        PurchaseOrderDetailId = item.PurchaseOrderDetailId,
+                        ProductVariantId = item.ProductVariantId,
+                        OrderedWeight = item.OrderedWeight,
+                        UnitPrice = item.UnitPrice
+                    };
+
+                    await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
+                }
+
                 await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitAsync();
 
-                _logger.LogInformation("Created GoodsReceiptDetail for productVariant {ProductVariantId}", d.ProductVariantId);
+                _logger.LogInformation("Tạo phiếu nhập kho {ReceiptId} thành công", receipt.Id);
 
-                if (d.Lots == null || !d.Lots.Any())
-                {
-                    _logger.LogWarning("Lots missing for productVariant {ProductVariantId}", d.ProductVariantId);
-                    throw new InvalidBusinessRuleException("Mỗi sản phẩm phải có ít nhất một lô");
-                }
-
-                var lots = d.Lots.Select(l => new Lot
-                {
-                    LotCode = GenerateLotCode(d.ProductVariantId, request.ReceivedDate),
-                    GoodsReceiptDetailId = detail.Id,
-                    TotalQuantity = l.Quantity,
-                    RemainingQuantity = l.Quantity,
-                    ExpiryDate = l.ExpiryDate,
-                    ReceivedDate = request.ReceivedDate,
-                    Status = LotStatus.Active
-                }).ToList();
-
-                if (lots.Sum(x => x.TotalQuantity) != d.ActualQuantity)
-                {
-                    _logger.LogWarning("Lot quantity mismatch for productVariant {ProductVariantId}", d.ProductVariantId);
-                    throw new InvalidBusinessRuleException("Tổng số lượng các lô phải bằng số lượng thực tế");
-                }
-
-                await _lotRepo.AddRangeAsync(lots);
-
-                _logger.LogInformation("Created {LotCount} lots for productVariant {ProductVariantId}", lots.Count, d.ProductVariantId);
+                return receipt.Id;
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi tạo phiếu nhập kho");
 
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitAsync();
+                await _unitOfWork.RollbackAsync();
 
-            _logger.LogInformation("GoodsReceipt {ReceiptId} created successfully", receipt.Id);
-
-            return receipt.Id;
+                throw;
+            }
         }
 
         // Duyệt phiếu nhập

@@ -91,6 +91,7 @@ public static class ServiceRegistration
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ICategoryService, CategoryService>();
@@ -99,6 +100,7 @@ public static class ServiceRegistration
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductVariantService, ProductVariantService>();
         services.AddScoped<IGoodsReceiptService,GoodsReceiptService>();
+        services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<AuthService>();
         services.AddScoped<WarehouseService>();
         services.AddScoped<ZoneService>();
