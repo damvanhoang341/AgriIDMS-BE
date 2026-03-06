@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -90,8 +91,16 @@ namespace AgriIDMS.Application.Services
             };
 
             await _receiptRepo.AddGoodsReceiptAsync(receipt);
-
             await _unitOfWork.SaveChangesAsync();
+            //try
+            //{
+            //    await _unitOfWork.SaveChangesAsync();
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex.InnerException?.Message);
+            //    throw;
+            //}
 
             return receipt.Id;
         }
@@ -162,7 +171,7 @@ namespace AgriIDMS.Application.Services
             detail.InspectedAt = DateTime.UtcNow;
 
             detail.CalculateRejectWeight();
-
+            
             await _unitOfWork.SaveChangesAsync();
 
             await GenerateLotAsync(detail.Id);
@@ -206,17 +215,27 @@ namespace AgriIDMS.Application.Services
 
             for (int i = 0; i < boxCount; i++)
             {
+                var boxCode = $"BOX-{DateTime.Now:yyyyMMddHHmmss}-{i + 1}";
                 var box = new Box
                 {
                     LotId = lot.Id,
                     Weight = request.BoxSize,
-                    Status = BoxStatus.Stored
+                    Status = BoxStatus.Stored,
+                    BoxCode = boxCode
                 };
 
                 _boxRepo.CreateAsync(box);
             }
-
-            await _unitOfWork.SaveChangesAsync();
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.InnerException?.Message);
+                throw;
+            }
+            //await _unitOfWork.SaveChangesAsync();
         }
 
         // ===============================
