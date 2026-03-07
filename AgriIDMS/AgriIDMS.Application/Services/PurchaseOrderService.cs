@@ -67,7 +67,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             {
                 ProductVariantId = item.ProductVariantId,
                 OrderedWeight = item.OrderedWeight,
-                UnitPrice = item.UnitPrice
+                UnitPrice = item.UnitPrice,
+                TolerancePercent = item.TolerancePercent
             });
         }
 
@@ -110,7 +111,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                 ProductVariantId = d.ProductVariantId,
                 ProductName = d.ProductVariant.Product.Name,
                 OrderedWeight = d.OrderedWeight,
-                UnitPrice = d.UnitPrice
+                UnitPrice = d.UnitPrice,
+                TolerancePercent = d.TolerancePercent
             }).ToList()
         };
     }

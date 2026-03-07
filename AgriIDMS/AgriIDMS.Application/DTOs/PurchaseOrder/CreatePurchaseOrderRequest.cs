@@ -29,6 +29,9 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
         [Range(0.01, double.MaxValue)]
         public decimal UnitPrice { get; set; }
+
+        [Range(0, 100, ErrorMessage = "TolerancePercent phải từ 0 đến 100")]
+        public decimal TolerancePercent { get; set; } = 2;
     }
 
     public class PurchaseOrderResponse
@@ -60,5 +63,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public decimal OrderedWeight { get; set; }
 
         public decimal UnitPrice { get; set; }
+
+        public decimal TolerancePercent { get; set; }
     }
 }

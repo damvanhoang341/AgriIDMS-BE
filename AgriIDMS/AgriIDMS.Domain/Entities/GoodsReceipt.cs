@@ -1,15 +1,18 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Entities
 {
     public class GoodsReceipt
     {
         public int Id { get; set; }
+
+        public string ReceiptCode { get; set; } = null!;
+
+        public int? PurchaseOrderId { get; set; }
+        public PurchaseOrder? PurchaseOrder { get; set; }
 
         public int SupplierId { get; set; }
         public Supplier Supplier { get; set; } = null!;
@@ -18,44 +21,32 @@ namespace AgriIDMS.Domain.Entities
         public Warehouse Warehouse { get; set; } = null!;
 
         public GoodsReceiptStatus Status { get; set; } = GoodsReceiptStatus.Draft;
-        // ================ đơn vị vận tải ===============
+
         public string VehicleNumber { get; set; } = null!;
         public string? DriverName { get; set; }
-        public string? TransportCompany { get; set; }  
+        public string? TransportCompany { get; set; }
 
-        // ===== CÂN XE =====
-        public decimal? GrossWeight { get; set; }     // Cân xe đầy
-        public decimal? TareWeight { get; set; }      // Cân xe rỗng
-        public decimal? NetWeight =>GrossWeight.HasValue && TareWeight.HasValue? GrossWeight - TareWeight: null;
+        public decimal? GrossWeight { get; set; }
+        public decimal? TareWeight { get; set; }
+        public decimal? NetWeight => GrossWeight.HasValue && TareWeight.HasValue ? GrossWeight - TareWeight : null;
 
-        // ===== TỔNG TÍNH TỪ DETAIL =====
-        public decimal TotalOrderedWeight =>
-            Details.Sum(x => x.OrderedWeight);
+        /// <summary>Tổng khối lượng đặt (từ PO), từ Details.PurchaseOrderDetail.OrderedWeight.</summary>
+        public decimal TotalExpectedWeight => Details.Sum(d => d.PurchaseOrderDetail?.OrderedWeight ?? 0);
+        public decimal TotalReceivedWeight => Details.Sum(x => x.ReceivedWeight);
+        public decimal TotalUsableWeight => Details.Sum(x => x.UsableWeight);
 
-        public decimal TotalUsableWeight =>
-            Details.Sum(x => x.UsableWeight ?? 0);
+        /// <summary>Hao hụt vận chuyển (không âm): NetWeight - TotalReceivedWeight.</summary>
+        public decimal TransportLossWeight => NetWeight.HasValue ? Math.Max(0, NetWeight.Value - TotalReceivedWeight) : 0;
+        public decimal QCLossWeight => TotalReceivedWeight - TotalUsableWeight;
+        public decimal TotalLossWeight => TransportLossWeight + QCLossWeight;
 
-        // Hao hụt vận chuyển
-        public decimal TransportLossWeight => NetWeight.HasValue ? NetWeight.Value - TotalOrderedWeight : 0;
+        /// <summary>Dung sai cho phép (tổng theo từng dòng PO: OrderedWeight * TolerancePercent).</summary>
+        public decimal AllowedLossWeight => Details.Sum(d => (d.PurchaseOrderDetail?.OrderedWeight ?? 0) * (d.PurchaseOrderDetail?.TolerancePercent ?? 0) / 100);
+        public decimal ClaimableWeight => TotalLossWeight > AllowedLossWeight ? TotalLossWeight - AllowedLossWeight : 0;
 
-        // Hao hụt QC
-        public decimal QCLossWeight => TotalOrderedWeight - TotalUsableWeight;
-
-        public decimal TotalLossWeight { get; private set; }
-        public void CalculateTotalLossWeight()
-        {
-            TotalLossWeight = TransportLossWeight + QCLossWeight;
-        }
-
-        public decimal TolerancePercent { get; set; }   // dung sai
-        public decimal AllowedLossWeight => TotalOrderedWeight * (TolerancePercent / 100);
-
-        public decimal ClaimableWeight =>TotalLossWeight > AllowedLossWeight ? TotalLossWeight - AllowedLossWeight: 0;    // Phần vượt dung sai
-
-        // ===== THÔNG TIN NGƯỜI TẠO =====
         public string CreatedBy { get; set; } = null!;
         public ApplicationUser CreatedUser { get; set; } = null!;
-
+        public string? ReceivedBy { get; set; }
         public string? ApprovedBy { get; set; }
         public ApplicationUser? ApprovedUser { get; set; }
 
@@ -63,7 +54,6 @@ namespace AgriIDMS.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ApprovedAt { get; set; }
 
-        public ICollection<GoodsReceiptDetail> Details { get; set; }
-            = new List<GoodsReceiptDetail>();
+        public ICollection<GoodsReceiptDetail> Details { get; set; } = new List<GoodsReceiptDetail>();
     }
 }

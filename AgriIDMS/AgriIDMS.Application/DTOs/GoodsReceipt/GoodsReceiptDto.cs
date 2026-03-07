@@ -23,12 +23,11 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [MaxLength(100, ErrorMessage = "Tên công ty vận chuyển tối đa 100 ký tự")]
         public string? TransportCompany { get; set; }
 
-        [Range(0, 100, ErrorMessage = "TolerancePercent phải từ 0 đến 100")]
-        public decimal TolerancePercent { get; set; }
+        public int? PurchaseOrderId { get; set; }
     }
 
     /// <summary>
-    /// Warehouse only sends PO line + received weight. OrderedWeight and UnitPrice come from PO (not exposed to warehouse).
+    /// Warehouse only sends PO line + received weight. ExpectedWeight and UnitPrice come from PO (not exposed to warehouse).
     /// </summary>
     public class AddGoodsReceiptDetailRequest
     {
