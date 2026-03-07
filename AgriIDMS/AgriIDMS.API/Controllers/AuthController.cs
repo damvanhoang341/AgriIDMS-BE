@@ -14,7 +14,6 @@ public class AuthController : ControllerBase
 {
     private readonly ILogger<AuthController> _logger;
     private readonly AuthService _authService;
-
     public AuthController(ILogger<AuthController> logger, AuthService authService)
     {
         _logger = logger;
@@ -95,6 +94,7 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
     {
+        var y = 0;
         var x = 1;
         await _authService.ConfirmEmailAsync(userId, token);
 
