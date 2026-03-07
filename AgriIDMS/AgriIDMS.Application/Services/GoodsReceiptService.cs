@@ -111,26 +111,33 @@ namespace AgriIDMS.Application.Services
         // ===============================
         public async Task AddGoodsReceiptDetailAsync(AddGoodsReceiptDetailRequest request)
         {
-            var poDetail = await _purchaseOrderRepo.GetByIdAsync(request.PurchaseOrderDetailId);
+            // Lấy đúng dòng đơn mua theo PurchaseOrderDetailId (không nhầm với PO Id)
+            var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(request.PurchaseOrderDetailId);
 
             if (poDetail == null)
-                throw new Exception("Chi tiết đơn mua không tồn tại");
+                throw new NotFoundException("Chi tiết đơn mua không tồn tại");
 
-            if (poDetail.Status != PurchaseOrderStatus.Approved)
-                throw new Exception("Đơn mua chưa được duyệt");
+            if (poDetail.PurchaseOrder.Status != PurchaseOrderStatus.Approved)
+                throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
 
-            var productVariant = await _productVariantRepo.GetProductVariantByIdAsync(request.ProductVariantId);
+            // Phiếu nhập phải cùng NCC với đơn mua
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(request.GoodsReceiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
+                throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
 
-            if (productVariant == null)
-                throw new Exception("Sản phẩm không tồn tại");
+            // Dòng nhập phải khớp sản phẩm và đơn giá của dòng PO
+            if (request.ProductVariantId != poDetail.ProductVariantId)
+                throw new InvalidBusinessRuleException("Sản phẩm không khớp với dòng đơn mua");
 
             var detail = new GoodsReceiptDetail
             {
                 GoodsReceiptId = request.GoodsReceiptId,
                 PurchaseOrderDetailId = request.PurchaseOrderDetailId,
-                ProductVariantId = request.ProductVariantId,
+                ProductVariantId = poDetail.ProductVariantId,
                 OrderedWeight = request.OrderedWeight,
-                UnitPrice = request.UnitPrice
+                UnitPrice = poDetail.UnitPrice
             };
 
             await _detailRepo.AddGoodsReceiptDetaiAsync(detail);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -50,6 +50,9 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
     public class PurchaseOrderDetailResponse
     {
+        /// <summary>Id dòng đơn mua (dùng làm PurchaseOrderDetailId khi thêm chi tiết phiếu nhập).</summary>
+        public int Id { get; set; }
+
         public int ProductVariantId { get; set; }
 
         public string ProductName { get; set; }

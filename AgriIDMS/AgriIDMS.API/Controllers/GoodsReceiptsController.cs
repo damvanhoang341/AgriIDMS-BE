@@ -12,7 +12,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize] // nếu có JWT
+    [Authorize]
     public class GoodsReceiptsController : ControllerBase
     {
         private readonly ILogger<GoodsReceiptsController> _logger;
@@ -25,9 +25,10 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // CREATE RECEIPT
+        // CREATE RECEIPT (WarehouseStaff / Manager / Admin)
         // ===============================
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -45,6 +46,7 @@ namespace AgriIDMS.API.Controllers
         // ADD RECEIPT DETAIL
         // ===============================
         [HttpPost("detail")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> AddDetail([FromBody] AddGoodsReceiptDetailRequest request)
         {
             await _goodsReceiptService.AddGoodsReceiptDetailAsync(request);
@@ -59,6 +61,7 @@ namespace AgriIDMS.API.Controllers
         // UPDATE TRUCK WEIGHT
         // ===============================
         [HttpPut("truck-weight")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateTruckWeight([FromBody] UpdateTruckWeightRequest request)
         {
             await _goodsReceiptService.UpdateTruckWeightAsync(request);
@@ -73,6 +76,7 @@ namespace AgriIDMS.API.Controllers
         // QC INSPECTION
         // ===============================
         [HttpPost("qc")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> QCInspection([FromBody] QCInspectionRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -89,6 +93,7 @@ namespace AgriIDMS.API.Controllers
         // GENERATE BOXES
         // ===============================
         [HttpPost("boxes")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GenerateBoxes([FromBody] CreateBoxesRequest request)
         {
             await _goodsReceiptService.GenerateBoxesAsync(request);
@@ -100,9 +105,10 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // APPROVE RECEIPT
+        // APPROVE RECEIPT (chỉ Manager hoặc Admin)
         // ===============================
         [HttpPost("{receiptId}/approve")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApproveReceipt(int receiptId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";

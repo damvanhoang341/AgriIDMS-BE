@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,6 +21,7 @@ public static class IdentitySeeder
         {
             "Admin",
             "Manager",
+            "PurchasingStaff",
             "WarehouseStaff",
             "SalesStaff",
             "Customer"

@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.PurchaseOrder;
+using AgriIDMS.Application.DTOs.PurchaseOrder;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
@@ -106,6 +106,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             OrderDate = order.OrderDate,
             Details = order.Details.Select(d => new PurchaseOrderDetailResponse
             {
+                Id = d.Id,
                 ProductVariantId = d.ProductVariantId,
                 ProductName = d.ProductVariant.Product.Name,
                 OrderedWeight = d.OrderedWeight,

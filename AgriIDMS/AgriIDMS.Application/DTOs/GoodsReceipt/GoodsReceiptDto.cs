@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace AgriIDMS.Application.DTOs.GoodsReceipt
 {
@@ -27,6 +27,9 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal TolerancePercent { get; set; }
     }
 
+    /// <summary>
+    /// Thủ kho chỉ gửi dòng PO + khối lượng nhận. Đơn giá lấy từ PO (không lộ giá cho WarehouseStaff).
+    /// </summary>
     public class AddGoodsReceiptDetailRequest
     {
         [Required(ErrorMessage = "GoodsReceiptId không được để trống")]
@@ -41,8 +44,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Range(0.01, double.MaxValue, ErrorMessage = "OrderedWeight phải lớn hơn 0")]
         public decimal OrderedWeight { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "UnitPrice phải lớn hơn 0")]
-        public decimal UnitPrice { get; set; }
+        // UnitPrice không có trong request: backend lấy từ PurchaseOrderDetail để tránh lộ giá nhập cho thủ kho.
     }
 
     public class UpdateTruckWeightRequest
