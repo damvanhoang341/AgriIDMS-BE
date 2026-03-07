@@ -51,5 +51,6 @@ namespace AgriIDMS.API.Controllers
             await _supplierService.DeleteSupplierAsync(id);
             return NoContent();
         }
+        //demo
     }
 }
