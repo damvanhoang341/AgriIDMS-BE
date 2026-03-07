@@ -176,8 +176,7 @@ Response: `{ "message": "Tạo phiếu nhập thành công", "receiptId": 1 }`
 
 **Role:** WarehouseStaff (hoặc Manager / Admin).
 
-Dùng **PurchaseOrderDetailId** = `details[].id` lấy ở bước 3 (ví dụ `1`), **productVariantId** và **orderedWeight** khớp với dòng PO. **GoodsReceiptId** = phiếu vừa tạo (bước 4).  
-**Không gửi đơn giá**: backend tự lấy từ PO để tránh lộ giá nhập cho thủ kho.
+Thủ kho chỉ nhập **receivedWeight** (khối lượng thực nhận). **OrderedWeight** và **UnitPrice** lấy từ PO (không hiển thị cho kho).
 
 ```http
 POST http://localhost:5132/api/GoodsReceipts/detail
@@ -188,13 +187,13 @@ Content-Type: application/json
   "goodsReceiptId": 1,
   "purchaseOrderDetailId": 1,
   "productVariantId": 1,
-  "orderedWeight": 980
+  "receivedWeight": 980
 }
 ```
 
 ---
 
-### Bước 6: Cập nhật cân xe
+### Bước 6: Cập nhật cân xe (GrossWeight > TareWeight)
 
 **Role:** WarehouseStaff (hoặc Manager / Admin).
 
@@ -216,7 +215,7 @@ Content-Type: application/json
 
 **Role:** WarehouseStaff (hoặc Manager / Admin).
 
-**DetailId** = id của **GoodsReceiptDetail** (sau khi thêm dòng ở bước 5). Nếu chỉ có 1 dòng, thường là `1`. **QCResult**: `Passed` | `Failed` | `Partial` | `Pending`.
+**UsableWeight** không được vượt quá **ReceivedWeight** của dòng. **QCResult**: `Passed` | `Failed` | `Partial` | `Pending`. Lot được tạo ở bước Duyệt phiếu (bước 9), không tạo tại QC.
 
 ```http
 POST http://localhost:5132/api/GoodsReceipts/qc
@@ -231,15 +230,32 @@ Content-Type: application/json
 }
 ```
 
-Sau bước này hệ thống tự tạo **Lot** cho dòng đó.
-
 ---
 
-### Bước 8: Tạo Box từ Lot
+### Bước 8: Duyệt phiếu nhập (Manager/Admin)
+
+**Role:** Manager hoặc Admin.
+
+Gọi **sau khi** đã QC hết các dòng. Hệ thống so sánh **ReceivedWeight** với **OrderedWeight** theo **TolerancePercent** của phiếu:
+
+- **Trong dung sai** → Phiếu chuyển **Approved**, tạo **Lot** cho từng dòng. Sau đó mới gọi bước 9 (tạo Box).
+- **Vượt dung sai** → Phiếu chuyển **PendingManagerApproval**. Manager phải gọi **manager-approve** hoặc **manager-reject** (bước 8b).
+
+```http
+POST http://localhost:5132/api/GoodsReceipts/1/approve
+Authorization: Bearer <token>
+```
+
+### Bước 8b (nếu phiếu PendingManagerApproval)
+
+- **Manager duyệt:** `POST .../api/GoodsReceipts/1/manager-approve` → tạo Lot, chuyển Approved.
+- **Manager từ chối:** `POST .../api/GoodsReceipts/1/manager-reject` → chuyển Rejected.
+
+### Bước 9: Tạo Box từ Lot (chỉ sau khi phiếu Approved)
 
 **Role:** WarehouseStaff (hoặc Manager / Admin).
 
-Cần biết **LotId**. Lot vừa được tạo ở bước 7 (có thể xem trong DB bảng `Lots`, hoặc thêm API get receipt by id kèm details/lots). Ví dụ `lotId = 1`, chia mỗi box 100 kg:
+Chỉ gọi được khi phiếu đã **Approved**. Lot được tạo ở bước 8 (duyệt phiếu). Hệ thống chia theo **boxSize**; nếu còn dư thì tạo thêm 1 box chứa phần dư. Mỗi box tạo xong sẽ ghi **InventoryTransaction** (Import).
 
 ```http
 POST http://localhost:5132/api/GoodsReceipts/boxes
@@ -252,22 +268,9 @@ Content-Type: application/json
 }
 ```
 
-(Số box = `TotalQuantity / boxSize` lấy phần nguyên; ví dụ 950/100 = 9 box.)
-
 ---
 
-### Bước 9: Duyệt phiếu nhập
-
-**Role:** Manager hoặc Admin.
-
-```http
-POST http://localhost:5132/api/GoodsReceipts/1/approve
-Authorization: Bearer <token>
-```
-
-(Thay `1` bằng **receiptId**.)
-
-Sau bước này phiếu chuyển **Approved**, hệ thống tạo **InventoryTransaction** (Import) cho từng box → hàng chính thức nhập kho.
+*(Bước duyệt phiếu và tạo Lot đã nêu ở bước 8; tạo Box và ghi tồn kho ở bước 9.)*
 
 ---
 
@@ -297,11 +300,12 @@ Sau bước này phiếu chuyển **Approved**, hệ thống tạo **InventoryTr
 | 2 | Duyệt PO           | POST /api/PurchaseOrder/{id}/approve | Manager    |
 | 3 | Xem PO (lấy detail id) | GET /api/PurchaseOrder/{id}  | Manager/WarehouseStaff |
 | 4 | Tạo phiếu nhập     | POST /api/GoodsReceipts      | WarehouseStaff    |
-| 5 | Thêm dòng phiếu    | POST /api/GoodsReceipts/detail | WarehouseStaff  |
-| 6 | Cân xe             | PUT /api/GoodsReceipts/truck-weight | WarehouseStaff |
-| 7 | QC                 | POST /api/GoodsReceipts/qc   | WarehouseStaff    |
-| 8 | Tạo box            | POST /api/GoodsReceipts/boxes | WarehouseStaff   |
-| 9 | Duyệt phiếu nhập   | POST /api/GoodsReceipts/{id}/approve | Manager  |
+| 5 | Thêm dòng phiếu (receivedWeight) | POST /api/GoodsReceipts/detail | WarehouseStaff  |
+| 6 | Cân xe (Gross > Tare) | PUT /api/GoodsReceipts/truck-weight | WarehouseStaff |
+| 7 | QC (usableWeight ≤ receivedWeight) | POST /api/GoodsReceipts/qc   | WarehouseStaff    |
+| 8 | Duyệt phiếu (tolerance → Approved hoặc PendingManagerApproval) | POST /api/GoodsReceipts/{id}/approve | Manager  |
+| 8b | Manager duyệt/từ chối (khi PendingManagerApproval) | POST .../manager-approve hoặc .../manager-reject | Manager  |
+| 9 | Tạo box (chỉ khi Approved) | POST /api/GoodsReceipts/boxes | WarehouseStaff   |
 
 ---
 

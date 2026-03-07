@@ -90,35 +90,52 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // GENERATE BOXES
+        // GENERATE BOXES (chỉ sau khi phiếu Approved)
         // ===============================
         [HttpPost("boxes")]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GenerateBoxes([FromBody] CreateBoxesRequest request)
         {
-            await _goodsReceiptService.GenerateBoxesAsync(request);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.GenerateBoxesAsync(request, userId);
 
-            return Ok(new
-            {
-                Message = "Tạo box thành công"
-            });
+            return Ok(new { Message = "Tạo box thành công" });
         }
 
         // ===============================
-        // APPROVE RECEIPT (chỉ Manager hoặc Admin)
+        // APPROVE RECEIPT (Manager/Admin; tolerance check → Approved hoặc PendingManagerApproval)
         // ===============================
         [HttpPost("{receiptId}/approve")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApproveReceipt(int receiptId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-
             await _goodsReceiptService.ApproveGoodsReceiptAsync(receiptId, userId);
+            return Ok(new { Message = "Phiếu nhập đã được xử lý (duyệt hoặc chuyển chờ Manager)" });
+        }
 
-            return Ok(new
-            {
-                Message = "Phiếu nhập đã được duyệt"
-            });
+        // ===============================
+        // MANAGER APPROVE (khi status = PendingManagerApproval)
+        // ===============================
+        [HttpPost("{receiptId}/manager-approve")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ManagerApproveReceipt(int receiptId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.ManagerApproveReceiptAsync(receiptId, userId);
+            return Ok(new { Message = "Phiếu nhập đã được Manager duyệt" });
+        }
+
+        // ===============================
+        // MANAGER REJECT (khi status = PendingManagerApproval)
+        // ===============================
+        [HttpPost("{receiptId}/manager-reject")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ManagerRejectReceipt(int receiptId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.ManagerRejectReceiptAsync(receiptId, userId);
+            return Ok(new { Message = "Phiếu nhập đã bị Manager từ chối" });
         }
     }
 }

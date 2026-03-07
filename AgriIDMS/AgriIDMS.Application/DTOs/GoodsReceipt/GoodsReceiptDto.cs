@@ -28,7 +28,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
     }
 
     /// <summary>
-    /// Thủ kho chỉ gửi dòng PO + khối lượng nhận. Đơn giá lấy từ PO (không lộ giá cho WarehouseStaff).
+    /// Warehouse only sends PO line + received weight. OrderedWeight and UnitPrice come from PO (not exposed to warehouse).
     /// </summary>
     public class AddGoodsReceiptDetailRequest
     {
@@ -41,10 +41,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Required(ErrorMessage = "ProductVariantId không được để trống")]
         public int ProductVariantId { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "OrderedWeight phải lớn hơn 0")]
-        public decimal OrderedWeight { get; set; }
-
-        // UnitPrice không có trong request: backend lấy từ PurchaseOrderDetail để tránh lộ giá nhập cho thủ kho.
+        [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
+        public decimal ReceivedWeight { get; set; }
     }
 
     public class UpdateTruckWeightRequest

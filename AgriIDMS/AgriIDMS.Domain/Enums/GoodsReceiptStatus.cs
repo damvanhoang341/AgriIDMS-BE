@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,7 +12,9 @@ namespace AgriIDMS.Domain.Enums
         WaitingQC = 1,
         QcFailed = 2,
         Approved = 3,
-        Cancelled = 4
+        Cancelled = 4,
+        PendingManagerApproval = 5,
+        Rejected = 6
     }
 
     public enum LotStatus
