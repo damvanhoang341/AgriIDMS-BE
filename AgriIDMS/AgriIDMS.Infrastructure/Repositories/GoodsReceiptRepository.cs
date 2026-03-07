@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -38,7 +38,17 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(int goodsReceiptId)
         {
-            return await _context.GoodsReceipts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == goodsReceiptId);
+            // Tracking entity so services can update fields (truck weight, status, approve metadata, ...)
+            return await _context.GoodsReceipts.FirstOrDefaultAsync(x => x.Id == goodsReceiptId);
+        }
+
+        public async Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId)
+        {
+            return await _context.GoodsReceipts
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.Lots)
+                        .ThenInclude(l => l.Boxes)
+                .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
         }
 
         public Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt)

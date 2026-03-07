@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.GoodsReceipt;
+using AgriIDMS.Application.DTOs.GoodsReceipt;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
@@ -18,6 +18,7 @@ namespace AgriIDMS.Application.Services
 {
     public class GoodsReceiptService : IGoodsReceiptService
     {
+        private const int DefaultLotExpiryDays = 30;
         private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly IGoodsReceiptDetailRepository _detailRepo;
         private readonly ILotRepository _lotRepo;
@@ -193,7 +194,9 @@ namespace AgriIDMS.Application.Services
                 GoodsReceiptDetailId = goodsReceiptDetailId,
                 TotalQuantity = detail.UsableWeight??0,
                 RemainingQuantity = detail.UsableWeight ?? 0,
-                ReceivedDate = DateTime.UtcNow
+                ReceivedDate = DateTime.UtcNow,
+                // ExpiryDate is required by DB mapping; default to 30 days if not provided by business flow yet.
+                ExpiryDate = DateTime.UtcNow.AddDays(DefaultLotExpiryDays)
             };
 
             await _lotRepo.AddRangeAsync(new List<Lot> { lot });
@@ -224,7 +227,7 @@ namespace AgriIDMS.Application.Services
                     BoxCode = boxCode
                 };
 
-                _boxRepo.CreateAsync(box);
+                await _boxRepo.CreateAsync(box);
             }
             try
             {
@@ -248,7 +251,7 @@ namespace AgriIDMS.Application.Services
 
             try
             {
-                var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(receiptId);
+                var receipt = await _receiptRepo.GetGoodsReceiptForApproveAsync(receiptId);
 
                 if (receipt == null)
                     throw new NotFoundException("Phiếu nhập không tồn tại");
@@ -289,8 +292,6 @@ namespace AgriIDMS.Application.Services
                 receipt.Status = GoodsReceiptStatus.Approved;
                 receipt.ApprovedBy = userId;
                 receipt.ApprovedAt = DateTime.UtcNow;
-
-                await _unitOfWork.SaveChangesAsync();
 
                 await _unitOfWork.CommitAsync();
 

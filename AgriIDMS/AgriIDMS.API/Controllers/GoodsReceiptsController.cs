@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.GoodsReceipt;
+using AgriIDMS.Application.DTOs.GoodsReceipt;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Enums;
@@ -30,7 +30,7 @@ namespace AgriIDMS.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
 
             var receiptId = await _goodsReceiptService.CreateGoodsReceiptAsync(request, userId);
 
@@ -105,7 +105,7 @@ namespace AgriIDMS.API.Controllers
         [HttpPost("{receiptId}/approve")]
         public async Task<IActionResult> ApproveReceipt(int receiptId)
         {
-            var userId = User.Identity?.Name ?? "system";
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
 
             await _goodsReceiptService.ApproveGoodsReceiptAsync(receiptId, userId);
 
