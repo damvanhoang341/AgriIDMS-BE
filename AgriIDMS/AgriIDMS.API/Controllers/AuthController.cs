@@ -1,10 +1,10 @@
 ﻿// BaseApp.API/Controllers/AuthController.cs
 using System.Security.Claims;
-using AgriIDMS.Application.Services;
 using AgriIDMS.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using AgriIDMS.Application.Services;
 
 namespace AgriIDMS.API.Controllers;
 
