@@ -16,6 +16,11 @@ namespace AgriIDMS.API.Controllers
             _service = service;
         }
 
+        //public ProductsController(IProductService service)
+        //{
+        //    _service = service;
+        //}
+
         [HttpPost]
         public async Task<IActionResult> Create(CreateProductRequest request)
         {
