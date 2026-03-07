@@ -71,13 +71,15 @@ namespace AgriIDMS.Application.Services
 
             var receipt = new GoodsReceipt
             {
+                ReceiptCode = await _receiptRepo.GenerateReceiptCodeAsync(),
+                PurchaseOrderId = request.PurchaseOrderId,
                 SupplierId = request.SupplierId,
                 WarehouseId = request.WarehouseId,
                 VehicleNumber = request.VehicleNumber,
                 DriverName = request.DriverName,
                 TransportCompany = request.TransportCompany,
-                TolerancePercent = request.TolerancePercent,
                 CreatedBy = userId,
+                ReceivedBy = userId,
                 ReceivedDate = DateTime.UtcNow,
                 Status = GoodsReceiptStatus.Draft
             };
@@ -88,7 +90,7 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // ADD DETAIL (Warehouse: only ReceivedWeight; OrderedWeight & UnitPrice from PO)
+        // ADD DETAIL (Warehouse: only ReceivedWeight; UnitPrice from PO; ExpectedWeight = PO.OrderedWeight)
         // ===============================
         public async Task AddGoodsReceiptDetailAsync(AddGoodsReceiptDetailRequest request)
         {
@@ -113,8 +115,8 @@ namespace AgriIDMS.Application.Services
                 GoodsReceiptId = request.GoodsReceiptId,
                 PurchaseOrderDetailId = request.PurchaseOrderDetailId,
                 ProductVariantId = poDetail.ProductVariantId,
-                OrderedWeight = poDetail.OrderedWeight,
                 ReceivedWeight = request.ReceivedWeight,
+                UsableWeight = request.ReceivedWeight,
                 UnitPrice = poDetail.UnitPrice
             };
 
@@ -155,7 +157,6 @@ namespace AgriIDMS.Application.Services
             detail.QCNote = request.QCNote;
             detail.InspectedBy = userId;
             detail.InspectedAt = DateTime.UtcNow;
-            detail.CalculateRejectWeight();
 
             await _unitOfWork.SaveChangesAsync();
         }
@@ -254,19 +255,25 @@ namespace AgriIDMS.Application.Services
         {
             foreach (var detail in receipt.Details)
             {
-                var usable = detail.UsableWeight ?? 0;
-                if (usable <= 0) continue;
+                if (detail.UsableWeight <= 0) continue;
 
                 var lot = new Lot
                 {
                     LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}",
                     GoodsReceiptDetailId = detail.Id,
-                    TotalQuantity = usable,
-                    RemainingQuantity = usable,
+                    TotalQuantity = detail.UsableWeight,
+                    RemainingQuantity = detail.UsableWeight,
                     ReceivedDate = DateTime.UtcNow,
                     ExpiryDate = DateTime.UtcNow.AddDays(DefaultLotExpiryDays)
                 };
                 await _lotRepo.AddRangeAsync(new List<Lot> { lot });
+
+                // Chỉ cập nhật PO.ReceivedWeight khi phiếu nhập được duyệt (Approved)
+                var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
+                if (poDetail != null)
+                {
+                    poDetail.ReceivedWeight += detail.UsableWeight;
+                }
             }
 
             await _unitOfWork.SaveChangesAsync();
@@ -277,14 +284,16 @@ namespace AgriIDMS.Application.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        /// <summary>Dung sai theo từng dòng PO: mất mát thực tế vượt quá OrderedWeight * TolerancePercent của dòng.</summary>
         private bool CheckToleranceExceeded(GoodsReceipt receipt)
         {
-            decimal tolerancePercent = receipt.TolerancePercent;
             foreach (var d in receipt.Details)
             {
-                if (d.OrderedWeight <= 0) continue;
-                decimal diffPercent = Math.Abs(d.ReceivedWeight - d.OrderedWeight) / d.OrderedWeight * 100;
-                if (diffPercent > tolerancePercent)
+                var po = d.PurchaseOrderDetail;
+                if (po == null || po.OrderedWeight <= 0) continue;
+                decimal allowedLoss = po.OrderedWeight * po.TolerancePercent / 100;
+                decimal actualLoss = d.RejectWeight;
+                if (actualLoss > allowedLoss)
                     return true;
             }
             return false;
@@ -363,7 +372,7 @@ namespace AgriIDMS.Application.Services
             if (detail == null)
                 throw new NotFoundException("Không tìm thấy chi tiết phiếu nhập");
 
-            var usable = detail.UsableWeight ?? 0;
+            var usable = detail.UsableWeight;
             if (usable <= 0)
                 throw new InvalidBusinessRuleException("UsableWeight phải lớn hơn 0 để tạo Lot");
 

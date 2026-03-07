@@ -46,6 +46,8 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.GoodsReceipts
                 .Include(r => r.Details)
+                    .ThenInclude(d => d.PurchaseOrderDetail)
+                .Include(r => r.Details)
                     .ThenInclude(d => d.Lots)
                         .ThenInclude(l => l.Boxes)
                 .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
@@ -55,6 +57,13 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             _context.GoodsReceipts.Update(goodsReceipt);
             return Task.CompletedTask;
+        }
+
+        public async Task<string> GenerateReceiptCodeAsync()
+        {
+            var year = DateTime.UtcNow.Year;
+            var count = await _context.GoodsReceipts.CountAsync(x => x.CreatedAt.Year == year) + 1;
+            return $"GR-{year}-{count:D5}";
         }
     }
 }

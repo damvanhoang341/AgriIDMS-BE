@@ -1,9 +1,5 @@
 using AgriIDMS.Domain.Enums;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Entities
 {
@@ -18,26 +14,22 @@ namespace AgriIDMS.Domain.Entities
         public ProductVariant ProductVariant { get; set; } = null!;
         public int PurchaseOrderDetailId { get; set; }
         public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
-        /// <summary>Khối lượng đặt theo PO (từ PurchaseOrderDetail).</summary>
-        public decimal OrderedWeight { get; set; }
-        /// <summary>Khối lượng thực nhận do kho nhập (warehouse chỉ nhập ReceivedWeight).</summary>
+
         public decimal ReceivedWeight { get; set; }
-        public decimal RejectWeight { get; private set; }
-        public void CalculateRejectWeight()
-        {
-            RejectWeight = ReceivedWeight - (UsableWeight ?? 0);
-        }
-        public decimal? UsableWeight { get; set; } // Số lượng sử dụng được sau khi QC (kg)
+        /// <summary>Khối lượng sử dụng được sau QC. Trước QC = ReceivedWeight.</summary>
+        public decimal UsableWeight { get; set; }
+        /// <summary>Khối lượng loại (không âm).</summary>
+        public decimal RejectWeight => Math.Max(0, ReceivedWeight - UsableWeight);
+
+        /// <summary>Khối lượng kỳ vọng từ PO (không lưu DB, lấy từ PurchaseOrderDetail.OrderedWeight).</summary>
+        public decimal ExpectedWeight => PurchaseOrderDetail?.OrderedWeight ?? 0;
 
         public QCResult QCResult { get; set; } = QCResult.Pending;
         public string? QCNote { get; set; }
-        public string? InspectedBy { get; set; } // Tên người QC
-        public ApplicationUser? InspectedUser { get; set; }
+        public string? InspectedBy { get; set; }
         public DateTime? InspectedAt { get; set; }
         public decimal UnitPrice { get; set; }
 
-        // ===== LOT (1 Detail -> N Lot) =====
-        public ICollection<Lot> Lots { get; set; }
-            = new List<Lot>();
+        public ICollection<Lot> Lots { get; set; } = new List<Lot>();
     }
 }

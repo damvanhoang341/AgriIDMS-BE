@@ -226,12 +226,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasKey(x => x.Id);
 
-            // ================= STATUS =================
+            entity.Property(x => x.ReceiptCode)
+                  .HasMaxLength(50)
+                  .IsRequired();
+            entity.HasIndex(x => x.ReceiptCode)
+                  .IsUnique();
+
             entity.Property(x => x.Status)
                   .HasConversion<int>()
                   .IsRequired();
 
-            // ================= TRANSPORT =================
             entity.Property(x => x.VehicleNumber)
                   .HasMaxLength(20)
                   .IsRequired();
@@ -242,17 +246,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.TransportCompany)
                   .HasMaxLength(150);
 
-            // ================= WEIGHT =================
             entity.Property(x => x.GrossWeight)
                   .HasPrecision(18, 2);
 
             entity.Property(x => x.TareWeight)
                   .HasPrecision(18, 2);
 
-            entity.Property(x => x.TolerancePercent)
-                  .HasPrecision(5, 2);
-
-            // ================= DATES =================
             entity.Property(x => x.ReceivedDate)
                   .IsRequired();
 
@@ -261,45 +260,44 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.ApprovedAt);
 
-            // ================= RELATIONSHIPS =================
+            entity.Property(x => x.ReceivedBy)
+                  .HasMaxLength(450);
 
-            // Supplier (1 - N)
+            entity.HasOne(x => x.PurchaseOrder)
+                  .WithMany(p => p.GoodsReceipts)
+                  .HasForeignKey(x => x.PurchaseOrderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(x => x.Supplier)
                   .WithMany(s => s.GoodsReceipts)
                   .HasForeignKey(x => x.SupplierId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // Warehouse (1 - N)
             entity.HasOne(x => x.Warehouse)
                   .WithMany(w => w.GoodsReceipts)
                   .HasForeignKey(x => x.WarehouseId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // CreatedUser
             entity.HasOne(x => x.CreatedUser)
                   .WithMany()
                   .HasForeignKey(x => x.CreatedBy)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // ApprovedUser
             entity.HasOne(x => x.ApprovedUser)
                   .WithMany()
                   .HasForeignKey(x => x.ApprovedBy)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // GoodsReceipt (1 - N) GoodsReceiptDetail
             entity.HasMany(x => x.Details)
                   .WithOne(d => d.GoodsReceipt)
                   .HasForeignKey(d => d.GoodsReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            // ================= INDEX =================
-
             entity.HasIndex(x => x.SupplierId);
             entity.HasIndex(x => x.WarehouseId);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.ReceivedDate);
-
+            entity.HasIndex(x => x.PurchaseOrderId);
             entity.HasIndex(x => new { x.WarehouseId, x.Status });
         });
 
@@ -310,27 +308,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasKey(x => x.Id);
 
-            // ================= QUANTITY =================
-
-            entity.Property(x => x.OrderedWeight)
-                  .HasPrecision(18, 3)
-                  .IsRequired();
+            entity.Ignore(x => x.ExpectedWeight);
 
             entity.Property(x => x.ReceivedWeight)
                   .HasPrecision(18, 3)
                   .IsRequired();
 
             entity.Property(x => x.UsableWeight)
-                  .HasPrecision(18, 3);
+                  .HasPrecision(18, 3)
+                  .IsRequired();
 
-            entity.Property(x => x.RejectWeight)
-                  .HasPrecision(18, 3);
+            entity.Ignore(x => x.RejectWeight);
 
             entity.Property(x => x.UnitPrice)
                   .HasPrecision(18, 2)
                   .IsRequired();
-
-            // ================= QC =================
 
             entity.Property(x => x.QCResult)
                   .HasConversion<int>()
@@ -345,29 +337,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.InspectedAt);
 
-            // ================= RELATIONSHIPS =================
-
-            // GoodsReceipt (1 - N)
             entity.HasOne(x => x.GoodsReceipt)
                   .WithMany(gr => gr.Details)
                   .HasForeignKey(x => x.GoodsReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
-            // Xoá phiếu => xoá chi tiết
 
-            // ProductVariant (1 - N)
             entity.HasOne(x => x.ProductVariant)
                   .WithMany(pv => pv.GoodsReceiptDetails)
                   .HasForeignKey(x => x.ProductVariantId)
                   .OnDelete(DeleteBehavior.Restrict);
-            // Không cho xoá Variant nếu đã nhập kho
 
-            // InspectedUser
-            entity.HasOne(x => x.InspectedUser)
-                  .WithMany()
-                  .HasForeignKey(x => x.InspectedBy)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            // Detail - Lot (1 - N)
             entity.HasMany(x => x.Lots)
                   .WithOne(l => l.GoodsReceiptDetail)
                   .HasForeignKey(l => l.GoodsReceiptDetailId)
@@ -1351,6 +1330,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.OrderedWeight)
                   .HasPrecision(18, 3);
+
+            entity.Property(x => x.TolerancePercent)
+                  .HasPrecision(5, 2)
+                  .HasDefaultValue(2);
+
+            entity.Property(x => x.ReceivedWeight)
+                  .HasPrecision(18, 3)
+                  .HasDefaultValue(0);
 
             entity.Property(x => x.UnitPrice)
                   .HasPrecision(18, 2);

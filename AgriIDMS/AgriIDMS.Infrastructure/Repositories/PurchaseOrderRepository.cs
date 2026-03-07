@@ -26,6 +26,17 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 
+    public async Task<PurchaseOrder?> GetByIdWithGoodsReceiptsAsync(int id)
+    {
+        return await _context.PurchaseOrders
+            .Include(x => x.Supplier)
+            .Include(x => x.Details)
+                .ThenInclude(x => x.ProductVariant)
+                    .ThenInclude(pv => pv!.Product)
+            .Include(x => x.GoodsReceipts)
+            .FirstOrDefaultAsync(x => x.Id == id);
+    }
+
     public async Task<PurchaseOrderDetail?> GetDetailByIdAsync(int purchaseOrderDetailId)
     {
         return await _context.PurchaseOrderDetails
@@ -41,9 +52,21 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return $"PO-{DateTime.UtcNow:yyyyMMdd}-{count:D4}";
     }
 
-    public async Task UpdateAsync(PurchaseOrder purchaseOrder)
+    public Task UpdateAsync(PurchaseOrder purchaseOrder)
     {
         _context.PurchaseOrders.Update(purchaseOrder);
-        await _context.SaveChangesAsync();
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(PurchaseOrder purchaseOrder)
+    {
+        _context.PurchaseOrders.Remove(purchaseOrder);
+        return Task.CompletedTask;
+    }
+
+    public void RemoveDetails(IEnumerable<PurchaseOrderDetail> details)
+    {
+        foreach (var d in details)
+            _context.PurchaseOrderDetails.Remove(d);
     }
 }

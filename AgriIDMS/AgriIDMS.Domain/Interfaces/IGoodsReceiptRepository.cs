@@ -15,5 +15,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task AddGoodsReceiptAsync(GoodsReceipt goodsReceipt);
         Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt);
         Task DeleteGoodsReceiptAsync(int goodsReceiptId);
+        Task<string> GenerateReceiptCodeAsync();
     }
 }
