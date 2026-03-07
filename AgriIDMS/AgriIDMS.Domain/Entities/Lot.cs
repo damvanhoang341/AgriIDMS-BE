@@ -9,7 +9,6 @@ namespace AgriIDMS.Domain.Entities
 {
     public class Lot
     {
-        public int dome {  get; set; }
         public int Id { get; set; }
         public string LotCode { get; set; } = null!;
 
