@@ -8,11 +8,12 @@ namespace AgriIDMS.Domain.Enums
 {
     public enum InventoryRequestType
     {
-        Transfer = 0,          // MoveBox
-        Export = 1,
-        StockAdjustment = 2,   // từ kiểm kê
-        Cancel = 3,
-        ImportCorrection = 4
+        TransferBetweenWarehouses = 0,   // chuyển box giữa 2 kho
+        StockAdjustment = 1,             // điều chỉnh tồn kho
+        CancelExport = 2,                // hủy phiếu xuất
+        CancelImport = 3,                // hủy phiếu nhập
+        ImportCorrection = 4,            // chỉnh sửa dữ liệu nhập kho
+        DamageReport = 5                 // báo hỏng hàng
     }
 
     public enum InventoryRequestStatus

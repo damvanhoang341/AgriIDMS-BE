@@ -1,6 +1,6 @@
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
-using AgriIDMS.Application.Services;
+using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AgriIDMS.API.Controllers
@@ -9,9 +9,9 @@ namespace AgriIDMS.API.Controllers
     [ApiController]
     public class SlotsController : ControllerBase
     {
-        private readonly SlotService _slotService;
+        private readonly ISlotService _slotService;
 
-        public SlotsController(SlotService slotService)
+        public SlotsController(ISlotService slotService)
         {
             _slotService = slotService;
         }

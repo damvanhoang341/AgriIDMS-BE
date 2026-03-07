@@ -79,27 +79,37 @@ public static class ServiceRegistration
         services.AddScoped<ITokenGenerator, TokenGenerator>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEmailService, EmailService>();
-        services.AddScoped<UserService>();
         services.AddScoped<IProductRepository, ProductRepository>();
-        services.AddScoped<ProductService>();
         services.AddScoped<IGoodsReceiptRepository, GoodsReceiptRepository>();
         services.AddScoped<IGoodsReceiptDetailRepository, GoodsReceiptDetailRepository>();
         services.AddScoped<ILotRepository, LotRepository>();
-        services.AddScoped<GoodsReceiptService>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
         services.AddScoped<IZoneRepository, ZoneRepository>();
         services.AddScoped<IRackRepository, RackRepository>();
         services.AddScoped<ISlotRepository, SlotRepository>();
         services.AddScoped<IProductVariantRepository, ProductVariantRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IBoxRepository, BoxRepository>();
+        services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
 
         // Application use-case service (implementation ở Application)
+        services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<IUserService,UserService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IProductVariantService, ProductVariantService>();
+        services.AddScoped<IGoodsReceiptService,GoodsReceiptService>();
+        services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<AuthService>();
-        services.AddScoped<WarehouseService>();
-        services.AddScoped<ZoneService>();
-        services.AddScoped<RackService>();
-        services.AddScoped<SlotService>();
+        services.AddScoped<IWarehouseService, WarehouseService>();
+        services.AddScoped<IZoneService, ZoneService>();
+        services.AddScoped<IRackService, RackService>();
+        services.AddScoped<ISlotService, SlotService>();
+
+
 
         return services;
     }

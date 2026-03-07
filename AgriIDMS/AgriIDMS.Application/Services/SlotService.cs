@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
 {
-    public class SlotService
+    public class SlotService : ISlotService
     {
         private readonly ISlotRepository _slotRepository;
         private readonly IRackRepository _rackRepository;

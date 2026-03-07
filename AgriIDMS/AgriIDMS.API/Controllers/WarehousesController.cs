@@ -1,5 +1,5 @@
 using AgriIDMS.Application.DTOs.Warehouse;
-using AgriIDMS.Application.Services;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Application.Exceptions;
 using Microsoft.AspNetCore.Authorization;
@@ -11,9 +11,9 @@ namespace AgriIDMS.API.Controllers
     [ApiController]
     public class WarehousesController : ControllerBase
     {
-        private readonly WarehouseService _warehouseService;
+        private readonly IWarehouseService _warehouseService;
 
-        public WarehousesController(WarehouseService warehouseService)
+        public WarehousesController(IWarehouseService warehouseService)
         {
             _warehouseService = warehouseService;
         }

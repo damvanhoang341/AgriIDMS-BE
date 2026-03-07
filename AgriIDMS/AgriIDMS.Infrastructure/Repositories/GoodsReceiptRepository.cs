@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -38,13 +38,32 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(int goodsReceiptId)
         {
-            return await _context.GoodsReceipts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == goodsReceiptId);
+            // Tracking entity so services can update fields (truck weight, status, approve metadata, ...)
+            return await _context.GoodsReceipts.FirstOrDefaultAsync(x => x.Id == goodsReceiptId);
+        }
+
+        public async Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId)
+        {
+            return await _context.GoodsReceipts
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.PurchaseOrderDetail)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.Lots)
+                        .ThenInclude(l => l.Boxes)
+                .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
         }
 
         public Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt)
         {
             _context.GoodsReceipts.Update(goodsReceipt);
             return Task.CompletedTask;
+        }
+
+        public async Task<string> GenerateReceiptCodeAsync()
+        {
+            var year = DateTime.UtcNow.Year;
+            var count = await _context.GoodsReceipts.CountAsync(x => x.CreatedAt.Year == year) + 1;
+            return $"GR-{year}-{count:D5}";
         }
     }
 }

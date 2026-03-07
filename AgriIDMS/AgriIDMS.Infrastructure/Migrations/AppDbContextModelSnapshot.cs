@@ -422,6 +422,18 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("PurchaseOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiptCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ReceivedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<DateTime>("ReceivedDate")
                         .HasColumnType("datetime2");
 
@@ -433,13 +445,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.Property<decimal?>("TareWeight")
                         .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TolerancePercent")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<decimal>("TotalLossWeight")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("TransportCompany")
@@ -459,6 +464,11 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasIndex("ApprovedBy");
 
                     b.HasIndex("CreatedBy");
+
+                    b.HasIndex("PurchaseOrderId");
+
+                    b.HasIndex("ReceiptCode")
+                        .IsUnique();
 
                     b.HasIndex("ReceivedDate");
 
@@ -491,11 +501,10 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<decimal>("OrderedWeight")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
                     b.Property<int>("ProductVariantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PurchaseOrderDetailId")
                         .HasColumnType("int");
 
                     b.Property<string>("QCNote")
@@ -507,7 +516,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<decimal>("RejectWeight")
+                    b.Property<decimal>("ReceivedWeight")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
@@ -515,7 +524,7 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal?>("UsableWeight")
+                    b.Property<decimal>("UsableWeight")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
@@ -523,9 +532,9 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasIndex("GoodsReceiptId");
 
-                    b.HasIndex("InspectedBy");
-
                     b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("PurchaseOrderDetailId");
 
                     b.HasIndex("GoodsReceiptId", "ProductVariantId")
                         .IsUnique();
@@ -972,6 +981,92 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ProductVariants", (string)null);
+                });
+
+            modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("OrderCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedBy");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("PurchaseOrders");
+                });
+
+            modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrderDetail", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("OrderedWeight")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("ProductVariantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PurchaseOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ReceivedWeight")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("TolerancePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(2m);
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductVariantId");
+
+                    b.HasIndex("PurchaseOrderId");
+
+                    b.ToTable("PurchaseOrderDetails");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>
@@ -1635,6 +1730,11 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("AgriIDMS.Domain.Entities.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("GoodsReceipts")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AgriIDMS.Domain.Entities.Supplier", "Supplier")
                         .WithMany("GoodsReceipts")
                         .HasForeignKey("SupplierId")
@@ -1651,6 +1751,8 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.Navigation("CreatedUser");
 
+                    b.Navigation("PurchaseOrder");
+
                     b.Navigation("Supplier");
 
                     b.Navigation("Warehouse");
@@ -1664,22 +1766,23 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "InspectedUser")
-                        .WithMany()
-                        .HasForeignKey("InspectedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
                         .WithMany("GoodsReceiptDetails")
                         .HasForeignKey("ProductVariantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("AgriIDMS.Domain.Entities.PurchaseOrderDetail", "PurchaseOrderDetail")
+                        .WithMany("GoodsReceiptDetails")
+                        .HasForeignKey("PurchaseOrderDetailId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("GoodsReceipt");
 
-                    b.Navigation("InspectedUser");
-
                     b.Navigation("ProductVariant");
+
+                    b.Navigation("PurchaseOrderDetail");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.InventoryRequest", b =>
@@ -1833,6 +1936,51 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrder", b =>
+                {
+                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "ApprovedUser")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "CreatedUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AgriIDMS.Domain.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApprovedUser");
+
+                    b.Navigation("CreatedUser");
+
+                    b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrderDetail", b =>
+                {
+                    b.HasOne("AgriIDMS.Domain.Entities.ProductVariant", "ProductVariant")
+                        .WithMany()
+                        .HasForeignKey("ProductVariantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AgriIDMS.Domain.Entities.PurchaseOrder", "PurchaseOrder")
+                        .WithMany("Details")
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductVariant");
+
+                    b.Navigation("PurchaseOrder");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>
@@ -2128,6 +2276,18 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("OrderDetails");
 
                     b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrder", b =>
+                {
+                    b.Navigation("Details");
+
+                    b.Navigation("GoodsReceipts");
+                });
+
+            modelBuilder.Entity("AgriIDMS.Domain.Entities.PurchaseOrderDetail", b =>
+                {
+                    b.Navigation("GoodsReceiptDetails");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Rack", b =>

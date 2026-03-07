@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
 {
-    public class WarehouseService
+    public class WarehouseService : IWarehouseService
     {
         private readonly IWarehouseRepository _warehouseRepository;
         private readonly IUnitOfWork _unitOfWork;

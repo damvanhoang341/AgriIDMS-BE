@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
@@ -9,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
 {
-    public class RackService
+    public class RackService : IRackService
     {
         private readonly IRackRepository _rackRepository;
         private readonly IZoneRepository _zoneRepository;
