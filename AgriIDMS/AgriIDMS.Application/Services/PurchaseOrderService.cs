@@ -42,52 +42,55 @@ public class PurchaseOrderService : IPurchaseOrderService
         var supplier = await _supplierRepository.GetSupplierByIdAsync(request.SupplierId);
         if (supplier == null) throw new NotFoundException("Supplier không tồn tại");
 
-        await _unitOfWork.BeginTransactionAsync();
-
-        var orderCode = await _repository.GenerateOrderCodeAsync();
-
-        var order = new PurchaseOrder
+        var variantIds = request.Details.Select(d => d.ProductVariantId).Distinct().ToList();
+        var variantsById = await _productVariantRepository.GetByIdsAsync(variantIds);
+        if (variantsById.Count != variantIds.Count)
         {
-            OrderCode = orderCode,
-            SupplierId = request.SupplierId,
-            CreatedBy = userId,
-            OrderDate = DateTime.UtcNow,
-            Status = PurchaseOrderStatus.Pending
-        };
-
-        foreach (var item in request.Details)
-        {
-            var variant = await _productVariantRepository.GetProductVariantByIdAsync(item.ProductVariantId);
-            if (variant == null)
-                throw new NotFoundException($"ProductVariant {item.ProductVariantId} không tồn tại");
-            if (item.OrderedWeight <= 0)
-                throw new InvalidBusinessRuleException("Khối lượng đặt phải lớn hơn 0");
-
-            order.Details.Add(new PurchaseOrderDetail
-            {
-                ProductVariantId = item.ProductVariantId,
-                OrderedWeight = item.OrderedWeight,
-                UnitPrice = item.UnitPrice,
-                TolerancePercent = item.TolerancePercent
-            });
+            var missing = variantIds.FirstOrDefault(id => !variantsById.ContainsKey(id));
+            throw new NotFoundException($"ProductVariant {missing} không tồn tại");
         }
 
-        await _repository.AddAsync(order);
-
+        await _unitOfWork.BeginTransactionAsync();
         try
         {
+            var orderCode = await _repository.GenerateOrderCodeAsync();
+
+            var order = new PurchaseOrder
+            {
+                OrderCode = orderCode,
+                SupplierId = request.SupplierId,
+                CreatedBy = userId,
+                OrderDate = DateTime.UtcNow,
+                Status = PurchaseOrderStatus.Pending
+            };
+
+            foreach (var item in request.Details)
+            {
+                if (item.OrderedWeight <= 0)
+                    throw new InvalidBusinessRuleException("Khối lượng đặt phải lớn hơn 0");
+
+                order.Details.Add(new PurchaseOrderDetail
+                {
+                    ProductVariantId = item.ProductVariantId,
+                    OrderedWeight = item.OrderedWeight,
+                    UnitPrice = item.UnitPrice,
+                    TolerancePercent = item.TolerancePercent,
+                    ReceivedWeight = 0
+                });
+            }
+
+            await _repository.AddAsync(order);
             await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+
+            _logger.LogInformation("PurchaseOrder {OrderCode} created successfully", orderCode);
+            return order.Id;
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex.InnerException?.Message);
-            throw new Exception(ex.InnerException?.Message);
+            await _unitOfWork.RollbackAsync();
+            throw;
         }
-        await _unitOfWork.CommitAsync();
-
-        _logger.LogInformation("PurchaseOrder {OrderCode} created successfully", orderCode);
-
-        return order.Id;
     }
 
     public async Task<PurchaseOrderResponse> GetByIdAsync(int id)
@@ -112,7 +115,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                 ProductName = d.ProductVariant.Product.Name,
                 OrderedWeight = d.OrderedWeight,
                 UnitPrice = d.UnitPrice,
-                TolerancePercent = d.TolerancePercent
+                TolerancePercent = d.TolerancePercent,
+                ReceivedWeight = d.ReceivedWeight
             }).ToList()
         };
     }
@@ -122,20 +126,160 @@ public class PurchaseOrderService : IPurchaseOrderService
         _logger.LogInformation("User {UserId} approving PurchaseOrder {Id}", userId, id);
 
         var po = await _repository.GetByIdAsync(id);
-
         if (po == null)
             throw new NotFoundException("Purchase Order không tồn tại");
 
         if (po.Status != PurchaseOrderStatus.Pending)
             throw new InvalidBusinessRuleException("Chỉ có thể duyệt đơn hàng ở trạng thái Pending");
 
-        po.Status = PurchaseOrderStatus.Approved;
-        po.ApprovedBy = userId;
-        po.ApprovedAt = DateTime.UtcNow;
+        if (po.Details == null || !po.Details.Any())
+            throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết mới được duyệt");
 
-        await _repository.UpdateAsync(po);
-        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            po.Status = PurchaseOrderStatus.Approved;
+            po.ApprovedBy = userId;
+            po.ApprovedAt = DateTime.UtcNow;
+            await _repository.UpdateAsync(po);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+            _logger.LogInformation("PurchaseOrder {Id} approved successfully", id);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
 
-        _logger.LogInformation("PurchaseOrder {Id} approved successfully", id);
+    public async Task UpdateAsync(int id, UpdatePurchaseOrderRequest request, string userId)
+    {
+        _logger.LogInformation("User {UserId} updating PurchaseOrder {Id}", userId, id);
+
+        if (request == null)
+            throw new InvalidBusinessRuleException("Dữ liệu không hợp lệ");
+
+        var po = await _repository.GetByIdAsync(id);
+        if (po == null)
+            throw new NotFoundException("Purchase Order không tồn tại");
+
+        EnsureCanEdit(po);
+
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            if (request.SupplierId.HasValue && request.SupplierId.Value != po.SupplierId)
+            {
+                var supplier = await _supplierRepository.GetSupplierByIdAsync(request.SupplierId.Value);
+                if (supplier == null) throw new NotFoundException("Nhà cung cấp không tồn tại");
+                po.SupplierId = request.SupplierId.Value;
+            }
+
+            if (request.Details != null)
+            {
+                if (!request.Details.Any())
+                    throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết");
+
+                var variantIds = request.Details.Select(d => d.ProductVariantId).Distinct().ToList();
+                var variantsById = await _productVariantRepository.GetByIdsAsync(variantIds);
+                if (variantsById.Count != variantIds.Count)
+                {
+                    var missing = variantIds.FirstOrDefault(vid => !variantsById.ContainsKey(vid));
+                    throw new NotFoundException($"ProductVariant {missing} không tồn tại");
+                }
+
+                var requestDetailIds = request.Details
+                    .Where(d => d.Id.HasValue && d.Id.Value > 0)
+                    .Select(d => d.Id!.Value)
+                    .ToHashSet();
+
+                var toRemove = po.Details
+                    .Where(d => d.ReceivedWeight == 0 && !requestDetailIds.Contains(d.Id))
+                    .ToList();
+                var newCount = request.Details.Count(d => !d.Id.HasValue || d.Id.Value == 0);
+                if (po.Details.Count - toRemove.Count + newCount < 1)
+                    throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết");
+                _repository.RemoveDetails(toRemove);
+
+                foreach (var item in request.Details)
+                {
+                    if (item.OrderedWeight <= 0)
+                        throw new InvalidBusinessRuleException("Khối lượng đặt phải lớn hơn 0");
+
+                    if (!item.Id.HasValue || item.Id.Value == 0)
+                    {
+                        po.Details.Add(new PurchaseOrderDetail
+                        {
+                            ProductVariantId = item.ProductVariantId,
+                            OrderedWeight = item.OrderedWeight,
+                            UnitPrice = item.UnitPrice,
+                            TolerancePercent = item.TolerancePercent,
+                            ReceivedWeight = 0
+                        });
+                    }
+                    else
+                    {
+                        var existing = po.Details.FirstOrDefault(d => d.Id == item.Id.Value);
+                        if (existing == null)
+                            throw new NotFoundException($"Không tìm thấy dòng đơn mua Id={item.Id}");
+                        if (existing.ReceivedWeight > 0)
+                            throw new InvalidBusinessRuleException($"Không thể sửa dòng đã có nhập kho (Id={existing.Id})");
+                        existing.ProductVariantId = item.ProductVariantId;
+                        existing.OrderedWeight = item.OrderedWeight;
+                        existing.UnitPrice = item.UnitPrice;
+                        existing.TolerancePercent = item.TolerancePercent;
+                    }
+                }
+
+                if (!po.Details.Any())
+                    throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết");
+            }
+
+            await _repository.UpdateAsync(po);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+            _logger.LogInformation("PurchaseOrder {Id} updated successfully", id);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        _logger.LogInformation("Deleting PurchaseOrder {Id}", id);
+
+        var po = await _repository.GetByIdWithGoodsReceiptsAsync(id);
+        if (po == null)
+            throw new NotFoundException("Purchase Order không tồn tại");
+
+        EnsureCanEdit(po);
+
+        if (po.GoodsReceipts != null && po.GoodsReceipts.Any())
+            throw new InvalidBusinessRuleException("Không thể xóa đơn mua đã có phiếu nhập kho. Chỉ xóa được đơn ở trạng thái Nháp và chưa có phiếu nhập.");
+
+        await _unitOfWork.BeginTransactionAsync();
+        try
+        {
+            await _repository.DeleteAsync(po);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+            _logger.LogInformation("PurchaseOrder {Id} deleted successfully", id);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+
+    /// <summary>Gọi trước khi chỉnh sửa PO; ném nếu đã Approved (khóa sửa sau duyệt).</summary>
+    private static void EnsureCanEdit(PurchaseOrder po)
+    {
+        if (po.Status == PurchaseOrderStatus.Approved)
+            throw new InvalidBusinessRuleException("Không được chỉnh sửa đơn mua sau khi đã duyệt.");
     }
 }

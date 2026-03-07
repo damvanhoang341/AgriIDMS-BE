@@ -65,6 +65,18 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
+        /// Cập nhật PurchaseOrder (chỉ khi trạng thái Pending, chưa duyệt).
+        /// </summary>
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        public async Task<IActionResult> UpdatePurchaseOrder(int id, [FromBody] UpdatePurchaseOrderRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            await _purchaseOrderService.UpdateAsync(id, request, userId!);
+            return Ok(new { Message = "Cập nhật đơn mua thành công" });
+        }
+
+        /// <summary>
         /// Duyệt PurchaseOrder (chỉ Manager hoặc Admin)
         /// </summary>
         [HttpPost("{id}/approve")]
@@ -88,6 +100,17 @@ namespace AgriIDMS.API.Controllers
             {
                 Message = "Duyệt đơn mua thành công"
             });
+        }
+
+        /// <summary>
+        /// Xóa PurchaseOrder (chỉ khi Pending và chưa có phiếu nhập kho).
+        /// </summary>
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        public async Task<IActionResult> DeletePurchaseOrder(int id)
+        {
+            await _purchaseOrderService.DeleteAsync(id);
+            return Ok(new { Message = "Xóa đơn mua thành công" });
         }
     }
 }

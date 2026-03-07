@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -25,6 +25,18 @@ namespace AgriIDMS.Infrastructure.Repositories
 
             return productVariant;
         }
+
+        public async Task<IReadOnlyDictionary<int, ProductVariant>> GetByIdsAsync(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0)
+                return new Dictionary<int, ProductVariant>();
+            var list = await _context.ProductVariants
+                .Where(pv => idList.Contains(pv.Id))
+                .ToListAsync();
+            return list.ToDictionary(pv => pv.Id);
+        }
+
         public async Task<IEnumerable<ProductVariant>> GetAllAsync()
         {
             return await _context.ProductVariants
