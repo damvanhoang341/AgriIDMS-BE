@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.PurchaseOrder;
+using AgriIDMS.Application.DTOs.PurchaseOrder;
 using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -10,7 +10,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-
+    [Authorize]
     public class PurchaseOrderController : ControllerBase
     {
         private readonly IPurchaseOrderService _purchaseOrderService;
@@ -25,10 +25,10 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Tạo Purchase Order
+        /// Tạo Purchase Order (PurchasingStaff tạo đơn, Manager duyệt)
         /// </summary>
         [HttpPost]
-        //[Authorize] // bắt buộc login
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
         public async Task<IActionResult> CreatePurchaseOrder([FromBody] CreatePurchaseOrderRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -65,10 +65,10 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Duyệt PurchaseOrder
+        /// Duyệt PurchaseOrder (chỉ Manager hoặc Admin)
         /// </summary>
         [HttpPost("{id}/approve")]
-        //[Authorize(Roles = "Manager")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApprovePurchaseOrder(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

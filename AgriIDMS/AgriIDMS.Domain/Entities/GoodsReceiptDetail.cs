@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,11 +18,14 @@ namespace AgriIDMS.Domain.Entities
         public ProductVariant ProductVariant { get; set; } = null!;
         public int PurchaseOrderDetailId { get; set; }
         public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
-        public decimal OrderedWeight { get; set; } // Số lượng đặt hàng (kg)
+        /// <summary>Khối lượng đặt theo PO (từ PurchaseOrderDetail).</summary>
+        public decimal OrderedWeight { get; set; }
+        /// <summary>Khối lượng thực nhận do kho nhập (warehouse chỉ nhập ReceivedWeight).</summary>
+        public decimal ReceivedWeight { get; set; }
         public decimal RejectWeight { get; private set; }
         public void CalculateRejectWeight()
         {
-            RejectWeight = OrderedWeight - (UsableWeight ?? 0);
+            RejectWeight = ReceivedWeight - (UsableWeight ?? 0);
         }
         public decimal? UsableWeight { get; set; } // Số lượng sử dụng được sau khi QC (kg)
 

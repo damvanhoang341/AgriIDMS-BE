@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.GoodsReceipt;
+using AgriIDMS.Application.DTOs.GoodsReceipt;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Enums;
@@ -12,7 +12,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize] // nếu có JWT
+    [Authorize]
     public class GoodsReceiptsController : ControllerBase
     {
         private readonly ILogger<GoodsReceiptsController> _logger;
@@ -25,12 +25,13 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // CREATE RECEIPT
+        // CREATE RECEIPT (WarehouseStaff / Manager / Admin)
         // ===============================
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
 
             var receiptId = await _goodsReceiptService.CreateGoodsReceiptAsync(request, userId);
 
@@ -45,6 +46,7 @@ namespace AgriIDMS.API.Controllers
         // ADD RECEIPT DETAIL
         // ===============================
         [HttpPost("detail")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> AddDetail([FromBody] AddGoodsReceiptDetailRequest request)
         {
             await _goodsReceiptService.AddGoodsReceiptDetailAsync(request);
@@ -59,6 +61,7 @@ namespace AgriIDMS.API.Controllers
         // UPDATE TRUCK WEIGHT
         // ===============================
         [HttpPut("truck-weight")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateTruckWeight([FromBody] UpdateTruckWeightRequest request)
         {
             await _goodsReceiptService.UpdateTruckWeightAsync(request);
@@ -73,6 +76,7 @@ namespace AgriIDMS.API.Controllers
         // QC INSPECTION
         // ===============================
         [HttpPost("qc")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> QCInspection([FromBody] QCInspectionRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -86,33 +90,52 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // GENERATE BOXES
+        // GENERATE BOXES (chỉ sau khi phiếu Approved)
         // ===============================
         [HttpPost("boxes")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GenerateBoxes([FromBody] CreateBoxesRequest request)
         {
-            await _goodsReceiptService.GenerateBoxesAsync(request);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.GenerateBoxesAsync(request, userId);
 
-            return Ok(new
-            {
-                Message = "Tạo box thành công"
-            });
+            return Ok(new { Message = "Tạo box thành công" });
         }
 
         // ===============================
-        // APPROVE RECEIPT
+        // APPROVE RECEIPT (Manager/Admin; tolerance check → Approved hoặc PendingManagerApproval)
         // ===============================
         [HttpPost("{receiptId}/approve")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApproveReceipt(int receiptId)
         {
-            var userId = User.Identity?.Name ?? "system";
-
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
             await _goodsReceiptService.ApproveGoodsReceiptAsync(receiptId, userId);
+            return Ok(new { Message = "Phiếu nhập đã được xử lý (duyệt hoặc chuyển chờ Manager)" });
+        }
 
-            return Ok(new
-            {
-                Message = "Phiếu nhập đã được duyệt"
-            });
+        // ===============================
+        // MANAGER APPROVE (khi status = PendingManagerApproval)
+        // ===============================
+        [HttpPost("{receiptId}/manager-approve")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ManagerApproveReceipt(int receiptId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.ManagerApproveReceiptAsync(receiptId, userId);
+            return Ok(new { Message = "Phiếu nhập đã được Manager duyệt" });
+        }
+
+        // ===============================
+        // MANAGER REJECT (khi status = PendingManagerApproval)
+        // ===============================
+        [HttpPost("{receiptId}/manager-reject")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ManagerRejectReceipt(int receiptId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.ManagerRejectReceiptAsync(receiptId, userId);
+            return Ok(new { Message = "Phiếu nhập đã bị Manager từ chối" });
         }
     }
 }

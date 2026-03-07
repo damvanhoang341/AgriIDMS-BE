@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace AgriIDMS.Application.DTOs.GoodsReceipt
 {
@@ -27,6 +27,9 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal TolerancePercent { get; set; }
     }
 
+    /// <summary>
+    /// Warehouse only sends PO line + received weight. OrderedWeight and UnitPrice come from PO (not exposed to warehouse).
+    /// </summary>
     public class AddGoodsReceiptDetailRequest
     {
         [Required(ErrorMessage = "GoodsReceiptId không được để trống")]
@@ -38,11 +41,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Required(ErrorMessage = "ProductVariantId không được để trống")]
         public int ProductVariantId { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "OrderedWeight phải lớn hơn 0")]
-        public decimal OrderedWeight { get; set; }
-
-        [Range(0.01, double.MaxValue, ErrorMessage = "UnitPrice phải lớn hơn 0")]
-        public decimal UnitPrice { get; set; }
+        [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
+        public decimal ReceivedWeight { get; set; }
     }
 
     public class UpdateTruckWeightRequest

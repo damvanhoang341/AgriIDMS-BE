@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -313,8 +313,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             // ================= QUANTITY =================
 
             entity.Property(x => x.OrderedWeight)
-         .HasPrecision(18, 3)
-         .IsRequired();
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+
+            entity.Property(x => x.ReceivedWeight)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
 
             entity.Property(x => x.UsableWeight)
                   .HasPrecision(18, 3);

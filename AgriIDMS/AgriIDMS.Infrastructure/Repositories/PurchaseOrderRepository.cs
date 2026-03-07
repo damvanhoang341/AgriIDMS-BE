@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,8 +21,17 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         return await _context.PurchaseOrders
             .Include(x => x.Supplier)
             .Include(x => x.Details)
-            .ThenInclude(x => x.ProductVariant)
+                .ThenInclude(x => x.ProductVariant)
+                    .ThenInclude(pv => pv!.Product)
             .FirstOrDefaultAsync(x => x.Id == id);
+    }
+
+    public async Task<PurchaseOrderDetail?> GetDetailByIdAsync(int purchaseOrderDetailId)
+    {
+        return await _context.PurchaseOrderDetails
+            .Include(d => d.PurchaseOrder)
+            .Include(d => d.ProductVariant)
+            .FirstOrDefaultAsync(d => d.Id == purchaseOrderDetailId);
     }
 
     public async Task<string> GenerateOrderCodeAsync()

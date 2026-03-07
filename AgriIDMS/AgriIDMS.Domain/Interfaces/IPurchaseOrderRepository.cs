@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +12,7 @@ namespace AgriIDMS.Domain.Interfaces
         Task AddAsync(PurchaseOrder order);
 
         Task<PurchaseOrder?> GetByIdAsync(int id);
+        Task<PurchaseOrderDetail?> GetDetailByIdAsync(int purchaseOrderDetailId);
         Task UpdateAsync(PurchaseOrder purchaseOrder);
         Task<string> GenerateOrderCodeAsync();
     }
