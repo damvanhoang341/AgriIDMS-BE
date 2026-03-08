@@ -1,0 +1,10 @@
+using AgriIDMS.Application.DTOs.Box;
+using System.Threading.Tasks;
+
+namespace AgriIDMS.Application.Interfaces
+{
+    public interface IBoxService
+    {
+        Task AssignBoxToSlotAsync(AssignBoxToSlotRequest request);
+    }
+}

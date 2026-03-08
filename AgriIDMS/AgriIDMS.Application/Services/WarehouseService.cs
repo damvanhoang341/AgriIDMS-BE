@@ -42,7 +42,10 @@ namespace AgriIDMS.Application.Services
             {
                 Name = normalizedName,
                 Location = request.Location.Trim(),
-                TitleWarehouse = request.TitleWarehouse
+                TitleWarehouse = request.TitleWarehouse,
+                MinColdStorageHours = request.TitleWarehouse == TitleWarehouse.Cold
+                    ? (request.MinColdStorageHours ?? 48)
+                    : null
             };
 
             await _warehouseRepository.AddAsync(warehouse);
@@ -61,7 +64,8 @@ namespace AgriIDMS.Application.Services
                     Id = w.Id,
                     Name = w.Name,
                     Location = w.Location,
-                    TitleWarehouse = w.TitleWarehouse
+                    TitleWarehouse = w.TitleWarehouse,
+                    MinColdStorageHours = w.MinColdStorageHours
                 })
                 .ToList();
         }
@@ -80,7 +84,8 @@ namespace AgriIDMS.Application.Services
                 Id = warehouse.Id,
                 Name = warehouse.Name,
                 Location = warehouse.Location,
-                TitleWarehouse = warehouse.TitleWarehouse
+                TitleWarehouse = warehouse.TitleWarehouse,
+                MinColdStorageHours = warehouse.MinColdStorageHours
             };
         }
 
@@ -104,6 +109,9 @@ namespace AgriIDMS.Application.Services
             warehouse.Name = normalizedName;
             warehouse.Location = request.Location.Trim();
             warehouse.TitleWarehouse = request.TitleWarehouse;
+            warehouse.MinColdStorageHours = request.TitleWarehouse == TitleWarehouse.Cold
+                ? (request.MinColdStorageHours ?? 48)
+                : null;
 
             await _warehouseRepository.UpdateAsync(warehouse);
             await _unitOfWork.SaveChangesAsync();

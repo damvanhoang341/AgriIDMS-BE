@@ -11,8 +11,9 @@ namespace AgriIDMS.Domain.Entities
         public int Id { get; set; }
         public string Code { get; set; } = null!;
         public string? QrCode { get; set; }
-
+        // / <summary>Khối lượng tối đa có thể chứa trong slot (kg).</summary>
         public decimal Capacity { get; set; }
+        /// <summary>Khối lượng hiện tại đã chứa trong slot (kg).</summary>
         public decimal CurrentCapacity { get; set; }
 
         public int RackId { get; set; }

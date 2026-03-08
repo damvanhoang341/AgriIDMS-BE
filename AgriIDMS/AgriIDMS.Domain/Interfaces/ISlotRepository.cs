@@ -8,6 +8,7 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task<List<Slot>> GetByRackAsync(int rackId);
         Task<Slot?> GetByIdAsync(int id);
+        Task<Slot?> GetByIdWithWarehouseAsync(int id);
         Task AddAsync(Slot slot);
         Task UpdateAsync(Slot slot);
         Task DeleteAsync(Slot slot);

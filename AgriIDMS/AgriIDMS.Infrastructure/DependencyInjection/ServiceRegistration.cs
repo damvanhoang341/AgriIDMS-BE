@@ -108,8 +108,7 @@ public static class ServiceRegistration
         services.AddScoped<IZoneService, ZoneService>();
         services.AddScoped<IRackService, RackService>();
         services.AddScoped<ISlotService, SlotService>();
-
-
+        services.AddScoped<IBoxService, BoxService>();
 
         return services;
     }
