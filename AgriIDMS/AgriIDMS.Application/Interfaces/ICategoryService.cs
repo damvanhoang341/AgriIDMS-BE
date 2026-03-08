@@ -1,12 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AgriIDMS.Application.DTOs.Category;
 
 namespace AgriIDMS.Application.Interfaces
 {
-    internal class ICategoryService
+    public interface ICategoryService
     {
+        Task<int> CreateAsync(CreateCategoryRequest request);
+
+        Task UpdateAsync(int id, UpdateCategoryRequest request);
+
+        Task DeleteAsync(int id);
+
+        Task<CategoryDto?> GetByIdAsync(int id);
+
+        Task<IEnumerable<CategoryDto>> GetAllAsync();
     }
 }
