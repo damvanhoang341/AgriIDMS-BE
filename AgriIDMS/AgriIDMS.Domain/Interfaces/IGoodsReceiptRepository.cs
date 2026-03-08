@@ -11,6 +11,7 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task<IEnumerable<GoodsReceipt>> GetAllGoodsReceiptsAsync();
         Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(int goodsReceiptId);
+        Task<GoodsReceipt?> GetGoodsReceiptWithDetailsAsync(int goodsReceiptId);
         Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId);
         Task AddGoodsReceiptAsync(GoodsReceipt goodsReceipt);
         Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt);

@@ -55,11 +55,19 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // CREATE GOODS RECEIPT
+        // CREATE GOODS RECEIPT (3.5: PurchaseOrderId bắt buộc, validate PO tồn tại, đã duyệt, cùng NCC)
         // ===============================
         public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string userId)
         {
             _logger.LogInformation("User {UserId} tạo phiếu nhập kho", userId);
+
+            var po = await _purchaseOrderRepo.GetByIdAsync(request.PurchaseOrderId);
+            if (po == null)
+                throw new NotFoundException("Đơn mua không tồn tại");
+            if (po.Status != PurchaseOrderStatus.Approved)
+                throw new InvalidBusinessRuleException("Chỉ được tạo phiếu nhập theo đơn mua đã duyệt");
+            if (request.SupplierId != po.SupplierId)
+                throw new InvalidBusinessRuleException("Nhà cung cấp của phiếu nhập phải trùng với đơn mua");
 
             var supplier = await _supplierRepo.GetByIdAsync(request.SupplierId);
             if (supplier == null)
@@ -90,15 +98,15 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // ADD DETAIL (Warehouse: only ReceivedWeight; UnitPrice from PO; ExpectedWeight = PO.OrderedWeight)
+        // ADD DETAIL (3.1/3.2: không vượt RemainingWeight; 3.3: chi tiết phải thuộc đúng PO của phiếu; 3.4: chuyển Received sau khi thêm)
         // ===============================
         public async Task AddGoodsReceiptDetailAsync(AddGoodsReceiptDetailRequest request)
         {
             var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(request.GoodsReceiptId);
             if (receipt == null)
                 throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.Draft)
-                throw new InvalidBusinessRuleException("Chỉ được thêm chi tiết khi phiếu nhập ở trạng thái Nháp (Draft)");
+            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received)
+                throw new InvalidBusinessRuleException("Chỉ được thêm chi tiết khi phiếu nhập ở trạng thái Nháp (Draft) hoặc Đã nhập số liệu (Received)");
 
             var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(request.PurchaseOrderDetailId);
             if (poDetail == null)
@@ -109,6 +117,16 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
             if (request.ProductVariantId != poDetail.ProductVariantId)
                 throw new InvalidBusinessRuleException("Sản phẩm không khớp với dòng đơn mua");
+
+            // 3.3: Chi tiết phải thuộc đúng đơn mua của phiếu nhập
+            if (receipt.PurchaseOrderId.HasValue && poDetail.PurchaseOrderId != receipt.PurchaseOrderId.Value)
+                throw new InvalidBusinessRuleException("Chi tiết đơn mua phải thuộc đúng đơn mua của phiếu nhập");
+
+            // 3.1 & 3.2: Tổng đã nhận (đã duyệt) + tổng đang chờ (Draft/Received/QCCompleted/PendingManagerApproval) + khối lượng mới không vượt OrderedWeight
+            decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
+            if (poDetail.ReceivedWeight + totalPending + request.ReceivedWeight > poDetail.OrderedWeight)
+                throw new InvalidBusinessRuleException(
+                    $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ: {totalPending}, đặt hàng: {poDetail.OrderedWeight}.");
 
             var detail = new GoodsReceiptDetail
             {
@@ -122,6 +140,13 @@ namespace AgriIDMS.Application.Services
 
             await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
             await _unitOfWork.SaveChangesAsync();
+
+            // 3.4: Chuyển trạng thái sang Received khi đã có chi tiết
+            if (receipt.Status == GoodsReceiptStatus.Draft)
+            {
+                receipt.Status = GoodsReceiptStatus.Received;
+                await _unitOfWork.SaveChangesAsync();
+            }
         }
 
         // ===============================
@@ -141,7 +166,7 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // QC INSPECTION (no Lot creation here; Lot created at Approve)
+        // QC INSPECTION (3.6: Failed => UsableWeight = 0; 3.4: chuyển QCCompleted khi tất cả dòng đã QC)
         // ===============================
         public async Task QCInspectionAsync(QCInspectionRequest request, string userId)
         {
@@ -151,14 +176,28 @@ namespace AgriIDMS.Application.Services
             if (request.UsableWeight > detail.ReceivedWeight)
                 throw new InvalidBusinessRuleException("Khối lượng sử dụng được (UsableWeight) không được vượt quá khối lượng thực nhận (ReceivedWeight)");
 
-            detail.UsableWeight = request.UsableWeight;
-            detail.QCResult = Enum.TryParse<QCResult>(request.QCResult, out var result) ? result
+            var qcResult = Enum.TryParse<QCResult>(request.QCResult, out var result) ? result
                 : throw new InvalidBusinessRuleException("QCResult không hợp lệ");
+
+            // 3.6: Khi QC không đạt (Failed), UsableWeight phải bằng 0
+            if (qcResult == QCResult.Failed && request.UsableWeight != 0)
+                throw new InvalidBusinessRuleException("Khi QC không đạt (Failed), khối lượng sử dụng được (UsableWeight) phải bằng 0");
+
+            detail.UsableWeight = request.UsableWeight;
+            detail.QCResult = qcResult;
             detail.QCNote = request.QCNote;
             detail.InspectedBy = userId;
             detail.InspectedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync();
+
+            // 3.4: Nếu tất cả dòng đã QC xong thì chuyển phiếu sang QCCompleted
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(detail.GoodsReceiptId);
+            if (receipt != null && receipt.Details.All(d => d.QCResult != QCResult.Pending))
+            {
+                receipt.Status = GoodsReceiptStatus.QCCompleted;
+                await _unitOfWork.SaveChangesAsync();
+            }
         }
 
         // ===============================
@@ -172,8 +211,9 @@ namespace AgriIDMS.Application.Services
                 var receipt = await _receiptRepo.GetGoodsReceiptForApproveAsync(receiptId);
                 if (receipt == null)
                     throw new NotFoundException("Phiếu nhập không tồn tại");
-                if (receipt.Status != GoodsReceiptStatus.Draft)
-                    throw new InvalidBusinessRuleException("Chỉ được duyệt phiếu nhập ở trạng thái Nháp (Draft)");
+                // 3.4: Cho phép duyệt khi Draft, Received hoặc QCCompleted
+                if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received && receipt.Status != GoodsReceiptStatus.QCCompleted)
+                    throw new InvalidBusinessRuleException("Chỉ được duyệt phiếu nhập ở trạng thái Nháp (Draft), Đã nhập số liệu (Received) hoặc Đã QC (QCCompleted)");
 
                 if (!receipt.Details.Any())
                     throw new InvalidBusinessRuleException("Phiếu nhập chưa có chi tiết");
@@ -268,10 +308,13 @@ namespace AgriIDMS.Application.Services
                 };
                 await _lotRepo.AddRangeAsync(new List<Lot> { lot });
 
-                // Chỉ cập nhật PO.ReceivedWeight khi phiếu nhập được duyệt (Approved)
+                // Chỉ cập nhật PO.ReceivedWeight khi phiếu nhập được duyệt (Approved). 3.2: Đảm bảo không vượt OrderedWeight
                 var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
                 if (poDetail != null)
                 {
+                    if (poDetail.ReceivedWeight + detail.UsableWeight > poDetail.OrderedWeight)
+                        throw new InvalidBusinessRuleException(
+                            $"Dòng đơn mua Id={poDetail.Id}: tổng đã nhận ({poDetail.ReceivedWeight} + {detail.UsableWeight}) vượt quá khối lượng đặt ({poDetail.OrderedWeight}).");
                     poDetail.ReceivedWeight += detail.UsableWeight;
                 }
             }

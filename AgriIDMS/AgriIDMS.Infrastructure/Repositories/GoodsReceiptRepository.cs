@@ -42,6 +42,13 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.GoodsReceipts.FirstOrDefaultAsync(x => x.Id == goodsReceiptId);
         }
 
+        public async Task<GoodsReceipt?> GetGoodsReceiptWithDetailsAsync(int goodsReceiptId)
+        {
+            return await _context.GoodsReceipts
+                .Include(r => r.Details)
+                .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
+        }
+
         public async Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId)
         {
             return await _context.GoodsReceipts

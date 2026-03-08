@@ -23,7 +23,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [MaxLength(100, ErrorMessage = "Tên công ty vận chuyển tối đa 100 ký tự")]
         public string? TransportCompany { get; set; }
 
-        public int? PurchaseOrderId { get; set; }
+        [Required(ErrorMessage = "PurchaseOrderId không được để trống")]
+        public int PurchaseOrderId { get; set; }
     }
 
     /// <summary>
@@ -61,7 +62,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Required(ErrorMessage = "DetailId không được để trống")]
         public int DetailId { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "UsableWeight phải lớn hơn 0")]
+        [Range(0, double.MaxValue, ErrorMessage = "UsableWeight phải lớn hơn hoặc bằng 0 (bằng 0 khi QC không đạt)")]
         public decimal UsableWeight { get; set; }
 
         [Required(ErrorMessage = "QCResult không được để trống")]

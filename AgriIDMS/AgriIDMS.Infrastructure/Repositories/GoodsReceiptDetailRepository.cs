@@ -1,9 +1,10 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Infrastructure.Repositories
@@ -25,6 +26,18 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<GoodsReceiptDetail?> GetByIdAsync(int id)
         {
             return await _context.GoodsReceiptDetails.FindAsync(id);
+        }
+
+        public async Task<decimal> GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(int purchaseOrderDetailId)
+        {
+            var sum = await _context.GoodsReceiptDetails
+                .Where(d => d.PurchaseOrderDetailId == purchaseOrderDetailId
+                    && (d.GoodsReceipt.Status == GoodsReceiptStatus.Draft
+                        || d.GoodsReceipt.Status == GoodsReceiptStatus.Received
+                        || d.GoodsReceipt.Status == GoodsReceiptStatus.QCCompleted
+                        || d.GoodsReceipt.Status == GoodsReceiptStatus.PendingManagerApproval))
+                .SumAsync(d => d.ReceivedWeight);
+            return sum;
         }
     }
 }
