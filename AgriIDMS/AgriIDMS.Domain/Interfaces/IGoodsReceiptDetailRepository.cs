@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,5 +11,7 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task AddGoodsReceiptDetaiAsync(GoodsReceiptDetail entity);
         Task<GoodsReceiptDetail?> GetByIdAsync(int id);
+        /// <summary>Tổng ReceivedWeight của các dòng GR (phiếu Draft hoặc PendingManagerApproval) cho một dòng PO.</summary>
+        Task<decimal> GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(int purchaseOrderDetailId);
     }
 }
