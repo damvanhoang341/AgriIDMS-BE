@@ -94,6 +94,9 @@ public static class ServiceRegistration
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IBoxRepository, BoxRepository>();
         services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
+        services.AddScoped<IStockCheckRepository, StockCheckRepository>();
+        services.AddScoped<IStockCheckDetailRepository, StockCheckDetailRepository>();
+        services.AddScoped<IInventoryRequestRepository, InventoryRequestRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ICategoryService, CategoryService>();
@@ -109,6 +112,7 @@ public static class ServiceRegistration
         services.AddScoped<IRackService, RackService>();
         services.AddScoped<ISlotService, SlotService>();
         services.AddScoped<IBoxService, BoxService>();
+        services.AddScoped<IStockCheckService, StockCheckService>();
 
         return services;
     }
