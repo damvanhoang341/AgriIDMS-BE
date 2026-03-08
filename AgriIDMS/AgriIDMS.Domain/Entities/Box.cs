@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,8 @@ namespace AgriIDMS.Domain.Entities
 
         public int? SlotId { get; set; }
         public Slot? Slot { get; set; }
+        /// <summary>Thời điểm box được đặt vào slot thuộc kho lạnh (lần đầu). Dùng để kiểm tra đủ thời gian lưu lạnh trước khi xuất.</summary>
+        public DateTime? PlacedInColdAt { get; set; }
         public string? QRCode { get; set; }
         public BoxStatus Status { get; set; } = BoxStatus.Stored;
 

@@ -455,6 +455,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.QRCode)
                   .HasMaxLength(300);
 
+            entity.Property(x => x.PlacedInColdAt)
+                  .HasColumnType("datetime2");
+
             entity.Property(x => x.Status)
                   .HasConversion<string>()
                   .HasMaxLength(30)
@@ -654,6 +657,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasConversion<string>()
                   .HasMaxLength(50)
                   .IsRequired();
+
+            entity.Property(x => x.MinColdStorageHours)
+                  .HasColumnType("decimal(18,2)");
 
             // =============================
             // Relationships
