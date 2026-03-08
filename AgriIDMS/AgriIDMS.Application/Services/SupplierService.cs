@@ -12,8 +12,8 @@ namespace AgriIDMS.Application.Services
         private readonly IUnitOfWork _unitOfWork;
 
         public SupplierService(
-            ISupplierRepository supplierRepo,
-            IUnitOfWork unitOfWork)
+        ISupplierRepository supplierRepo,
+        IUnitOfWork unitOfWork)
         {
             _supplierRepo = supplierRepo;
             _unitOfWork = unitOfWork;
@@ -39,7 +39,7 @@ namespace AgriIDMS.Application.Services
             var supplier = await _supplierRepo.GetByIdAsync(id);
 
             if (supplier == null)
-                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại");
+                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại"  );
 
             return new SupplierResponse
             {
@@ -54,7 +54,7 @@ namespace AgriIDMS.Application.Services
         public async Task CreateSupplierAsync(CreateSupplierRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Name))
-                throw new InvalidBusinessRuleException("Tên nhà cung cấp không được để trống");
+                throw new InvalidBusinessRuleException("Tên nhà cung cấp không được để trống"  );
 
             var supplier = new Supplier
             {
@@ -74,10 +74,10 @@ namespace AgriIDMS.Application.Services
             var supplier = await _supplierRepo.GetByIdAsync(id);
 
             if (supplier == null)
-                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại");
+                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại"  );
 
             if (string.IsNullOrWhiteSpace(request.Name))
-                throw new InvalidBusinessRuleException("Tên nhà cung cấp không được để trống");
+                throw new InvalidBusinessRuleException("Tên nhà cung cấp không được để trống"  );
 
             supplier.Name = request.Name;
             supplier.Address = request.Address;
@@ -94,7 +94,7 @@ namespace AgriIDMS.Application.Services
             var supplier = await _supplierRepo.GetByIdAsync(id);
 
             if (supplier == null)
-                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại");
+                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại"  );
 
             _supplierRepo.Delete(supplier);
 
