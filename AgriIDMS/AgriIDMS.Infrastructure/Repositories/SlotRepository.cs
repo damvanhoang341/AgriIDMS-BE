@@ -31,6 +31,15 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
+        public Task<Slot?> GetByIdWithWarehouseAsync(int id)
+        {
+            return _context.Slots
+                .Include(s => s.Rack)
+                    .ThenInclude(r => r.Zone)
+                        .ThenInclude(z => z.Warehouse)
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
         public async Task AddAsync(Slot slot)
         {
             await _context.Slots.AddAsync(slot);

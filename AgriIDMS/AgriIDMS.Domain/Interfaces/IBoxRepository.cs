@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +10,8 @@ namespace AgriIDMS.Domain.Interfaces
     public interface IBoxRepository
     {
         Task<Box?> GetByIdAsync(int id);
+        Task<Box?> GetByIdWithLotAndReceiptAsync(int id);
         Task CreateAsync(Box box);
+        Task UpdateAsync(Box box);
     }
 }
