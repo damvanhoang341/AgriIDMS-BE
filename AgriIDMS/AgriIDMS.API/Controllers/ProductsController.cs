@@ -1,5 +1,6 @@
 ﻿using AgriIDMS.Application.DTOs.Product;
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -34,9 +35,10 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetProducts()
         {
-            return Ok(_service.GetAllProducts());
+            var products = await _service.GetAllProducts();
+            return Ok(products);
         }
 
         [HttpGet("{id}")]
