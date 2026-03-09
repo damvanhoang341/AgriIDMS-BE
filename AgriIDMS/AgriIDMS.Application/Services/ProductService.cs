@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.Product;
+using AgriIDMS.Application.DTOs.Product;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
@@ -43,7 +43,8 @@ namespace AgriIDMS.Application.Services
             {
                 Name = request.Name,
                 Description = request.Description,
-                CategoryId = request.CategoryId
+                CategoryId = request.CategoryId,
+                ImageUrl = request.ImageUrl
             };
 
             await _productRepo.AddProductAsync(product);
@@ -105,6 +106,9 @@ namespace AgriIDMS.Application.Services
 
             if (request.Description != null)
                 product.Description = request.Description;
+
+            if (request.ImageUrl != null)
+                product.ImageUrl = request.ImageUrl;
 
             if (request.CategoryId.HasValue)
             {

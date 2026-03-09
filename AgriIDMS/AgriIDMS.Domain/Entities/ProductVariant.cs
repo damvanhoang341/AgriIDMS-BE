@@ -18,6 +18,9 @@ namespace AgriIDMS.Domain.Entities
         /// <summary>Số ngày bảo quản (shelf life) kể từ ngày thu hoạch để tính hạn sử dụng.</summary>
         public int ShelfLifeDays { get; set; }
 
+        /// <summary>Đường dẫn ảnh đại diện cho biến thể sản phẩm.</summary>
+        public string? ImageUrl { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
