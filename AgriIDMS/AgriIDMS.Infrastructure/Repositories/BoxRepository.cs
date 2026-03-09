@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -46,6 +47,20 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             _context.Boxes.Update(box);
             return Task.CompletedTask;
+        }
+
+        public async Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Status == BoxStatus.Stored &&
+                    b.Lot.Status == LotStatus.Active &&
+                    b.Lot.ExpiryDate > System.DateTime.UtcNow)
+                .OrderBy(b => b.Lot.ExpiryDate)
+                .ToListAsync();
         }
     }
 }

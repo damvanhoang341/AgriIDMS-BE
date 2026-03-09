@@ -99,6 +99,7 @@ public static class ServiceRegistration
         services.AddScoped<IInventoryRequestRepository, InventoryRequestRepository>();
         services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IOrderAllocationRepository, OrderAllocationRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ICategoryService, CategoryService>();
