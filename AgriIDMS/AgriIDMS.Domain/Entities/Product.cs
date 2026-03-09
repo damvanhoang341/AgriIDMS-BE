@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +12,9 @@ namespace AgriIDMS.Domain.Entities
         public int Id { get; set; }
         public string Name { get; set; } = null!;   
         public string? Description { get; set; }
+
+        /// <summary>Đường dẫn ảnh đại diện của sản phẩm.</summary>
+        public string? ImageUrl { get; set; }
 
         public int CategoryId { get; set; }
         public Category Category { get; set; } = null!;

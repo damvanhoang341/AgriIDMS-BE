@@ -24,6 +24,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         /// <summary>Số ngày bảo quản (shelf life) kể từ ngày thu hoạch.</summary>
         public int ShelfLifeDays { get; set; }
+
+        /// <summary>Đường dẫn ảnh của biến thể.</summary>
+        public string? ImageUrl { get; set; }
     }
 
     public class CreateProductVariantDto
@@ -42,6 +45,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         [Required(ErrorMessage = "ShelfLifeDays không được để trống")]
         [Range(0, int.MaxValue, ErrorMessage = "ShelfLifeDays phải >= 0")]
         public int ShelfLifeDays { get; set; }
+
+        [StringLength(500, ErrorMessage = "ImageUrl tối đa 500 ký tự")]
+        public string? ImageUrl { get; set; }
     }
 
     public class UpdateProductVariantDto
@@ -55,5 +61,8 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         [Range(0, int.MaxValue, ErrorMessage = "ShelfLifeDays phải >= 0")]
         public int? ShelfLifeDays { get; set; }
+
+        [StringLength(500, ErrorMessage = "ImageUrl tối đa 500 ký tự")]
+        public string? ImageUrl { get; set; }
     }
 }

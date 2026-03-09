@@ -38,7 +38,8 @@ namespace AgriIDMS.Application.Services
                 Grade = dto.Grade,
                 Price = dto.Price,
                 IsActive = true,
-                ShelfLifeDays = dto.ShelfLifeDays
+                ShelfLifeDays = dto.ShelfLifeDays,
+                ImageUrl = dto.ImageUrl
             };
 
             await _repo.AddAsync(variant);
@@ -64,7 +65,8 @@ namespace AgriIDMS.Application.Services
                 Grade = x.Grade,
                 Price = x.Price,
                 IsActive = x.IsActive,
-                ShelfLifeDays = x.ShelfLifeDays
+                ShelfLifeDays = x.ShelfLifeDays,
+                ImageUrl = x.ImageUrl
             });
         }
 
@@ -85,7 +87,8 @@ namespace AgriIDMS.Application.Services
                 Grade = variant.Grade,
                 Price = variant.Price,
                 IsActive = variant.IsActive,
-                ShelfLifeDays = variant.ShelfLifeDays
+                ShelfLifeDays = variant.ShelfLifeDays,
+                ImageUrl = variant.ImageUrl
             };
         }
 
@@ -109,6 +112,9 @@ namespace AgriIDMS.Application.Services
 
             if (dto.ShelfLifeDays.HasValue)
                 variant.ShelfLifeDays = dto.ShelfLifeDays.Value;
+
+            if (dto.ImageUrl != null)
+                variant.ImageUrl = dto.ImageUrl;
 
             _repo.Update(variant);
 
