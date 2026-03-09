@@ -14,5 +14,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task<Dictionary<int, Box>> GetByIdsAsync(IEnumerable<int> ids);
         Task CreateAsync(Box box);
         Task UpdateAsync(Box box);
+        Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId);
     }
 }

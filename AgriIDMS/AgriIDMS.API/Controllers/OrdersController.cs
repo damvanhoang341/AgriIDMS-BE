@@ -30,6 +30,18 @@ namespace AgriIDMS.API.Controllers
                 OrderId = orderId
             });
         }
+
+        /// <summary>Kiểm tra & giữ hàng (allocate Box) cho đơn hàng.</summary>
+        [HttpPost("{id}/allocate")]
+        public async Task<IActionResult> Allocate(int id)
+        {
+            await _orderService.AllocateInventoryAsync(id);
+            return Ok(new
+            {
+                Message = "Đã kiểm tra và giữ hàng cho đơn hàng",
+                OrderId = id
+            });
+        }
     }
 }
 
