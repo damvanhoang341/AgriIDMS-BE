@@ -298,7 +298,17 @@ namespace AgriIDMS.Application.Services
                 if (poDetail != null)
                 {
                     var shelfLifeDays = poDetail.ProductVariant.ShelfLifeDays;
+                    var receivedAt = DateTime.UtcNow;
+
+                    if (poDetail.HarvestDate > receivedAt)
+                        throw new InvalidBusinessRuleException("HarvestDate không được lớn hơn ReceivedDate");
+
                     var expiryDate = poDetail.HarvestDate.AddDays(shelfLifeDays);
+
+                    var remainingDays = (expiryDate - receivedAt).TotalDays;
+                    var minRemaining = shelfLifeDays * 0.3;
+                    if (remainingDays < minRemaining)
+                        throw new InvalidBusinessRuleException("Thời hạn còn lại của lô phải >= 30% ShelfLifeDays tại thời điểm nhập kho");
 
                     var lot = new Lot
                     {
@@ -306,7 +316,7 @@ namespace AgriIDMS.Application.Services
                         GoodsReceiptDetailId = detail.Id,
                         TotalQuantity = detail.UsableWeight,
                         RemainingQuantity = detail.UsableWeight,
-                        ReceivedDate = DateTime.UtcNow,
+                        ReceivedDate = receivedAt,
                         ExpiryDate = expiryDate
                     };
                     await _lotRepo.AddRangeAsync(new List<Lot> { lot });
@@ -423,7 +433,17 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Chi tiết đơn mua không tồn tại");
 
             var shelfLifeDays = poDetail.ProductVariant.ShelfLifeDays;
+            var receivedAt = DateTime.UtcNow;
+
+            if (poDetail.HarvestDate > receivedAt)
+                throw new InvalidBusinessRuleException("HarvestDate không được lớn hơn ReceivedDate");
+
             var expiryDate = poDetail.HarvestDate.AddDays(shelfLifeDays);
+
+            var remainingDays = (expiryDate - receivedAt).TotalDays;
+            var minRemaining = shelfLifeDays * 0.3;
+            if (remainingDays < minRemaining)
+                throw new InvalidBusinessRuleException("Thời hạn còn lại của lô phải >= 30% ShelfLifeDays tại thời điểm nhập kho");
 
             var lot = new Lot
             {
@@ -431,7 +451,7 @@ namespace AgriIDMS.Application.Services
                 GoodsReceiptDetailId = goodsReceiptDetailId,
                 TotalQuantity = usable,
                 RemainingQuantity = usable,
-                ReceivedDate = DateTime.UtcNow,
+                ReceivedDate = receivedAt,
                 ExpiryDate = expiryDate
             };
             await _lotRepo.AddRangeAsync(new List<Lot> { lot });

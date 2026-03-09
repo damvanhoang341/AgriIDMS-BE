@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -24,6 +24,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<IEnumerable<Product>> GetAllProductsAsync()
         {
             return await _context.Products
+                .Include(p => p.Category)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -31,6 +32,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<Product?> GetProductByIdAsync(int productId)
         {
             return await _context.Products
+                .Include(p => p.Category)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == productId);
         }
