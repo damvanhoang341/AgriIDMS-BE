@@ -32,6 +32,10 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
         [Range(0, 100, ErrorMessage = "Dung sai (TolerancePercent) phải từ 0 đến 100")]
         public decimal TolerancePercent { get; set; } = 2;
+
+        /// <summary>Ngày thu hoạch nông sản. Bắt buộc cho traceability và tính hạn sử dụng.</summary>
+        [Required(ErrorMessage = "HarvestDate không được để trống")]
+        public DateTime HarvestDate { get; set; }
     }
 
     public class UpdatePurchaseOrderRequest
@@ -59,6 +63,10 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
         [Range(0, 100, ErrorMessage = "Dung sai (TolerancePercent) phải từ 0 đến 100")]
         public decimal TolerancePercent { get; set; } = 2;
+
+        /// <summary>Ngày thu hoạch nông sản. Bắt buộc khi tạo/sửa dòng PO.</summary>
+        [Required(ErrorMessage = "HarvestDate không được để trống")]
+        public DateTime HarvestDate { get; set; }
     }
 
     public class PurchaseOrderResponse
@@ -98,5 +106,8 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
         /// <summary>Còn lại = OrderedWeight - ReceivedWeight.</summary>
         public decimal RemainingWeight => OrderedWeight - ReceivedWeight;
+
+        /// <summary>Ngày thu hoạch dùng để tính hạn sử dụng Lot.</summary>
+        public DateTime HarvestDate { get; set; }
     }
 }

@@ -15,7 +15,6 @@ namespace AgriIDMS.Application.Services
 {
     public class GoodsReceiptService : IGoodsReceiptService
     {
-        private const int DefaultLotExpiryDays = 30;
         private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly IGoodsReceiptDetailRepository _detailRepo;
         private readonly ILotRepository _lotRepo;
@@ -295,23 +294,23 @@ namespace AgriIDMS.Application.Services
         {
             foreach (var detail in receipt.Details)
             {
-                if (detail.UsableWeight <= 0) continue;
-
-                var lot = new Lot
-                {
-                    LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}",
-                    GoodsReceiptDetailId = detail.Id,
-                    TotalQuantity = detail.UsableWeight,
-                    RemainingQuantity = detail.UsableWeight,
-                    ReceivedDate = DateTime.UtcNow,
-                    ExpiryDate = DateTime.UtcNow.AddDays(DefaultLotExpiryDays)
-                };
-                await _lotRepo.AddRangeAsync(new List<Lot> { lot });
-
-                // Chỉ cập nhật PO.ReceivedWeight khi phiếu nhập được duyệt (Approved). 3.2: Đảm bảo không vượt OrderedWeight
                 var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
                 if (poDetail != null)
                 {
+                    var shelfLifeDays = poDetail.ProductVariant.ShelfLifeDays;
+                    var expiryDate = poDetail.HarvestDate.AddDays(shelfLifeDays);
+
+                    var lot = new Lot
+                    {
+                        LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}",
+                        GoodsReceiptDetailId = detail.Id,
+                        TotalQuantity = detail.UsableWeight,
+                        RemainingQuantity = detail.UsableWeight,
+                        ReceivedDate = DateTime.UtcNow,
+                        ExpiryDate = expiryDate
+                    };
+                    await _lotRepo.AddRangeAsync(new List<Lot> { lot });
+
                     if (poDetail.ReceivedWeight + detail.UsableWeight > poDetail.OrderedWeight)
                         throw new InvalidBusinessRuleException(
                             $"Dòng đơn mua Id={poDetail.Id}: tổng đã nhận ({poDetail.ReceivedWeight} + {detail.UsableWeight}) vượt quá khối lượng đặt ({poDetail.OrderedWeight}).");
@@ -419,6 +418,13 @@ namespace AgriIDMS.Application.Services
             if (usable <= 0)
                 throw new InvalidBusinessRuleException("UsableWeight phải lớn hơn 0 để tạo Lot");
 
+            var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
+            if (poDetail == null)
+                throw new NotFoundException("Chi tiết đơn mua không tồn tại");
+
+            var shelfLifeDays = poDetail.ProductVariant.ShelfLifeDays;
+            var expiryDate = poDetail.HarvestDate.AddDays(shelfLifeDays);
+
             var lot = new Lot
             {
                 LotCode = $"LOT-{DateTime.UtcNow.Ticks}",
@@ -426,7 +432,7 @@ namespace AgriIDMS.Application.Services
                 TotalQuantity = usable,
                 RemainingQuantity = usable,
                 ReceivedDate = DateTime.UtcNow,
-                ExpiryDate = DateTime.UtcNow.AddDays(DefaultLotExpiryDays)
+                ExpiryDate = expiryDate
             };
             await _lotRepo.AddRangeAsync(new List<Lot> { lot });
             await _unitOfWork.SaveChangesAsync();

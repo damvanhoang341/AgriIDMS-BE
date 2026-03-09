@@ -69,13 +69,17 @@ public class PurchaseOrderService : IPurchaseOrderService
                 if (item.OrderedWeight <= 0)
                     throw new InvalidBusinessRuleException("Khối lượng đặt phải lớn hơn 0");
 
+                if (item.HarvestDate == default)
+                    throw new InvalidBusinessRuleException("HarvestDate phải được cung cấp cho từng dòng đơn mua");
+
                 order.Details.Add(new PurchaseOrderDetail
                 {
                     ProductVariantId = item.ProductVariantId,
                     OrderedWeight = item.OrderedWeight,
                     UnitPrice = item.UnitPrice,
                     TolerancePercent = item.TolerancePercent,
-                    ReceivedWeight = 0
+                    ReceivedWeight = 0,
+                    HarvestDate = item.HarvestDate
                 });
             }
 
@@ -100,25 +104,26 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (order == null)
             throw new NotFoundException("Purchase Order không tồn tại");
 
-        return new PurchaseOrderResponse
-        {
-            Id = order.Id,
-            OrderCode = order.OrderCode,
-            SupplierId = order.SupplierId,
-            SupplierName = order.Supplier.Name,
-            Status = order.Status.ToString(),
-            OrderDate = order.OrderDate,
-            Details = order.Details.Select(d => new PurchaseOrderDetailResponse
+            return new PurchaseOrderResponse
             {
-                Id = d.Id,
-                ProductVariantId = d.ProductVariantId,
-                ProductName = d.ProductVariant.Product.Name,
-                OrderedWeight = d.OrderedWeight,
-                UnitPrice = d.UnitPrice,
-                TolerancePercent = d.TolerancePercent,
-                ReceivedWeight = d.ReceivedWeight
-            }).ToList()
-        };
+                Id = order.Id,
+                OrderCode = order.OrderCode,
+                SupplierId = order.SupplierId,
+                SupplierName = order.Supplier.Name,
+                Status = order.Status.ToString(),
+                OrderDate = order.OrderDate,
+                Details = order.Details.Select(d => new PurchaseOrderDetailResponse
+                {
+                    Id = d.Id,
+                    ProductVariantId = d.ProductVariantId,
+                    ProductName = d.ProductVariant.Product.Name,
+                    OrderedWeight = d.OrderedWeight,
+                    UnitPrice = d.UnitPrice,
+                    TolerancePercent = d.TolerancePercent,
+                    ReceivedWeight = d.ReceivedWeight,
+                    HarvestDate = d.HarvestDate
+                }).ToList()
+            };
     }
 
     public async Task ApprovePurchaseOrderAsync(int id, string userId)
@@ -207,6 +212,9 @@ public class PurchaseOrderService : IPurchaseOrderService
                     if (item.OrderedWeight <= 0)
                         throw new InvalidBusinessRuleException("Khối lượng đặt phải lớn hơn 0");
 
+                    if (item.HarvestDate == default)
+                        throw new InvalidBusinessRuleException("HarvestDate phải được cung cấp cho từng dòng đơn mua");
+
                     if (!item.Id.HasValue || item.Id.Value == 0)
                     {
                         po.Details.Add(new PurchaseOrderDetail
@@ -215,7 +223,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                             OrderedWeight = item.OrderedWeight,
                             UnitPrice = item.UnitPrice,
                             TolerancePercent = item.TolerancePercent,
-                            ReceivedWeight = 0
+                            ReceivedWeight = 0,
+                            HarvestDate = item.HarvestDate
                         });
                     }
                     else
@@ -229,6 +238,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                         existing.OrderedWeight = item.OrderedWeight;
                         existing.UnitPrice = item.UnitPrice;
                         existing.TolerancePercent = item.TolerancePercent;
+                        existing.HarvestDate = item.HarvestDate;
                     }
                 }
 

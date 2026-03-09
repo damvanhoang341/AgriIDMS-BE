@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.ProductVariant;
+using AgriIDMS.Application.DTOs.ProductVariant;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
@@ -37,7 +37,8 @@ namespace AgriIDMS.Application.Services
                 ProductId = dto.ProductId,
                 Grade = dto.Grade,
                 Price = dto.Price,
-                IsActive = true
+                IsActive = true,
+                ShelfLifeDays = dto.ShelfLifeDays
             };
 
             await _repo.AddAsync(variant);
@@ -62,7 +63,8 @@ namespace AgriIDMS.Application.Services
                 ProductName = x.Product.Name,
                 Grade = x.Grade,
                 Price = x.Price,
-                IsActive = x.IsActive
+                IsActive = x.IsActive,
+                ShelfLifeDays = x.ShelfLifeDays
             });
         }
 
@@ -82,7 +84,8 @@ namespace AgriIDMS.Application.Services
                 ProductName = variant.Product.Name,
                 Grade = variant.Grade,
                 Price = variant.Price,
-                IsActive = variant.IsActive
+                IsActive = variant.IsActive,
+                ShelfLifeDays = variant.ShelfLifeDays
             };
         }
 
@@ -103,6 +106,9 @@ namespace AgriIDMS.Application.Services
 
             if (dto.IsActive.HasValue)
                 variant.IsActive = dto.IsActive.Value;
+
+            if (dto.ShelfLifeDays.HasValue)
+                variant.ShelfLifeDays = dto.ShelfLifeDays.Value;
 
             _repo.Update(variant);
 

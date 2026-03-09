@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +14,9 @@ namespace AgriIDMS.Domain.Entities
         public Product Product { get; set; } = null!;
         public ProductGrade Grade { get; set; } 
         public decimal Price { get; set; }
+
+        /// <summary>Số ngày bảo quản (shelf life) kể từ ngày thu hoạch để tính hạn sử dụng.</summary>
+        public int ShelfLifeDays { get; set; }
 
         public bool IsActive { get; set; } = true;
 
