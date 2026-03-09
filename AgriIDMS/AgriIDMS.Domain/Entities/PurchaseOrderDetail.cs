@@ -16,6 +16,9 @@ namespace AgriIDMS.Domain.Entities
         public decimal ReceivedWeight { get; set; }
         public decimal UnitPrice { get; set; }
 
+        /// <summary>Ngày thu hoạch nông sản cho dòng đơn mua này.</summary>
+        public DateTime HarvestDate { get; set; }
+
         public decimal RemainingWeight => OrderedWeight - ReceivedWeight;
 
         public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();

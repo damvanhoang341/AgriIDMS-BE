@@ -150,6 +150,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
 
+            entity.Property(x => x.ShelfLifeDays)
+                  .IsRequired();
+
             entity.Property(x => x.IsActive)
                   .HasDefaultValue(true);
 
@@ -1347,6 +1350,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.UnitPrice)
                   .HasPrecision(18, 2);
+
+            entity.Property(x => x.HarvestDate)
+                  .IsRequired();
 
             entity.HasOne(x => x.ProductVariant)
                   .WithMany()

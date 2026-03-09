@@ -84,7 +84,15 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Range(0.01, double.MaxValue, ErrorMessage = "Quantity phải lớn hơn 0")]
         public decimal Quantity { get; set; }
 
+        /// <summary>Hạn sử dụng do supplier cung cấp (nếu có) → ưu tiên cao nhất.</summary>
         public DateTime? ExpiryDate { get; set; }
+
+        /// <summary>Ngày thu hoạch (nếu có). Nếu có HarvestDate và ShelfLifeDays thì Expiry = HarvestDate + ShelfLifeDays.</summary>
+        public DateTime? HarvestDate { get; set; }
+
+        /// <summary>Số ngày bảo quản (shelf life) tính từ HarvestDate. Dùng cùng HarvestDate để tính Expiry.</summary>
+        [Range(0, int.MaxValue, ErrorMessage = "ShelfLifeDays phải >= 0")]
+        public int? ShelfLifeDays { get; set; }
     }
 
     public class CreateBoxesRequest

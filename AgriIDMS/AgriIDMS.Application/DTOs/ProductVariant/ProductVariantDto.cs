@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -21,6 +21,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public decimal Price { get; set; }
 
         public bool IsActive { get; set; }
+
+        /// <summary>Số ngày bảo quản (shelf life) kể từ ngày thu hoạch.</summary>
+        public int ShelfLifeDays { get; set; }
     }
 
     public class CreateProductVariantDto
@@ -35,6 +38,10 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         [Required(ErrorMessage = "Price không được để trống")]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price phải lớn hơn 0")]
         public decimal Price { get; set; }
+
+        [Required(ErrorMessage = "ShelfLifeDays không được để trống")]
+        [Range(0, int.MaxValue, ErrorMessage = "ShelfLifeDays phải >= 0")]
+        public int ShelfLifeDays { get; set; }
     }
 
     public class UpdateProductVariantDto
@@ -45,5 +52,8 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public decimal? Price { get; set; }
 
         public bool? IsActive { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "ShelfLifeDays phải >= 0")]
+        public int? ShelfLifeDays { get; set; }
     }
 }
