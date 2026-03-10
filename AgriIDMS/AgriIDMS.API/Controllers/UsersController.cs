@@ -97,12 +97,29 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { message = "Cập nhật role thành công" });
         }
 
+        [HttpPatch("{id}/restore")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RetoreUser(string id)
+        {
+            await _userService.RestoreUser(id);
+
+            return Ok(new { message = "Cập nhật role thành công" });
+        }
+
         /// <summary>Tìm kiếm danh sách user theo trạng thái (Active/Inactive/Locked/Deleted).</summary>
         [HttpGet("by-status")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetStatusUser(string status)
         {
             var users = await _userService.GetByStatusAsync(status);
+            return Ok(users);
+        }
+
+        [HttpGet("by-status-deleted")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetStatusDeletedUser()
+        {
+            var users = await _userService.GetByStatusDeleteAsync();
             return Ok(users);
         }
     }

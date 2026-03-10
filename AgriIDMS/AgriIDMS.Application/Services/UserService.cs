@@ -188,6 +188,24 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("Change status for user {UserId}", userId);
         }
 
+        public async Task RestoreUser(string userId)
+        {
+            _logger.LogInformation("Restore for user {UserId}", userId);
+
+            var user = await _userRepository.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new NotFoundException("User không tồn tại");
+
+            user.Status = UserStatus.Active;
+
+            _userRepository.UpdateUser(user);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("Restore user {UserId}", userId);
+        }
+
         public async Task<List<UserStatusDto>> GetByStatusAsync(string status)
         {
             var statusEnum = Enum.Parse<UserStatus>(status);
@@ -211,6 +229,35 @@ namespace AgriIDMS.Application.Services
                     UserName = user.UserName ?? string.Empty,
                     Email = user.Email ?? string.Empty,
                     FullName = user.FullName ?? string.Empty,
+                    Roles = roles.ToList()
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<List<UserDto>> GetByStatusDeleteAsync()
+        {
+            var query = _userRepository.GetAll()
+                .AsNoTracking()
+                .Where(u => u.Status== UserStatus.Deleted);
+
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+
+            var result = new List<UserDto>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userRepository.GetRolesAsync(user);
+                result.Add(new UserDto
+                {
+                    Id = user.Id,
+                    UserName = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
+                    FullName = user.FullName ?? string.Empty,
+                    Status = user.Status,
                     Roles = roles.ToList()
                 });
             }
