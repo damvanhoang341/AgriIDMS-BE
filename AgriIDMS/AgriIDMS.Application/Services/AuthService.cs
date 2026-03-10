@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.Auth;
+using AgriIDMS.Application.DTOs.Auth;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Entities;
@@ -29,6 +29,17 @@ public class AuthService(IAuthRepository authRepo,
 
         if (user == null)
             throw new UnauthorizedException("Sai tài khoản hoặc mật khẩu.");
+
+        // Check business UserStatus before tiếp tục login
+        switch (user.Status)
+        {
+            case UserStatus.Inactive:
+                throw new InvalidBusinessRuleException("Tài khoản đang ở trạng thái Inactive, vui lòng liên hệ quản trị.");
+            case UserStatus.Locked:
+                throw new LockedException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị.");
+            case UserStatus.Deleted:
+                throw new InvalidBusinessRuleException("Tài khoản đã bị xóa, vui lòng liên hệ quản trị.");
+        }
 
         if (await userManager.IsLockedOutAsync(user))
             throw new LockedException("Tài khoản đang bị khóa tạm thời.");

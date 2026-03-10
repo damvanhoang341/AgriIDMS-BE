@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.Supplier;
+using AgriIDMS.Application.DTOs.Supplier;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using Microsoft.AspNetCore.Http;
@@ -42,6 +42,13 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> Update(int id, UpdateSupplierRequest request)
         {
             await _supplierService.UpdateSupplierAsync(id, request);
+            return NoContent();
+        }
+
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> UpdateStatus(int id, UpdateStatusSupplierRequest request)
+        {
+            await _supplierService.UpdateStatusSupplierAsync(id, request);
             return NoContent();
         }
 
