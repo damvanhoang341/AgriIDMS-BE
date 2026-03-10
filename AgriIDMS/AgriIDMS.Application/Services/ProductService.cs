@@ -77,7 +77,8 @@ namespace AgriIDMS.Application.Services
                 x.Description,
                 Category = x.Category.Name,
                 x.IsActive,
-                x.CreatedAt
+                x.CreatedAt,
+                x.ImageUrl
             });
         }
 
@@ -97,7 +98,8 @@ namespace AgriIDMS.Application.Services
                 product.Description,
                 Category = product.Category.Name,
                 product.IsActive,
-                product.CreatedAt
+                product.CreatedAt,
+                product.ImageUrl
             };
         }
 
