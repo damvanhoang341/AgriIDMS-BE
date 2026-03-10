@@ -49,7 +49,16 @@ namespace AgriIDMS.Application.Services
 
             await _productRepo.AddProductAsync(product);
 
-            await _uow.SaveChangesAsync();
+            //await _uow.SaveChangesAsync();
+            try
+            {
+                await _uow.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.InnerException?.Message);
+                throw;
+            }
 
             _logger.LogInformation("Product created: {Id}", product.Id);
 
@@ -122,7 +131,25 @@ namespace AgriIDMS.Application.Services
             if (request.IsActive.HasValue)
                 product.IsActive = request.IsActive.Value;
 
-            _productRepo.UpdateProductAsync(product);
+            await _productRepo.UpdateProductAsync(product);
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Product updated: {Id}", id);
+        }
+
+        public async Task UpdateStatusAsync(int id, UpdateProductStatusRequest request)
+        {
+            _logger.LogInformation("Updating product: {Id}", id);
+
+            var product = await _productRepo.GetProductByIdAsync(id);
+
+            if (product == null)
+                throw new NotFoundException("Sản phẩm không tồn tại");
+
+            product.IsActive = request.IsActive;
+
+            await _productRepo.UpdateProductAsync(product);
 
             await _uow.SaveChangesAsync();
 
