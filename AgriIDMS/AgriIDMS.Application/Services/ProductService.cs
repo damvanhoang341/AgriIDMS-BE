@@ -121,12 +121,12 @@ namespace AgriIDMS.Application.Services
 
             if (request.CategoryId.HasValue)
             {
-                var category = await _categoryRepo.GetByIdAsync(request.CategoryId.Value);
-                if (category == null)
+                var exists = await _categoryRepo.GetByIdAsync(request.CategoryId.Value);
+                if (exists==null)
                     throw new NotFoundException("Danh mục không tồn tại");
-
                 product.CategoryId = request.CategoryId.Value;
             }
+                
 
             if (request.IsActive.HasValue)
                 product.IsActive = request.IsActive.Value;
