@@ -23,12 +23,40 @@ namespace AgriIDMS.Application.Services
         private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<UserService> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
-        public UserService(IUserRepository userRepository, IUnitOfWork unitOfWork,ILogger<UserService> logger)
+        public UserService(IUserRepository userRepository, IUnitOfWork unitOfWork,ILogger<UserService> logger, UserManager<ApplicationUser> userManager,
+        RoleManager<IdentityRole> roleManager )
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _userManager = userManager;
+            _roleManager = roleManager;
+        }
+
+        public async Task ChangeUserRoleAsync(string userId, string roleName)
+        {
+            var user = await _userRepository.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new Exception("User not found");
+
+            var roleExists = await _roleManager.RoleExistsAsync(roleName);
+
+            if (!roleExists)
+                throw new Exception("Role does not exist");
+
+            var currentRoles = await _userRepository.GetRolesAsync(user);
+
+            // xóa role cũ
+            await _userManager.RemoveFromRolesAsync(user, currentRoles);
+
+            // thêm role mới
+            await _userManager.AddToRoleAsync(user, roleName);
+
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(string userId)
