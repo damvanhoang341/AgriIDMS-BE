@@ -57,6 +57,14 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { message = "Cập nhật thành công" });
         }
 
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> UpdateStatus(int id, UpdateProductStatusRequest request)
+        {
+            await _service.UpdateStatusAsync(id, request);
+
+            return Ok(new { message = "Chuyển trạng thái thành công" });
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
