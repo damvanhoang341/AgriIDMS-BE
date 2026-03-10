@@ -140,5 +140,23 @@ namespace AgriIDMS.Application.Services
 
             _logger.LogInformation("Profile updated for user {UserId}", userId);
         }
+
+        public async Task ChangeStatus(string userId, ChangeStatusDto dto)
+        {
+            _logger.LogInformation("Change status for user {UserId}", userId);
+
+            var user = await _userRepository.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new NotFoundException("User không tồn tại");
+
+            user.Status = (UserStatus)dto.status;
+
+            _userRepository.UpdateUser(user);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("Change status for user {UserId}", userId);
+        }
     }
 }

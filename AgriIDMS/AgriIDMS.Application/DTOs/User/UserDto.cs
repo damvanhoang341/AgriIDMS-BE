@@ -53,4 +53,15 @@ namespace AgriIDMS.Application.DTOs.User
         public string? Address { get; set; }
     }
 
+    public class ChangeStatusDto
+    {
+        [Required(ErrorMessage = "Chuyển trạng thái không được để trống")]
+        public UserStatus status { get; set; } 
+    }
+
+    public class ChangeUserRoleDto
+    {
+        public string RoleName { get; set; } = string.Empty;
+    }
+
 }

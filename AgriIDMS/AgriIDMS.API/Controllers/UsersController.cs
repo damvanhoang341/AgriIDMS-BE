@@ -77,5 +77,14 @@ namespace AgriIDMS.API.Controllers
 
             return Ok("Cập nhật thành công");
         }
+
+        [HttpPatch("status/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateStatus(string id, ChangeStatusDto dto)
+        {
+            await _userService.ChangeStatus(id, dto);
+
+            return Ok("Cập nhật thành công");
+        }
     }
 }
