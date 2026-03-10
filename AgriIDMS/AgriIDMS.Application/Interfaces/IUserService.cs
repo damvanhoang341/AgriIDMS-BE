@@ -14,6 +14,6 @@ namespace AgriIDMS.Application.Interfaces
         Task UpdateProfileAsync(string userId, UpdateUserProfileDto dto);
         Task ChangeStatus(string userId, ChangeStatusDto dto);
         Task ChangeUserRoleAsync(string userId, string roleName);
-        Task<List<UserDto>> GetByStatusAsync(UserStatus status);
+        Task<List<UserStatusDto>> GetByStatusAsync(string status);
     }
 }

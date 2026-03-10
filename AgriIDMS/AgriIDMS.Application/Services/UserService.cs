@@ -102,6 +102,7 @@ namespace AgriIDMS.Application.Services
                     UserName = user.UserName ?? string.Empty,
                     Email = user.Email ?? string.Empty,
                     FullName = user.FullName ?? string.Empty,
+                    Status = user.Status,
                     Roles = roles.ToList()
                 });
             }
@@ -187,22 +188,24 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("Change status for user {UserId}", userId);
         }
 
-        public async Task<List<UserDto>> GetByStatusAsync(UserStatus status)
+        public async Task<List<UserStatusDto>> GetByStatusAsync(string status)
         {
+            var statusEnum = Enum.Parse<UserStatus>(status);
+
             var query = _userRepository.GetAll()
                 .AsNoTracking()
-                .Where(u => u.Status == status);
+                .Where(u => u.Status == statusEnum);
 
             var users = await query
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
 
-            var result = new List<UserDto>();
+            var result = new List<UserStatusDto>();
 
             foreach (var user in users)
             {
                 var roles = await _userRepository.GetRolesAsync(user);
-                result.Add(new UserDto
+                result.Add(new UserStatusDto
                 {
                     Id = user.Id,
                     UserName = user.UserName ?? string.Empty,

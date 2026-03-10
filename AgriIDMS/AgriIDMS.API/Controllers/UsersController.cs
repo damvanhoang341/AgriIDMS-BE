@@ -100,7 +100,7 @@ namespace AgriIDMS.API.Controllers
         /// <summary>Tìm kiếm danh sách user theo trạng thái (Active/Inactive/Locked/Deleted).</summary>
         [HttpGet("by-status")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetStatusUser([FromQuery] UserStatus status)
+        public async Task<IActionResult> GetStatusUser(string status)
         {
             var users = await _userService.GetByStatusAsync(status);
             return Ok(users);

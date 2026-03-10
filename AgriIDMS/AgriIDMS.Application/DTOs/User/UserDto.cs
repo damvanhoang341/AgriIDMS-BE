@@ -21,6 +21,15 @@ namespace AgriIDMS.Application.DTOs.User
         public List<string> Roles { get; set; } = new();
     }
 
+    public class UserStatusDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string UserName { get; set; } = default!;
+        public string Email { get; set; } = default!;
+        public string FullName { get; set; } = default!;
+        public List<string> Roles { get; set; } = new();
+    }
+
     public class UserDetailDto
     {
         public string Id { get; set; } = null!;
