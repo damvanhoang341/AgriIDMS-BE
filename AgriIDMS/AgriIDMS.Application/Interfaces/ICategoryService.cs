@@ -13,5 +13,6 @@ namespace AgriIDMS.Application.Interfaces
         Task<CategoryDto?> GetByIdAsync(int id);
 
         Task<IEnumerable<CategoryDto>> GetAllAsync();
+        Task UpdateStatusAsync(int id, UpdateStatusCategoryRequest request);
     }
 }

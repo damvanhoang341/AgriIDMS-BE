@@ -67,6 +67,26 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("Category updated: {Id}", id);
         }
 
+        public async Task UpdateStatusAsync(int id, UpdateStatusCategoryRequest request)
+        {
+            _logger.LogInformation("Updating status category: {Id}", id);
+
+            var category = await _categoryRepo.GetByIdAsync(id);
+
+            if (category == null)
+                throw new NotFoundException("Danh mục không tồn tại");
+
+            category.UpdateStatus(
+                (CategoryStatus)request.Status
+            );
+
+            _categoryRepo.Update(category);
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Category status updated: {Id}", id);
+        }
+
         public async Task DeleteAsync(int id)
         {
             _logger.LogInformation("Deleting category: {Id}", id);

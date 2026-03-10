@@ -33,6 +33,11 @@ namespace AgriIDMS.Domain.Entities
             Status = status;
         }
 
+        public void UpdateStatus(CategoryStatus status)
+        {
+            Status = status;
+        }
+
         // Soft delete
         public void Delete()
         {
