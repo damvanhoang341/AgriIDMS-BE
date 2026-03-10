@@ -88,6 +88,21 @@ namespace AgriIDMS.Application.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        // Cập nhật supplier
+        public async Task UpdateStatusSupplierAsync(int id, UpdateStatusSupplierRequest request)
+        {
+            var supplier = await _supplierRepo.GetByIdAsync(id);
+
+            if (supplier == null)
+                throw new InvalidBusinessRuleException("Nhà cung cấp không tồn tại");
+
+            supplier.Status = request.status;
+
+            _supplierRepo.Update(supplier);
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
         // Xóa supplier
         public async Task DeleteSupplierAsync(int id)
         {
