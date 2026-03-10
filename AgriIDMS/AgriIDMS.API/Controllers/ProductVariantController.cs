@@ -44,6 +44,13 @@ namespace AgriIDMS.API.Controllers
             return Ok("Updated");
         }
 
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> UpdateStatus(int id, UpdateProductVariantStatusDto dto)
+        {
+            await _service.UpdateStatusAsync(id, dto);
+            return Ok("Updated");
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

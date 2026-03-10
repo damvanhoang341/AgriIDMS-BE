@@ -123,6 +123,24 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("ProductVariant updated {Id}", id);
         }
 
+        public async Task UpdateStatusAsync(int id, UpdateProductVariantStatusDto dto)
+        {
+            _logger.LogInformation("Updating status ProductVariant {Id}", id);
+
+            var variant = await _repo.GetProductVariantByIdAsync(id);
+
+            if (variant == null)
+                throw new NotFoundException("ProductVariant không tồn tại");
+
+            variant.IsActive = dto.IsActive;
+
+            _repo.Update(variant);
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("ProductVariant updated {Id}", id);
+        }
+
         public async Task DeleteAsync(int id)
         {
             _logger.LogInformation("Deleting ProductVariant {Id}", id);

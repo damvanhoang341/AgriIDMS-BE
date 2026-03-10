@@ -18,5 +18,6 @@ namespace AgriIDMS.Application.Interfaces
         Task UpdateAsync(int id, UpdateProductVariantDto dto);
 
         Task DeleteAsync(int id);
+        Task UpdateStatusAsync(int id, UpdateProductVariantStatusDto dto);
     }
 }
