@@ -145,7 +145,7 @@ public class AuthService(IAuthRepository authRepo,
     string password)
     {
         var confirmLink =
-            $"{config["AppSettings:ClientUrl"]}/api/v1/Auth/ConfirmEmail/confirm-email" +
+            $"{config["AppSettings:ClientUrl"]}/api/Auth/ConfirmEmail/confirm-email" +
             $"?userId={userId}&token={Uri.EscapeDataString(emailConfirmToken)}";
 
         return $@"
