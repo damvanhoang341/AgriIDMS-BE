@@ -40,4 +40,10 @@ namespace AgriIDMS.Application.DTOs.Product
 
         public bool? IsActive { get; set; }
     }
+
+    public class UpdateProductStatusRequest
+    {
+        [Required(ErrorMessage = "Chuyển trạng thái không được để trống")]
+        public bool IsActive { get; set; }
+    }
 }

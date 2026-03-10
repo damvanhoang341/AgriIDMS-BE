@@ -1,5 +1,4 @@
-﻿// BaseApp.API/Controllers/AuthController.cs
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using AgriIDMS.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

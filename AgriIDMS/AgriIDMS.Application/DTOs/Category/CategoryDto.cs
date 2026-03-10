@@ -28,6 +28,12 @@ namespace AgriIDMS.Application.DTOs.Category
         public int? Status { get; set; }
     }
 
+    public class UpdateStatusCategoryRequest
+    {
+        [Required(ErrorMessage = "Chuyển trạng thái không được để trống")]
+        public int Status { get; set; }
+    }
+
     public class CategoryDto
     {
         public int Id { get; set; }

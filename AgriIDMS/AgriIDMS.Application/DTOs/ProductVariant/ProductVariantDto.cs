@@ -65,4 +65,10 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         [StringLength(500, ErrorMessage = "ImageUrl tối đa 500 ký tự")]
         public string? ImageUrl { get; set; }
     }
+
+    public class UpdateProductVariantStatusDto
+    {
+        [Required(ErrorMessage = "Chuyển trạng thái không được để trống")]
+        public bool IsActive { get; set; }
+    }
 }
