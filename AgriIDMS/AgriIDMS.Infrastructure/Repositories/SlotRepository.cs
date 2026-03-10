@@ -40,6 +40,16 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
+        public Task<Slot?> GetByQrCodeAsync(string qrCode)
+        {
+            return _context.Slots
+                .Include(s => s.Rack)
+                    .ThenInclude(r => r.Zone)
+                        .ThenInclude(z => z.Warehouse)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.QrCode == qrCode);
+        }
+
         public async Task AddAsync(Slot slot)
         {
             await _context.Slots.AddAsync(slot);
