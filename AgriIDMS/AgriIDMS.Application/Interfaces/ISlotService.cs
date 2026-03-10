@@ -10,5 +10,6 @@ namespace AgriIDMS.Application.Interfaces
         Task<int> CreateAsync(int rackId, CreateSlotRequest request);
         Task UpdateAsync(int id, CreateSlotRequest request);
         Task DeleteAsync(int id);
+        Task<SlotDto?> GetByQrCodeAsync(string qrCode);
     }
 }

@@ -37,6 +37,17 @@ namespace AgriIDMS.API.Controllers
             }
         }
 
+        /// <summary>Lấy thông tin slot theo QR (scan QR trên ô kệ).</summary>
+        [HttpGet("~/api/slots/by-qr/{qrCode}")]
+        public async Task<IActionResult> GetByQrCode(string qrCode)
+        {
+            var slot = await _slotService.GetByQrCodeAsync(qrCode);
+            if (slot == null)
+                return NotFound(new { message = "Slot không tồn tại hoặc QR không hợp lệ" });
+
+            return Ok(slot);
+        }
+
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int rackId, [FromRoute] int id, [FromBody] CreateSlotRequest request)
         {

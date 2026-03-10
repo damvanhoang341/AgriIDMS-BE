@@ -38,6 +38,9 @@ namespace AgriIDMS.Application.DTOs.Warehouse
 
         [Range(0.0001, double.MaxValue)]
         public decimal Capacity { get; set; }
+
+        [MaxLength(200)]
+        public string? QrCode { get; set; }
     }
 
     public class SlotDto

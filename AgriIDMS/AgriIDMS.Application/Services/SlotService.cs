@@ -56,7 +56,8 @@ namespace AgriIDMS.Application.Services
                 Code = request.Code.Trim(),
                 Capacity = request.Capacity,
                 CurrentCapacity = 0,
-                RackId = rackId
+                RackId = rackId,
+                QrCode = request.QrCode?.Trim()
             };
 
             await _slotRepository.AddAsync(slot);
@@ -75,6 +76,7 @@ namespace AgriIDMS.Application.Services
 
             slot.Code = request.Code.Trim();
             slot.Capacity = request.Capacity;
+            slot.QrCode = request.QrCode?.Trim();
 
             await _slotRepository.UpdateAsync(slot);
             await _unitOfWork.SaveChangesAsync();
@@ -90,6 +92,22 @@ namespace AgriIDMS.Application.Services
 
             await _slotRepository.DeleteAsync(slot);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task<SlotDto?> GetByQrCodeAsync(string qrCode)
+        {
+            var slot = await _slotRepository.GetByQrCodeAsync(qrCode);
+            if (slot == null) return null;
+
+            return new SlotDto
+            {
+                Id = slot.Id,
+                Code = slot.Code,
+                QrCode = slot.QrCode,
+                Capacity = slot.Capacity,
+                CurrentCapacity = slot.CurrentCapacity,
+                RackId = slot.RackId
+            };
         }
     }
 }
