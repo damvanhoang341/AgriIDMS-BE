@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.User;
+using AgriIDMS.Application.DTOs.User;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Pagination;
@@ -185,6 +185,34 @@ namespace AgriIDMS.Application.Services
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("Change status for user {UserId}", userId);
+        }
+
+        public async Task<List<UserDto>> GetByStatusAsync(UserStatus status)
+        {
+            var query = _userRepository.GetAll()
+                .AsNoTracking()
+                .Where(u => u.Status == status);
+
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+
+            var result = new List<UserDto>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userRepository.GetRolesAsync(user);
+                result.Add(new UserDto
+                {
+                    Id = user.Id,
+                    UserName = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
+                    FullName = user.FullName ?? string.Empty,
+                    Roles = roles.ToList()
+                });
+            }
+
+            return result;
         }
     }
 }
