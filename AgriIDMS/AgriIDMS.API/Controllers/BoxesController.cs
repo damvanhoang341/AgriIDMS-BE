@@ -25,5 +25,25 @@ namespace AgriIDMS.API.Controllers
             await _boxService.AssignBoxToSlotAsync(request);
             return Ok(new { Message = "Đã gán box vào slot thành công" });
         }
+
+        /// <summary>Cập nhật hoặc xoá QR của box (nếu qrCode = null/empty).</summary>
+        [HttpPut("{boxId:int}/qr")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> UpdateQrCode(int boxId, [FromBody] string? qrCode)
+        {
+            await _boxService.UpdateQrCodeAsync(boxId, qrCode);
+            return Ok(new { Message = "Cập nhật QR cho box thành công" });
+        }
+
+        /// <summary>Lấy thông tin box theo QR (scan QR trên thùng).</summary>
+        [HttpGet("by-qr/{qrCode}")]
+        public async Task<IActionResult> GetByQrCode(string qrCode)
+        {
+            var box = await _boxService.GetByQrCodeAsync(qrCode);
+            if (box == null)
+                return NotFound(new { Message = "Box không tồn tại hoặc QR không hợp lệ" });
+
+            return Ok(box);
+        }
     }
 }

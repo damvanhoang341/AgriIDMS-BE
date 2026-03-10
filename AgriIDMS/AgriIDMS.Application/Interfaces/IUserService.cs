@@ -1,9 +1,7 @@
-﻿using AgriIDMS.Application.DTOs.User;
+using AgriIDMS.Application.DTOs.User;
 using AgriIDMS.Application.Pagination;
-using System;
+using AgriIDMS.Domain.Enums;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Interfaces
@@ -16,5 +14,6 @@ namespace AgriIDMS.Application.Interfaces
         Task UpdateProfileAsync(string userId, UpdateUserProfileDto dto);
         Task ChangeStatus(string userId, ChangeStatusDto dto);
         Task ChangeUserRoleAsync(string userId, string roleName);
+        Task<List<UserDto>> GetByStatusAsync(UserStatus status);
     }
 }

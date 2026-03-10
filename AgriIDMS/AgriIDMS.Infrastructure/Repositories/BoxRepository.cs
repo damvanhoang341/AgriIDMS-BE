@@ -49,6 +49,17 @@ namespace AgriIDMS.Infrastructure.Repositories
             return Task.CompletedTask;
         }
 
+        public async Task<Box?> GetByQrCodeAsync(string qrCode)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d.GoodsReceipt)
+                .Include(b => b.Slot)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.QRCode == qrCode);
+        }
+
         public async Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId)
         {
             return await _context.Boxes

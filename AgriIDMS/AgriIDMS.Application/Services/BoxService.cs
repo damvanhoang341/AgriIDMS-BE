@@ -79,5 +79,36 @@ namespace AgriIDMS.Application.Services
             await _boxRepo.UpdateAsync(box);
             await _unitOfWork.SaveChangesAsync();
         }
+
+        public async Task<object?> GetByQrCodeAsync(string qrCode)
+        {
+            var box = await _boxRepo.GetByQrCodeAsync(qrCode);
+            if (box == null) return null;
+
+            return new
+            {
+                box.Id,
+                box.BoxCode,
+                box.QRCode,
+                box.Weight,
+                box.Status,
+                box.SlotId,
+                WarehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                LotId = box.LotId,
+                box.PlacedInColdAt
+            };
+        }
+
+        public async Task UpdateQrCodeAsync(int boxId, string? qrCode)
+        {
+            var box = await _boxRepo.GetByIdAsync(boxId);
+            if (box == null)
+                throw new NotFoundException("Box không tồn tại");
+
+            box.QRCode = string.IsNullOrWhiteSpace(qrCode) ? null : qrCode.Trim();
+
+            await _boxRepo.UpdateAsync(box);
+            await _unitOfWork.SaveChangesAsync();
+        }
     }
 }

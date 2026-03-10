@@ -1,7 +1,8 @@
-﻿using AgriIDMS.Application.DTOs.User;
+using AgriIDMS.Application.DTOs.User;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Pagination;
 using AgriIDMS.Application.Services;
+using AgriIDMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -94,6 +95,15 @@ namespace AgriIDMS.API.Controllers
             await _userService.ChangeUserRoleAsync(id, request.RoleName);
 
             return Ok(new { message = "Cập nhật role thành công" });
+        }
+
+        /// <summary>Tìm kiếm danh sách user theo trạng thái (Active/Inactive/Locked/Deleted).</summary>
+        [HttpGet("by-status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetStatusUser([FromQuery] UserStatus status)
+        {
+            var users = await _userService.GetByStatusAsync(status);
+            return Ok(users);
         }
     }
 }

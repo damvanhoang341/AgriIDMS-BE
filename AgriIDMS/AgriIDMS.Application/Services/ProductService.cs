@@ -49,16 +49,7 @@ namespace AgriIDMS.Application.Services
 
             await _productRepo.AddProductAsync(product);
 
-            //await _uow.SaveChangesAsync();
-            try
-            {
-                await _uow.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.InnerException?.Message);
-                throw;
-            }
+            await _uow.SaveChangesAsync();
 
             _logger.LogInformation("Product created: {Id}", product.Id);
 

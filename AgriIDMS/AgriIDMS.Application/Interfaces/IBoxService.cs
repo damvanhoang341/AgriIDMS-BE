@@ -6,5 +6,7 @@ namespace AgriIDMS.Application.Interfaces
     public interface IBoxService
     {
         Task AssignBoxToSlotAsync(AssignBoxToSlotRequest request);
+        Task<object?> GetByQrCodeAsync(string qrCode);
+        Task UpdateQrCodeAsync(int boxId, string? qrCode);
     }
 }

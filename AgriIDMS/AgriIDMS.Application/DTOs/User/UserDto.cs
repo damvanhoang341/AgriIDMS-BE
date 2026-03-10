@@ -16,8 +16,7 @@ namespace AgriIDMS.Application.DTOs.User
         public string Email { get; set; } = default!;
         public string FullName { get; set; } = default!;
 
-        //[JsonConverter(typeof(JsonStringEnumConverter))]
-        //public UserType UserType { get; set; }
+        public UserStatus Status { get; set; }
 
         public List<string> Roles { get; set; } = new();
     }
