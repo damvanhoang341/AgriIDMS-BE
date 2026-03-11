@@ -63,7 +63,7 @@ namespace AgriIDMS.Application.Services
             var result = new List<ProductVariantResponseDto>();
             foreach (var x in variants)
             {
-                var available = await _boxRepo.GetAvailableQuantityByVariantIdAsync(x.Id);
+                var boxCount = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(x.Id);
                 result.Add(new ProductVariantResponseDto
                 {
                     Id = x.Id,
@@ -74,7 +74,7 @@ namespace AgriIDMS.Application.Services
                     IsActive = x.IsActive,
                     ShelfLifeDays = x.ShelfLifeDays,
                     ImageUrl = x.ImageUrl,
-                    AvailableQuantity = available
+                    AvailableBoxCount = boxCount
                 });
             }
             return result;
@@ -89,7 +89,7 @@ namespace AgriIDMS.Application.Services
             if (variant == null)
                 throw new NotFoundException("ProductVariant không tồn tại");
 
-            var available = await _boxRepo.GetAvailableQuantityByVariantIdAsync(variant.Id);
+            var boxCount = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(variant.Id);
 
             return new ProductVariantResponseDto
             {
@@ -101,7 +101,7 @@ namespace AgriIDMS.Application.Services
                 IsActive = variant.IsActive,
                 ShelfLifeDays = variant.ShelfLifeDays,
                 ImageUrl = variant.ImageUrl,
-                AvailableQuantity = available
+                AvailableBoxCount = boxCount
             };
         }
 

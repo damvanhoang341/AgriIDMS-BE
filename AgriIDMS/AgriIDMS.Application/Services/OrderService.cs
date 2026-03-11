@@ -44,7 +44,6 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Giỏ hàng trống");
 
             var now = DateTime.UtcNow;
-            var totalAmount = cart.Items.Sum(i => i.Quantity * i.UnitPrice);
 
             await _uow.BeginTransactionAsync();
             try
@@ -53,7 +52,7 @@ namespace AgriIDMS.Application.Services
                 {
                     UserId = userId,
                     CreatedAt = now,
-                    TotalAmount = totalAmount,
+                    TotalAmount = 0,
                     Status = OrderStatus.AwaitingPayment
                 };
 
@@ -62,7 +61,7 @@ namespace AgriIDMS.Application.Services
                     order.Details.Add(new OrderDetail
                     {
                         ProductVariantId = item.ProductVariantId,
-                        Quantity = item.Quantity,
+                        Quantity = (int)item.Quantity,
                         UnitPrice = item.UnitPrice,
                         FulfilledQuantity = 0,
                         ShortageQuantity = 0
@@ -92,6 +91,9 @@ namespace AgriIDMS.Application.Services
             if (order == null)
                 throw new InvalidBusinessRuleException("Order không tồn tại");
 
+            if (order.Status != OrderStatus.AwaitingPayment)
+                throw new InvalidBusinessRuleException("Chỉ có thể allocate đơn hàng đang ở trạng thái AwaitingPayment");
+
             if (order.Details == null || !order.Details.Any())
                 throw new InvalidBusinessRuleException("Order không có chi tiết");
 
@@ -99,43 +101,45 @@ namespace AgriIDMS.Application.Services
             try
             {
                 var allAllocations = new System.Collections.Generic.List<OrderAllocation>();
+                decimal totalAmount = 0;
 
                 foreach (var detail in order.Details)
                 {
-                    var remainingNeed = detail.Quantity;
+                    var boxesNeeded = (int)detail.Quantity;
                     var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(detail.ProductVariantId);
 
+                    var allocated = 0;
                     foreach (var box in boxes)
                     {
-                        if (remainingNeed <= 0) break;
-
-                        var available = box.Weight;
-                        if (available <= 0) continue;
-
-                        var reserved = System.Math.Min(remainingNeed, available);
+                        if (allocated >= boxesNeeded) break;
 
                         allAllocations.Add(new OrderAllocation
                         {
                             OrderId = order.Id,
                             OrderDetailId = detail.Id,
                             BoxId = box.Id,
-                            ReservedQuantity = reserved,
+                            ReservedQuantity = box.Weight,
                             Status = AllocationStatus.Reserved,
-                            ReservedAt = System.DateTime.UtcNow
+                            ReservedAt = DateTime.UtcNow
                         });
 
-                        remainingNeed -= reserved;
+                        box.Status = BoxStatus.Reserved;
+                        await _boxRepo.UpdateAsync(box);
+
+                        totalAmount += box.Weight * detail.UnitPrice;
+                        allocated++;
                     }
 
-                    var reservedTotal = detail.Quantity - remainingNeed;
-                    detail.FulfilledQuantity = reservedTotal;
-                    detail.ShortageQuantity = remainingNeed > 0 ? remainingNeed : 0;
+                    detail.FulfilledQuantity = allocated;
+                    detail.ShortageQuantity = boxesNeeded - allocated;
                 }
 
                 if (allAllocations.Any())
                 {
                     await _allocationRepo.AddRangeAsync(allAllocations);
                 }
+
+                order.TotalAmount = totalAmount;
 
                 if (order.Details.All(d => d.ShortageQuantity == 0))
                     order.Status = OrderStatus.Confirmed;
