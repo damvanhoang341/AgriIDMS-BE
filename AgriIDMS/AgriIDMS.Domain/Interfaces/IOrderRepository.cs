@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using AgriIDMS.Domain.Entities;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Interfaces
 {
-    internal class IOrderRepository
+    public interface IOrderRepository
     {
+        Task AddAsync(Order order);
+
+        Task<Order?> GetByIdWithDetailsAsync(int id);
     }
 }
+
