@@ -10,5 +10,9 @@ namespace AgriIDMS.Application.Interfaces
         Task<PaymentResponseDto> GetLatestPaymentAsync(int orderId, string userId);
 
         Task<PaymentResponseDto> ConfirmCODPaidAsync(int paymentId);
+
+        Task HandlePayOSWebhookAsync(string webhookBody);
+
+        Task<PaymentResponseDto> CancelBankingPaymentAsync(int paymentId, string userId);
     }
 }

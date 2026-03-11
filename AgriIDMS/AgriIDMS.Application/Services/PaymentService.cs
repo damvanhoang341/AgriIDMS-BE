@@ -5,8 +5,13 @@ using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using PayOS;
+using PayOS.Models.V2.PaymentRequests;
+using PayOS.Models.Webhooks;
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
@@ -17,17 +22,25 @@ namespace AgriIDMS.Application.Services
         private readonly IOrderRepository _orderRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<PaymentService> _logger;
+        private readonly PayOSClient _payOSClient;
+        private readonly string _returnUrl;
+        private readonly string _cancelUrl;
 
         public PaymentService(
             IPaymentRepository paymentRepo,
             IOrderRepository orderRepo,
             IUnitOfWork uow,
-            ILogger<PaymentService> logger)
+            ILogger<PaymentService> logger,
+            PayOSClient payOSClient,
+            IConfiguration config)
         {
             _paymentRepo = paymentRepo;
             _orderRepo = orderRepo;
             _uow = uow;
             _logger = logger;
+            _payOSClient = payOSClient;
+            _returnUrl = config["PayOS:ReturnUrl"]!;
+            _cancelUrl = config["PayOS:CancelUrl"]!;
         }
 
         public async Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentRequest request, string userId)
@@ -121,12 +134,67 @@ namespace AgriIDMS.Application.Services
             return MapToDto(payment);
         }
 
-        // ===================== Banking (PayOS) - placeholder =====================
+        // ===================== Banking (PayOS) =====================
 
-        private Task<PaymentResponseDto> ProcessBankingAsync(Order order)
+        private async Task<PaymentResponseDto> ProcessBankingAsync(Order order)
         {
-            // TODO: Tích hợp PayOS ở giai đoạn sau
-            throw new InvalidBusinessRuleException("Thanh toán Banking (PayOS) chưa được triển khai");
+            _logger.LogInformation("Creating Banking (PayOS) payment for order {OrderId}", order.Id);
+
+            var orderCode = GenerateOrderCode(order.Id);
+
+            var payment = new Payment
+            {
+                OrderId = order.Id,
+                PaymentMethod = PaymentMethod.Banking,
+                PaymentStatus = PaymentStatus.Processing,
+                Amount = order.TotalAmount,
+                TransactionCode = orderCode.ToString(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _paymentRepo.AddAsync(payment);
+            await _uow.SaveChangesAsync();
+
+            var description = $"DH{order.Id}";
+            if (description.Length > 25)
+                description = description[..25];
+
+            var paymentRequest = new CreatePaymentLinkRequest
+            {
+                OrderCode = orderCode,
+                Amount = (int)Math.Round(order.TotalAmount),
+                Description = description,
+                ReturnUrl = _returnUrl,
+                CancelUrl = _cancelUrl
+            };
+
+            CreatePaymentLinkResponse paymentLink;
+            try
+            {
+                paymentLink = await _payOSClient.PaymentRequests.CreateAsync(paymentRequest);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PayOS CreatePaymentLink failed for order {OrderId}", order.Id);
+                payment.PaymentStatus = PaymentStatus.Failed;
+                await _uow.SaveChangesAsync();
+                throw new InvalidBusinessRuleException(
+                    $"Không thể tạo link thanh toán PayOS: {ex.Message}");
+            }
+
+            _logger.LogInformation(
+                "PayOS payment link created. Payment {PaymentId}, OrderCode {OrderCode}, CheckoutUrl: {Url}",
+                payment.Id, orderCode, paymentLink.CheckoutUrl);
+
+            var dto = MapToDto(payment);
+            dto.CheckoutUrl = paymentLink.CheckoutUrl;
+            return dto;
+        }
+
+        private static long GenerateOrderCode(int orderId)
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 100000;
+            return orderId * 100000L + timestamp;
         }
 
         // ===================== Query =====================
@@ -141,6 +209,118 @@ namespace AgriIDMS.Application.Services
 
             var payment = await _paymentRepo.GetLatestByOrderIdAsync(orderId)
                 ?? throw new NotFoundException("Không tìm thấy thanh toán cho đơn hàng này");
+
+            return MapToDto(payment);
+        }
+
+        // ===================== Webhook (PayOS) =====================
+
+        public async Task HandlePayOSWebhookAsync(string webhookBody)
+        {
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+            Webhook? webhook;
+            try
+            {
+                webhook = JsonSerializer.Deserialize<Webhook>(webhookBody, jsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "Cannot deserialize PayOS webhook body");
+                return;
+            }
+
+            if (webhook == null)
+            {
+                _logger.LogWarning("PayOS webhook body is null after deserialization");
+                return;
+            }
+
+            WebhookData verifiedData;
+            try
+            {
+                verifiedData = await _payOSClient.Webhooks.VerifyAsync(webhook);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PayOS webhook signature verification failed");
+                return;
+            }
+
+            var payment = await _paymentRepo.GetByTransactionCodeAsync(verifiedData.OrderCode.ToString());
+            if (payment == null)
+            {
+                _logger.LogWarning("Payment not found for PayOS orderCode {OrderCode}", verifiedData.OrderCode);
+                return;
+            }
+
+            if (payment.PaymentStatus == PaymentStatus.Success)
+            {
+                _logger.LogInformation("Payment {PaymentId} already Success, skipping webhook", payment.Id);
+                return;
+            }
+
+            if (webhook.Success && webhook.Code == "00")
+            {
+                payment.PaymentStatus = PaymentStatus.Success;
+                payment.PaidAt = DateTime.UtcNow;
+
+                if (payment.Order != null)
+                    payment.Order.Status = OrderStatus.Completed;
+
+                _logger.LogInformation(
+                    "Banking payment {PaymentId} succeeded. Order {OrderId} → Completed",
+                    payment.Id, payment.OrderId);
+            }
+            else
+            {
+                payment.PaymentStatus = PaymentStatus.Failed;
+                _logger.LogWarning(
+                    "Banking payment {PaymentId} failed. WebhookCode: {Code}",
+                    payment.Id, webhook.Code);
+            }
+
+            await _uow.SaveChangesAsync();
+        }
+
+        // ===================== Cancel Banking =====================
+
+        public async Task<PaymentResponseDto> CancelBankingPaymentAsync(int paymentId, string userId)
+        {
+            var payment = await _paymentRepo.GetByIdAsync(paymentId)
+                ?? throw new NotFoundException($"Payment #{paymentId} không tồn tại");
+
+            if (payment.Order == null)
+                throw new NotFoundException($"Order liên kết với payment #{paymentId} không tồn tại");
+
+            if (payment.Order.UserId != userId)
+                throw new ForbiddenException("Bạn không có quyền hủy thanh toán này");
+
+            if (payment.PaymentMethod != PaymentMethod.Banking)
+                throw new InvalidBusinessRuleException("Chỉ có thể hủy thanh toán Banking");
+
+            if (payment.PaymentStatus != PaymentStatus.Processing)
+                throw new InvalidBusinessRuleException(
+                    $"Không thể hủy payment ở trạng thái {payment.PaymentStatus}. Chỉ hủy được khi đang Processing.");
+
+            if (!string.IsNullOrEmpty(payment.TransactionCode))
+            {
+                try
+                {
+                    var orderCode = long.Parse(payment.TransactionCode);
+                    await _payOSClient.PaymentRequests.CancelAsync(orderCode, "Người dùng hủy thanh toán");
+                    _logger.LogInformation("PayOS payment link cancelled for orderCode {OrderCode}", orderCode);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to cancel PayOS payment link for payment {PaymentId}", paymentId);
+                }
+            }
+
+            payment.PaymentStatus = PaymentStatus.Cancelled;
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Banking payment {PaymentId} cancelled by user", paymentId);
 
             return MapToDto(payment);
         }

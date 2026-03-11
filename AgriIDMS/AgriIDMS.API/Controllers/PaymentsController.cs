@@ -3,6 +3,7 @@ using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.API.Controllers
@@ -40,6 +41,22 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> ConfirmCODPaid(int paymentId)
         {
             var result = await _paymentService.ConfirmCODPaidAsync(paymentId);
+            return Ok(result);
+        }
+
+        [HttpPost("payos-webhook")]
+        [AllowAnonymous]
+        public async Task<IActionResult> HandlePayOSWebhook([FromBody] JsonElement body)
+        {
+            await _paymentService.HandlePayOSWebhookAsync(body.GetRawText());
+            return Ok(new { success = true });
+        }
+
+        [HttpPost("{paymentId:int:min(1)}/cancel")]
+        public async Task<IActionResult> CancelBankingPayment(int paymentId)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _paymentService.CancelBankingPaymentAsync(paymentId, userId);
             return Ok(result);
         }
 
