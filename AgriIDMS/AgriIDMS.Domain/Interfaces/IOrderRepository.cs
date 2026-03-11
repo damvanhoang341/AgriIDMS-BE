@@ -1,4 +1,4 @@
-using AgriIDMS.Domain.Entities;
+﻿using AgriIDMS.Domain.Entities;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Interfaces

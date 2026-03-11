@@ -42,5 +42,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             _context.Suppliers.Remove(supplier);
         }
+
+        
     }
 }
