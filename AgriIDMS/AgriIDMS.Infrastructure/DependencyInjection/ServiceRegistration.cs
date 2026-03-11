@@ -100,6 +100,7 @@ public static class ServiceRegistration
         services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOrderAllocationRepository, OrderAllocationRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ICategoryService, CategoryService>();
@@ -118,6 +119,7 @@ public static class ServiceRegistration
         services.AddScoped<IStockCheckService, StockCheckService>();
         services.AddScoped<ICartService, CartService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IPaymentService, PaymentService>();
 
         return services;
     }
