@@ -42,5 +42,15 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             _context.Suppliers.Remove(supplier);
         }
+
+        public void Delete1(Supplier supplier)
+        {
+            _context.Suppliers.Remove(supplier);
+        }
+
+        public void Delete2(Supplier supplier)
+        {
+            _context.Suppliers.Remove(supplier);
+        }
     }
 }
