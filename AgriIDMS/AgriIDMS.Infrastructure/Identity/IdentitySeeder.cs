@@ -1,3 +1,4 @@
+using AgriIDMS.Domain.Constants;
 using AgriIDMS.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,24 +11,11 @@ public static class IdentitySeeder
         await SeedAdminAsync(serviceProvider);
     }
 
-    // =========================
-    // Seed ROLES
-    // =========================
     private static async Task SeedRolesAsync(IServiceProvider serviceProvider)
     {
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        string[] roles =
-        {
-            "Admin",
-            "Manager",
-            "PurchasingStaff",
-            "WarehouseStaff",
-            "SalesStaff",
-            "Customer"
-        };
-
-        foreach (var role in roles)
+        foreach (var role in AppRole.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
@@ -36,16 +24,13 @@ public static class IdentitySeeder
         }
     }
 
-    // =========================
-    // Seed ADMIN USER
-    // =========================
     private static async Task SeedAdminAsync(IServiceProvider serviceProvider)
     {
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         const string adminUserName = "admin";
         const string adminEmail = "admin@system.local";
-        const string adminPassword = "Admin@123"; // đổi sau khi deploy
+        const string adminPassword = "Admin@123";
 
         var admin = await userManager.FindByNameAsync(adminUserName);
         if (admin != null) return;
@@ -64,6 +49,6 @@ public static class IdentitySeeder
                 + string.Join(", ", result.Errors.Select(e => e.Description)));
         }
 
-        await userManager.AddToRoleAsync(admin, "Admin");
+        await userManager.AddToRoleAsync(admin, AppRole.Admin);
     }
 }

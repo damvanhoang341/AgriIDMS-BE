@@ -403,7 +403,7 @@ namespace AgriIDMS.Application.Services
 
             foreach (var box in boxesToCreate)
             {
-                await _inventoryTranRepo.CreadAsyn(new InventoryTransaction
+                await _inventoryTranRepo.CreateAsync(new InventoryTransaction
                 {
                     BoxId = box.Id,
                     TransactionType = InventoryTransactionType.Import,

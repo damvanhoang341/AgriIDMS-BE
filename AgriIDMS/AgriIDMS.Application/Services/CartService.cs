@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.Cart;
+using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Exceptions;
@@ -47,7 +48,7 @@ namespace AgriIDMS.Application.Services
             var items = cart.Items.Select(i => new CartItemDto
             {
                 ProductVariantId = i.ProductVariantId,
-                ProductName = i.ProductVariant?.Product.Name ?? string.Empty,
+                ProductName = i.ProductVariant?.Product?.Name ?? string.Empty,
                 Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
                 Quantity = (int)i.Quantity,
                 UnitPrice = i.UnitPrice
@@ -64,52 +65,105 @@ namespace AgriIDMS.Application.Services
 
         public async Task AddOrUpdateItemAsync(AddCartItemRequest request, string userId)
         {
-            if (request.Quantity < 1)
-                throw new InvalidBusinessRuleException("Số lượng box phải >= 1");
-
             var variant = await _variantRepo.GetProductVariantByIdAsync(request.ProductVariantId);
 
-            var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
 
-            var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(request.ProductVariantId);
-            var alreadyInCart = cart?.Items?.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
-            var requestedTotal = request.Quantity + (int)(alreadyInCart?.Quantity ?? 0);
+                var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(request.ProductVariantId);
+                var alreadyInCart = cart?.Items?.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
+                var requestedTotal = request.Quantity + (int)(alreadyInCart?.Quantity ?? 0);
 
-            if (requestedTotal > availableBoxes)
+                if (requestedTotal > availableBoxes)
+                    throw new InvalidBusinessRuleException(
+                        $"Số lượng box yêu cầu ({requestedTotal}) vượt số box khả dụng ({availableBoxes}).");
+
+                if (cart == null)
+                {
+                    cart = new Cart
+                    {
+                        UserId = userId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    await _cartRepo.AddAsync(cart);
+                    await _uow.SaveChangesAsync();
+                }
+
+                var existingItem = cart.Items.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
+                if (existingItem == null)
+                {
+                    cart.Items.Add(new CartItem
+                    {
+                        ProductVariantId = request.ProductVariantId,
+                        Quantity = request.Quantity,
+                        UnitPrice = variant.Price
+                    });
+                }
+                else
+                {
+                    existingItem.Quantity += request.Quantity;
+                    existingItem.UnitPrice = variant.Price;
+                }
+
+                cart.UpdatedAt = DateTime.UtcNow;
+                await _uow.CommitAsync();
+
+                _logger.LogInformation(
+                    "Cart updated for user {UserId}: variant {VariantId} qty {Qty}",
+                    userId, request.ProductVariantId, request.Quantity);
+            }
+            catch
+            {
+                await _uow.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task UpdateItemQuantityAsync(int productVariantId, UpdateCartItemRequest request, string userId)
+        {
+            var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId)
+                ?? throw new NotFoundException("Giỏ hàng trống");
+
+            var item = cart.Items.FirstOrDefault(i => i.ProductVariantId == productVariantId)
+                ?? throw new NotFoundException("Sản phẩm không có trong giỏ hàng");
+
+            var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(productVariantId);
+            if (request.Quantity > availableBoxes)
                 throw new InvalidBusinessRuleException(
-                    $"Số lượng box yêu cầu ({requestedTotal}) vượt số box khả dụng ({availableBoxes}).");
+                    $"Số lượng box yêu cầu ({request.Quantity}) vượt số box khả dụng ({availableBoxes}).");
 
-            if (cart == null)
-            {
-                cart = new Cart
-                {
-                    UserId = userId,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                await _cartRepo.AddAsync(cart);
-                await _uow.SaveChangesAsync();
-            }
+            var variant = await _variantRepo.GetProductVariantByIdAsync(productVariantId);
 
-            var existingItem = cart.Items.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
-            if (existingItem == null)
-            {
-                cart.Items.Add(new CartItem
-                {
-                    ProductVariantId = request.ProductVariantId,
-                    Quantity = request.Quantity,
-                    UnitPrice = variant.Price
-                });
-            }
-            else
-            {
-                existingItem.Quantity += request.Quantity;
-                existingItem.UnitPrice = variant.Price;
-            }
-
+            item.Quantity = request.Quantity;
+            item.UnitPrice = variant.Price;
             cart.UpdatedAt = DateTime.UtcNow;
-            await _cartRepo.UpdateAsync(cart);
+
             await _uow.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Cart item updated for user {UserId}: variant {VariantId} new qty {Qty}",
+                userId, productVariantId, request.Quantity);
+        }
+
+        public async Task RemoveItemAsync(int productVariantId, string userId)
+        {
+            var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId)
+                ?? throw new NotFoundException("Giỏ hàng trống");
+
+            var item = cart.Items.FirstOrDefault(i => i.ProductVariantId == productVariantId)
+                ?? throw new NotFoundException("Sản phẩm không có trong giỏ hàng");
+
+            _cartRepo.RemoveItem(item);
+            cart.UpdatedAt = DateTime.UtcNow;
+
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Cart item removed for user {UserId}: variant {VariantId}",
+                userId, productVariantId);
         }
 
         public async Task ClearCartAsync(string userId)
@@ -119,7 +173,8 @@ namespace AgriIDMS.Application.Services
 
             await _cartRepo.ClearCartAsync(cart);
             await _uow.SaveChangesAsync();
+
+            _logger.LogInformation("Cart cleared for user {UserId}", userId);
         }
     }
 }
-
