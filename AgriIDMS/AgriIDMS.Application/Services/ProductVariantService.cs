@@ -95,7 +95,7 @@ namespace AgriIDMS.Application.Services
             {
                 Id = variant.Id,
                 ProductId = variant.ProductId,
-                ProductName = variant.Product.Name,
+                ProductName = variant.Name,
                 Grade = variant.Grade,
                 Price = variant.Price,
                 IsActive = variant.IsActive,
