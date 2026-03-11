@@ -49,7 +49,7 @@ namespace AgriIDMS.Application.Services
                 ProductVariantId = i.ProductVariantId,
                 ProductName = i.ProductVariant?.Product.Name ?? string.Empty,
                 Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
-                Quantity = i.Quantity,
+                Quantity = (int)i.Quantity,
                 UnitPrice = i.UnitPrice
             }).ToList();
 
@@ -64,20 +64,20 @@ namespace AgriIDMS.Application.Services
 
         public async Task AddOrUpdateItemAsync(AddCartItemRequest request, string userId)
         {
-            if (request.Quantity <= 0)
-                throw new InvalidBusinessRuleException("Quantity phải lớn hơn 0");
+            if (request.Quantity < 1)
+                throw new InvalidBusinessRuleException("Số lượng box phải >= 1");
 
             var variant = await _variantRepo.GetProductVariantByIdAsync(request.ProductVariantId);
 
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
 
-            var available = await _boxRepo.GetAvailableQuantityByVariantIdAsync(request.ProductVariantId);
+            var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(request.ProductVariantId);
             var alreadyInCart = cart?.Items?.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
-            var requestedTotal = request.Quantity + (alreadyInCart?.Quantity ?? 0);
+            var requestedTotal = request.Quantity + (int)(alreadyInCart?.Quantity ?? 0);
 
-            if (requestedTotal > available)
+            if (requestedTotal > availableBoxes)
                 throw new InvalidBusinessRuleException(
-                    $"Số lượng yêu cầu ({requestedTotal}) vượt tồn kho khả dụng ({available}).");
+                    $"Số lượng box yêu cầu ({requestedTotal}) vượt số box khả dụng ({availableBoxes}).");
 
             if (cart == null)
             {

@@ -28,8 +28,8 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         /// <summary>Đường dẫn ảnh của biến thể.</summary>
         public string? ImageUrl { get; set; }
 
-        /// <summary>Tổng khối lượng khả dụng trong kho (kg).</summary>
-        public decimal AvailableQuantity { get; set; }
+        /// <summary>Số box khả dụng trong kho.</summary>
+        public int AvailableBoxCount { get; set; }
     }
 
     public class CreateProductVariantDto

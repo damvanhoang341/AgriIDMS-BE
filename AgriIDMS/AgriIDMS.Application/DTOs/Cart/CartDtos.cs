@@ -10,8 +10,9 @@ namespace AgriIDMS.Application.DTOs.Cart
         [Range(1, int.MaxValue, ErrorMessage = "ProductVariantId không hợp lệ")]
         public int ProductVariantId { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "Quantity phải lớn hơn 0")]
-        public decimal Quantity { get; set; }
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "Số lượng box phải >= 1")]
+        public int Quantity { get; set; }
     }
 
     public class CartItemDto
@@ -19,7 +20,7 @@ namespace AgriIDMS.Application.DTOs.Cart
         public int ProductVariantId { get; set; }
         public string ProductName { get; set; } = null!;
         public string Grade { get; set; } = null!;
-        public decimal Quantity { get; set; }
+        public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal LineAmount => Quantity * UnitPrice;
     }

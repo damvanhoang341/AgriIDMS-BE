@@ -74,7 +74,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<decimal> GetAvailableQuantityByVariantIdAsync(int productVariantId)
+        public async Task<int> GetAvailableBoxCountByVariantIdAsync(int productVariantId)
         {
             return await _context.Boxes
                 .Include(b => b.Lot)
@@ -84,7 +84,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > DateTime.UtcNow)
-                .SumAsync(b => b.Weight);
+                .CountAsync();
         }
     }
 }
