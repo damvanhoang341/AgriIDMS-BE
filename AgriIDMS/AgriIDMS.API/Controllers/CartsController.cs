@@ -9,7 +9,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = "Customer")]
     public class CartsController : ControllerBase
     {
         private readonly ICartService _cartService;
