@@ -10,6 +10,7 @@ namespace AgriIDMS.Domain.Entities
     public class ProductVariant
     {
         public int Id { get; set; }
+        public string Name { get; set; } = null!;
         public int ProductId { get; set; }
         public Product Product { get; set; } = null!;
         public ProductGrade Grade { get; set; } 
