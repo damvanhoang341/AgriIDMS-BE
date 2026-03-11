@@ -1,7 +1,4 @@
-using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Interfaces;
-using AgriIDMS.Domain.Exceptions;
-using AgriIDMS.Application.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +6,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class WarehousesController : ControllerBase
     {
         private readonly IWarehouseService _warehouseService;
@@ -19,23 +17,11 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> Create([FromBody] CreateWarehouseRequest request)
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> Create([FromBody] Application.DTOs.Warehouse.CreateWarehouseRequest request)
         {
-            try
-            {
-                var id = await _warehouseService.CreateAsync(request);
-
-                return Ok(new
-                {
-                    message = "Tạo kho thành công",
-                    id
-                });
-            }
-            catch (InvalidBusinessRuleException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var id = await _warehouseService.CreateAsync(request);
+            return Ok(new { message = "Tạo kho thành công", id });
         }
 
         [HttpGet]
@@ -48,48 +34,24 @@ namespace AgriIDMS.API.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)
         {
-            try
-            {
-                var warehouse = await _warehouseService.GetByIdAsync(id);
-                return Ok(warehouse);
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var warehouse = await _warehouseService.GetByIdAsync(id);
+            return Ok(warehouse);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update([FromRoute] int id, [FromBody] CreateWarehouseRequest request)
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> Update([FromRoute] int id, [FromBody] Application.DTOs.Warehouse.CreateWarehouseRequest request)
         {
-            try
-            {
-                await _warehouseService.UpdateAsync(id, request);
-                return Ok(new { message = "Cập nhật kho thành công" });
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidBusinessRuleException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _warehouseService.UpdateAsync(id, request);
+            return Ok(new { message = "Cập nhật kho thành công" });
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
-            try
-            {
-                await _warehouseService.DeleteAsync(id);
-                return Ok(new { message = "Xóa kho thành công" });
-            }
-            catch (NotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            await _warehouseService.DeleteAsync(id);
+            return Ok(new { message = "Xóa kho thành công" });
         }
     }
 }
-

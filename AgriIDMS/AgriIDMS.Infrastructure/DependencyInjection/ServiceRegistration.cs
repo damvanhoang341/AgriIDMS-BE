@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using PayOS;
 
 namespace AgriIDMS.Infrastructure.DependencyInjection;
 
@@ -100,6 +101,7 @@ public static class ServiceRegistration
         services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOrderAllocationRepository, OrderAllocationRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ICategoryService, CategoryService>();
@@ -118,6 +120,16 @@ public static class ServiceRegistration
         services.AddScoped<IStockCheckService, StockCheckService>();
         services.AddScoped<ICartService, CartService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IPaymentService, PaymentService>();
+
+        // PayOS client (singleton vì nội bộ dùng HttpClient)
+        var payOsSection = config.GetSection("PayOS");
+        services.AddSingleton(new PayOSClient(new PayOSOptions
+        {
+            ClientId = payOsSection["ClientId"]!,
+            ApiKey = payOsSection["ApiKey"]!,
+            ChecksumKey = payOsSection["ChecksumKey"]!
+        }));
 
         return services;
     }

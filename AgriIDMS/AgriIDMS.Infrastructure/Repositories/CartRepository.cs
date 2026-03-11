@@ -19,6 +19,8 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Carts
                 .Include(c => c.Items)
+                    .ThenInclude(i => i.ProductVariant)
+                        .ThenInclude(v => v.Product)
                 .FirstOrDefaultAsync(c => c.UserId == userId);
         }
 
@@ -46,6 +48,10 @@ namespace AgriIDMS.Infrastructure.Repositories
             _context.Carts.Update(cart);
             return Task.CompletedTask;
         }
+
+        public void RemoveItem(CartItem item)
+        {
+            _context.CartItems.Remove(item);
+        }
     }
 }
-

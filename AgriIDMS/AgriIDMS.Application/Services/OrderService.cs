@@ -1,10 +1,13 @@
+using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Domain;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -16,14 +19,19 @@ namespace AgriIDMS.Application.Services
         private readonly IOrderRepository _orderRepo;
         private readonly IBoxRepository _boxRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
+        private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
+
+        private const decimal DefaultColdStorageHours = 48m;
+        private const int AllocationExpirationHours = 24;
 
         public OrderService(
             ICartRepository cartRepo,
             IOrderRepository orderRepo,
             IBoxRepository boxRepo,
             IOrderAllocationRepository allocationRepo,
+            IInventoryTransactionRepository inventoryTranRepo,
             IUnitOfWork uow,
             ILogger<OrderService> logger)
         {
@@ -31,6 +39,7 @@ namespace AgriIDMS.Application.Services
             _orderRepo = orderRepo;
             _boxRepo = boxRepo;
             _allocationRepo = allocationRepo;
+            _inventoryTranRepo = inventoryTranRepo;
             _uow = uow;
             _logger = logger;
         }
@@ -48,32 +57,38 @@ namespace AgriIDMS.Application.Services
             await _uow.BeginTransactionAsync();
             try
             {
+                decimal estimatedTotal = 0;
                 var order = new Order
                 {
                     UserId = userId,
                     CreatedAt = now,
-                    TotalAmount = 0,
                     Status = OrderStatus.AwaitingPayment
                 };
 
                 foreach (var item in cart.Items)
                 {
-                    order.Details.Add(new OrderDetail
+                    var detail = new OrderDetail
                     {
                         ProductVariantId = item.ProductVariantId,
                         Quantity = (int)item.Quantity,
                         UnitPrice = item.UnitPrice,
                         FulfilledQuantity = 0,
                         ShortageQuantity = 0
-                    });
+                    };
+                    order.Details.Add(detail);
+                    estimatedTotal += detail.Quantity * detail.UnitPrice;
                 }
+
+                order.TotalAmount = estimatedTotal;
 
                 await _orderRepo.AddAsync(order);
                 await _cartRepo.ClearCartAsync(cart);
-                await _uow.SaveChangesAsync();
                 await _uow.CommitAsync();
 
-                _logger.LogInformation("Order {OrderId} created from cart for user {UserId}", order.Id, userId);
+                _logger.LogInformation(
+                    "Order {OrderId} created from cart for user {UserId}, estimated total {Total}",
+                    order.Id, userId, estimatedTotal);
+
                 return order.Id;
             }
             catch
@@ -83,16 +98,19 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        public async Task AllocateInventoryAsync(int orderId)
+        public async Task AllocateInventoryAsync(int orderId, string userId)
         {
-            _logger.LogInformation("Allocating inventory for order {OrderId}", orderId);
+            _logger.LogInformation("Allocating inventory for order {OrderId} by user {UserId}", orderId, userId);
 
-            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId);
-            if (order == null)
-                throw new InvalidBusinessRuleException("Order không tồn tại");
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.UserId != userId)
+                throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
 
             if (order.Status != OrderStatus.AwaitingPayment)
-                throw new InvalidBusinessRuleException("Chỉ có thể allocate đơn hàng đang ở trạng thái AwaitingPayment");
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ có thể allocate đơn hàng ở trạng thái AwaitingPayment. Hiện tại: {order.Status}");
 
             if (order.Details == null || !order.Details.Any())
                 throw new InvalidBusinessRuleException("Order không có chi tiết");
@@ -100,8 +118,12 @@ namespace AgriIDMS.Application.Services
             await _uow.BeginTransactionAsync();
             try
             {
-                var allAllocations = new System.Collections.Generic.List<OrderAllocation>();
+                var now = DateTime.UtcNow;
+                var expiredAt = now.AddHours(AllocationExpirationHours);
+                var allAllocations = new List<OrderAllocation>();
+                var allTransactions = new List<InventoryTransaction>();
                 decimal totalAmount = 0;
+                var coldStorageWarnings = new List<string>();
 
                 foreach (var detail in order.Details)
                 {
@@ -113,6 +135,9 @@ namespace AgriIDMS.Application.Services
                     {
                         if (allocated >= boxesNeeded) break;
 
+                        if (!IsColdStorageEligible(box, coldStorageWarnings))
+                            continue;
+
                         allAllocations.Add(new OrderAllocation
                         {
                             OrderId = order.Id,
@@ -120,7 +145,20 @@ namespace AgriIDMS.Application.Services
                             BoxId = box.Id,
                             ReservedQuantity = box.Weight,
                             Status = AllocationStatus.Reserved,
-                            ReservedAt = DateTime.UtcNow
+                            ReservedAt = now,
+                            ExpiredAt = expiredAt
+                        });
+
+                        allTransactions.Add(new InventoryTransaction
+                        {
+                            BoxId = box.Id,
+                            TransactionType = InventoryTransactionType.Export,
+                            FromSlotId = box.SlotId,
+                            ToSlotId = null,
+                            Quantity = box.Weight,
+                            ReferenceType = ReferenceType.GoodsIssue,
+                            CreatedBy = userId,
+                            CreatedAt = now
                         });
 
                         box.Status = BoxStatus.Reserved;
@@ -134,22 +172,50 @@ namespace AgriIDMS.Application.Services
                     detail.ShortageQuantity = boxesNeeded - allocated;
                 }
 
-                if (allAllocations.Any())
+                var allFulfilled = order.Details.All(d => d.ShortageQuantity == 0);
+
+                if (!allFulfilled)
                 {
-                    await _allocationRepo.AddRangeAsync(allAllocations);
+                    foreach (var alloc in allAllocations)
+                    {
+                        var box = await _boxRepo.GetByIdAsync(alloc.BoxId);
+                        if (box != null)
+                        {
+                            box.Status = BoxStatus.Stored;
+                            await _boxRepo.UpdateAsync(box);
+                        }
+                    }
+
+                    order.Status = OrderStatus.InventoryFailed;
+                    await _uow.CommitAsync();
+
+                    var shortageDetails = order.Details
+                        .Where(d => d.ShortageQuantity > 0)
+                        .Select(d => $"Variant #{d.ProductVariantId}: thiếu {d.ShortageQuantity} box");
+
+                    _logger.LogWarning(
+                        "Inventory allocation failed for order {OrderId}. Shortage: {Details}",
+                        orderId, string.Join(", ", shortageDetails));
+
+                    throw new InvalidBusinessRuleException(
+                        $"Không đủ hàng tồn kho để giữ cho đơn hàng. {string.Join("; ", shortageDetails)}");
                 }
 
+                await _allocationRepo.AddRangeAsync(allAllocations);
+                await _inventoryTranRepo.AddRangeAsync(allTransactions);
+
                 order.TotalAmount = totalAmount;
+                order.Status = OrderStatus.Confirmed;
 
-                if (order.Details.All(d => d.ShortageQuantity == 0))
-                    order.Status = OrderStatus.Confirmed;
-                else
-                    order.Status = OrderStatus.InventoryFailed;
-
-                await _uow.SaveChangesAsync();
                 await _uow.CommitAsync();
 
-                _logger.LogInformation("Allocated inventory for order {OrderId} with status {Status}", orderId, order.Status);
+                _logger.LogInformation(
+                    "Inventory allocated for order {OrderId}: {BoxCount} boxes, total {Total}, status → Confirmed",
+                    orderId, allAllocations.Count, totalAmount);
+            }
+            catch (InvalidBusinessRuleException)
+            {
+                throw;
             }
             catch
             {
@@ -157,6 +223,25 @@ namespace AgriIDMS.Application.Services
                 throw;
             }
         }
+
+        /// <summary>
+        /// Kiểm tra box có đủ điều kiện xuất kho lạnh không.
+        /// Box ở kho thường luôn được phép. Box ở kho lạnh phải đủ MinColdStorageHours.
+        /// </summary>
+        private bool IsColdStorageEligible(Box box, List<string> warnings)
+        {
+            var warehouse = box.Slot?.Rack?.Zone?.Warehouse;
+            if (warehouse == null || warehouse.TitleWarehouse != TitleWarehouse.Cold)
+                return true;
+
+            var minHours = warehouse.MinColdStorageHours ?? DefaultColdStorageHours;
+            if (ColdStorageExportRule.CanExportFromCold(box.PlacedInColdAt, minHours))
+                return true;
+
+            var message = ColdStorageExportRule.GetNotEligibleMessage(box.BoxCode, minHours, box.PlacedInColdAt);
+            warnings.Add(message);
+            _logger.LogInformation("Cold storage skip: {Message}", message);
+            return false;
+        }
     }
 }
-

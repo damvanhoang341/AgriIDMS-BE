@@ -13,6 +13,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task UpdateAsync(Cart cart);
 
         Task ClearCartAsync(Cart cart);
+
+        void RemoveItem(CartItem item);
     }
 }
 

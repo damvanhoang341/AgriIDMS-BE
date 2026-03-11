@@ -201,7 +201,7 @@ namespace AgriIDMS.Application.Services
                     await _inventoryRequestRepo.AddAsync(invRequest);
                     await _unitOfWork.SaveChangesAsync();
 
-                    await _inventoryTranRepo.CreadAsyn(new InventoryTransaction
+                    await _inventoryTranRepo.CreateAsync(new InventoryTransaction
                     {
                         BoxId = box.Id,
                         TransactionType = InventoryTransactionType.Adjust,

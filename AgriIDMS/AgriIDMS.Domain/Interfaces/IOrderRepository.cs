@@ -8,6 +8,10 @@ namespace AgriIDMS.Domain.Interfaces
         Task AddAsync(Order order);
 
         Task<Order?> GetByIdWithDetailsAsync(int id);
+
+        Task<Order?> GetByIdWithPaymentsAsync(int id);
+
+        Task<Order?> GetByIdAsync(int id);
     }
 }
 

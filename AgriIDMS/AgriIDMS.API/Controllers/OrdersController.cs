@@ -18,12 +18,11 @@ namespace AgriIDMS.API.Controllers
             _orderService = orderService;
         }
 
-        /// <summary>Tạo đơn hàng từ giỏ hiện tại của user.</summary>
         [HttpPost("from-cart")]
         public async Task<IActionResult> CreateFromCart()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var orderId = await _orderService.CreateOrderFromCartAsync(userId!);
+            var userId = GetCurrentUserId();
+            var orderId = await _orderService.CreateOrderFromCartAsync(userId);
             return Ok(new
             {
                 Message = "Tạo đơn hàng từ giỏ thành công",
@@ -31,17 +30,22 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
-        /// <summary>Kiểm tra & giữ hàng (allocate Box) cho đơn hàng.</summary>
-        [HttpPost("{id}/allocate")]
+        [HttpPost("{id:int:min(1)}/allocate")]
         public async Task<IActionResult> Allocate(int id)
         {
-            await _orderService.AllocateInventoryAsync(id);
+            var userId = GetCurrentUserId();
+            await _orderService.AllocateInventoryAsync(id, userId);
             return Ok(new
             {
                 Message = "Đã kiểm tra và giữ hàng cho đơn hàng",
                 OrderId = id
             });
         }
+
+        private string GetCurrentUserId()
+        {
+            return User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? throw new Application.Exceptions.UnauthorizedException("Không xác định được người dùng hiện tại");
+        }
     }
 }
-

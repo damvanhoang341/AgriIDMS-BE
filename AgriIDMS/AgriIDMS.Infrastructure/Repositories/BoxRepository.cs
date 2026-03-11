@@ -65,6 +65,10 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
+                .Include(b => b.Slot)
+                    .ThenInclude(s => s!.Rack)
+                        .ThenInclude(r => r.Zone)
+                            .ThenInclude(z => z.Warehouse)
                 .Where(b =>
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&

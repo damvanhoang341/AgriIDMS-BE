@@ -26,6 +26,18 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ThenInclude(d => d.ProductVariant)
                 .FirstOrDefaultAsync(o => o.Id == id);
         }
+
+        public async Task<Order?> GetByIdWithPaymentsAsync(int id)
+        {
+            return await _context.Orders
+                .Include(o => o.Payments)
+                .FirstOrDefaultAsync(o => o.Id == id);
+        }
+
+        public async Task<Order?> GetByIdAsync(int id)
+        {
+            return await _context.Orders.FirstOrDefaultAsync(o => o.Id == id);
+        }
     }
 }
 

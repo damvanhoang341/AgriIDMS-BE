@@ -15,6 +15,13 @@ namespace AgriIDMS.Application.DTOs.Cart
         public int Quantity { get; set; }
     }
 
+    public class UpdateCartItemRequest
+    {
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "Số lượng box phải >= 1")]
+        public int Quantity { get; set; }
+    }
+
     public class CartItemDto
     {
         public int ProductVariantId { get; set; }
@@ -33,4 +40,3 @@ namespace AgriIDMS.Application.DTOs.Cart
         public DateTime UpdatedAt { get; set; }
     }
 }
-
