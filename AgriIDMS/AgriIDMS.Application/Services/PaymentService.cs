@@ -123,12 +123,12 @@ namespace AgriIDMS.Application.Services
 
             payment.PaymentStatus = PaymentStatus.Success;
             payment.PaidAt = DateTime.UtcNow;
-            order.Status = OrderStatus.Completed;
+            order.Status = OrderStatus.Paid;
 
             await _uow.SaveChangesAsync();
 
             _logger.LogInformation(
-                "COD payment {PaymentId} confirmed. Order {OrderId} → Completed",
+                "COD payment {PaymentId} confirmed. Order {OrderId} → Paid",
                 payment.Id, order.Id);
 
             return MapToDto(payment);
@@ -266,10 +266,10 @@ namespace AgriIDMS.Application.Services
                 payment.PaidAt = DateTime.UtcNow;
 
                 if (payment.Order != null)
-                    payment.Order.Status = OrderStatus.Completed;
+                    payment.Order.Status = OrderStatus.Paid;
 
                 _logger.LogInformation(
-                    "Banking payment {PaymentId} succeeded. Order {OrderId} → Completed",
+                    "Banking payment {PaymentId} succeeded. Order {OrderId} → Paid",
                     payment.Id, payment.OrderId);
             }
             else
