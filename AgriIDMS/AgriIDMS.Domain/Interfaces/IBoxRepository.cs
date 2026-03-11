@@ -16,5 +16,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task UpdateAsync(Box box);
         Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId);
         Task<Box?> GetByQrCodeAsync(string qrCode);
+        Task<decimal> GetAvailableQuantityByVariantIdAsync(int productVariantId);
     }
 }

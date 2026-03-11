@@ -14,17 +14,20 @@ namespace AgriIDMS.Application.Services
     {
         private readonly ICartRepository _cartRepo;
         private readonly IProductVariantRepository _variantRepo;
+        private readonly IBoxRepository _boxRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<CartService> _logger;
 
         public CartService(
             ICartRepository cartRepo,
             IProductVariantRepository variantRepo,
+            IBoxRepository boxRepo,
             IUnitOfWork uow,
             ILogger<CartService> logger)
         {
             _cartRepo = cartRepo;
             _variantRepo = variantRepo;
+            _boxRepo = boxRepo;
             _uow = uow;
             _logger = logger;
         }
@@ -67,6 +70,15 @@ namespace AgriIDMS.Application.Services
             var variant = await _variantRepo.GetProductVariantByIdAsync(request.ProductVariantId);
 
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
+
+            var available = await _boxRepo.GetAvailableQuantityByVariantIdAsync(request.ProductVariantId);
+            var alreadyInCart = cart?.Items?.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
+            var requestedTotal = request.Quantity + (alreadyInCart?.Quantity ?? 0);
+
+            if (requestedTotal > available)
+                throw new InvalidBusinessRuleException(
+                    $"Số lượng yêu cầu ({requestedTotal}) vượt tồn kho khả dụng ({available}).");
+
             if (cart == null)
             {
                 cart = new Cart

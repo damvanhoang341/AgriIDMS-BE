@@ -15,15 +15,18 @@ namespace AgriIDMS.Application.Services
     public class ProductVariantService : IProductVariantService
     {
         private readonly IProductVariantRepository _repo;
+        private readonly IBoxRepository _boxRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<ProductVariantService> _logger;
 
         public ProductVariantService(
             IProductVariantRepository repo,
+            IBoxRepository boxRepo,
             IUnitOfWork uow,
             ILogger<ProductVariantService> logger)
         {
             _repo = repo;
+            _boxRepo = boxRepo;
             _uow = uow;
             _logger = logger;
         }
@@ -57,17 +60,24 @@ namespace AgriIDMS.Application.Services
 
             var variants = await _repo.GetAllAsync();
 
-            return variants.Select(x => new ProductVariantResponseDto
+            var result = new List<ProductVariantResponseDto>();
+            foreach (var x in variants)
             {
-                Id = x.Id,
-                ProductId = x.ProductId,
-                ProductName = x.Product.Name,
-                Grade = x.Grade,
-                Price = x.Price,
-                IsActive = x.IsActive,
-                ShelfLifeDays = x.ShelfLifeDays,
-                ImageUrl = x.ImageUrl
-            });
+                var available = await _boxRepo.GetAvailableQuantityByVariantIdAsync(x.Id);
+                result.Add(new ProductVariantResponseDto
+                {
+                    Id = x.Id,
+                    ProductId = x.ProductId,
+                    ProductName = x.Product.Name,
+                    Grade = x.Grade,
+                    Price = x.Price,
+                    IsActive = x.IsActive,
+                    ShelfLifeDays = x.ShelfLifeDays,
+                    ImageUrl = x.ImageUrl,
+                    AvailableQuantity = available
+                });
+            }
+            return result;
         }
 
         public async Task<ProductVariantResponseDto> GetByIdAsync(int id)
@@ -79,6 +89,8 @@ namespace AgriIDMS.Application.Services
             if (variant == null)
                 throw new NotFoundException("ProductVariant không tồn tại");
 
+            var available = await _boxRepo.GetAvailableQuantityByVariantIdAsync(variant.Id);
+
             return new ProductVariantResponseDto
             {
                 Id = variant.Id,
@@ -88,7 +100,8 @@ namespace AgriIDMS.Application.Services
                 Price = variant.Price,
                 IsActive = variant.IsActive,
                 ShelfLifeDays = variant.ShelfLifeDays,
-                ImageUrl = variant.ImageUrl
+                ImageUrl = variant.ImageUrl,
+                AvailableQuantity = available
             };
         }
 

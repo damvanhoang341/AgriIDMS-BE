@@ -73,5 +73,18 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .OrderBy(b => b.Lot.ExpiryDate)
                 .ToListAsync();
         }
+
+        public async Task<decimal> GetAvailableQuantityByVariantIdAsync(int productVariantId)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Status == BoxStatus.Stored &&
+                    b.Lot.Status == LotStatus.Active &&
+                    b.Lot.ExpiryDate > DateTime.UtcNow)
+                .SumAsync(b => b.Weight);
+        }
     }
 }
