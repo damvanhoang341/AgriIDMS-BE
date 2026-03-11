@@ -2,6 +2,7 @@ using AgriIDMS.Application.DTOs.ProductVariant;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -18,26 +19,36 @@ namespace AgriIDMS.Application.Services
         private readonly IBoxRepository _boxRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<ProductVariantService> _logger;
+        private readonly IProductRepository _productRepo;
 
         public ProductVariantService(
             IProductVariantRepository repo,
             IBoxRepository boxRepo,
             IUnitOfWork uow,
-            ILogger<ProductVariantService> logger)
+            ILogger<ProductVariantService> logger,
+            IProductRepository product)
         {
             _repo = repo;
             _boxRepo = boxRepo;
             _uow = uow;
             _logger = logger;
+            _productRepo = product;
         }
 
         public async Task<int> CreateAsync(CreateProductVariantDto dto)
         {
             _logger.LogInformation("Creating ProductVariant for product {ProductId}", dto.ProductId);
-
+            var product = await _productRepo.GetProductByIdAsync(dto.ProductId);
+            if (product == null)
+                throw new NotFoundException("Product không tồn tại");
+            var exists = await _repo.ExistsAsync(dto.ProductId, dto.Grade);
+            if (exists)
+                throw new InvalidBusinessRuleException("Đã tồn tại biến thể với grade này cho sản phẩm");
+            var productCr = _productRepo.GetProductByIdAsync(dto.ProductId);
             var variant = new ProductVariant
             {
                 ProductId = dto.ProductId,
+                Name = $"{(await productCr)?.Name} {dto.Grade}",
                 Grade = dto.Grade,
                 Price = dto.Price,
                 IsActive = true,
@@ -47,7 +58,15 @@ namespace AgriIDMS.Application.Services
 
             await _repo.AddAsync(variant);
 
-            await _uow.SaveChangesAsync();
+            try
+            {
+                await _uow.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.InnerException?.Message);
+                throw;
+            }
 
             _logger.LogInformation("ProductVariant created with id {Id}", variant.Id);
 
@@ -68,7 +87,7 @@ namespace AgriIDMS.Application.Services
                 {
                     Id = x.Id,
                     ProductId = x.ProductId,
-                    ProductName = x.Product.Name,
+                    ProductName = $"{x.Product.Name} {x.Grade}",
                     Grade = x.Grade,
                     Price = x.Price,
                     IsActive = x.IsActive,
@@ -95,7 +114,7 @@ namespace AgriIDMS.Application.Services
             {
                 Id = variant.Id,
                 ProductId = variant.ProductId,
-                ProductName = variant.Name,
+                ProductName = $"{variant.Product.Name} {variant.Grade}",
                 Grade = variant.Grade,
                 Price = variant.Price,
                 IsActive = variant.IsActive,
