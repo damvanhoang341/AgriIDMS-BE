@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +42,23 @@ namespace AgriIDMS.Infrastructure.Repositories
         public IQueryable<ApplicationUser> GetAll()
         {
             return _context.Users;
+        }
+
+        public async Task<List<string>> GetUserIdsInRolesAsync(params string[] roles)
+        {
+            if (roles == null || roles.Length == 0)
+                return new List<string>();
+
+            var roleNames = roles.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToList();
+            if (roleNames.Count == 0)
+                return new List<string>();
+
+            return await (from ur in _context.UserRoles
+                          join r in _context.Roles on ur.RoleId equals r.Id
+                          where roleNames.Contains(r.Name!)
+                          select ur.UserId)
+                .Distinct()
+                .ToListAsync();
         }
     }
 }

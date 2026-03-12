@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,5 +13,7 @@ namespace AgriIDMS.Domain.Interfaces
         void UpdateUser(ApplicationUser user);
         IQueryable<ApplicationUser> GetAll();
         Task<IList<string>> GetRolesAsync(ApplicationUser user);
+
+        Task<List<string>> GetUserIdsInRolesAsync(params string[] roles);
     }
 }

@@ -103,6 +103,8 @@ public static class ServiceRegistration
         services.AddScoped<IOrderAllocationRepository, OrderAllocationRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IExportReceiptRepository, ExportReceiptRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
 
         // Application use-case service (implementation ở Application)
         services.AddScoped<ICategoryService, CategoryService>();
@@ -123,6 +125,7 @@ public static class ServiceRegistration
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IExportService, ExportService>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         // PayOS client (singleton vì nội bộ dùng HttpClient)
         var payOsSection = config.GetSection("PayOS");

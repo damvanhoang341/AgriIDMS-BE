@@ -24,6 +24,7 @@ namespace AgriIDMS.Application.Services
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<StockCheckService> _logger;
+        private readonly INotificationService _notificationService;
 
         public StockCheckService(
             IStockCheckRepository stockCheckRepo,
@@ -33,7 +34,8 @@ namespace AgriIDMS.Application.Services
             IInventoryRequestRepository inventoryRequestRepo,
             IInventoryTransactionRepository inventoryTranRepo,
             IUnitOfWork unitOfWork,
-            ILogger<StockCheckService> logger)
+            ILogger<StockCheckService> logger,
+            INotificationService notificationService)
         {
             _stockCheckRepo = stockCheckRepo;
             _detailRepo = detailRepo;
@@ -43,6 +45,7 @@ namespace AgriIDMS.Application.Services
             _inventoryTranRepo = inventoryTranRepo;
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         public async Task<int> CreateAsync(CreateStockCheckRequest request, string userId)
@@ -219,6 +222,8 @@ namespace AgriIDMS.Application.Services
                 await _unitOfWork.SaveChangesAsync();
                 await _unitOfWork.CommitAsync();
                 _logger.LogInformation("StockCheck {Id} approved by {UserId}", stockCheckId, userId);
+
+                await _notificationService.NotifyStockCheckApprovedAsync(stockCheckId);
             }
             catch
             {
