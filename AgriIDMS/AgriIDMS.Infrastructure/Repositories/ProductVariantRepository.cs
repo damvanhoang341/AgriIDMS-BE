@@ -1,4 +1,5 @@
 ﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -18,12 +19,18 @@ namespace AgriIDMS.Infrastructure.Repositories
         }
         public async Task<ProductVariant> GetProductVariantByIdAsync(int productVariantId)
         {
-            var productVariant = await _context.ProductVariants.FindAsync(productVariantId);
+            var productVariant = await _context.ProductVariants.Include(x => x.Product).FirstOrDefaultAsync(x=>x.Id==productVariantId);
 
             if (productVariant == null)
                 throw new KeyNotFoundException($"ProductVariant with id {productVariantId} not found.");
 
             return productVariant;
+        }
+
+        public async Task<bool> ExistsAsync(int productId, ProductGrade grade)
+        {
+            return await _context.ProductVariants
+                .AnyAsync(x => x.ProductId == productId && x.Grade == grade);
         }
 
         public async Task<IReadOnlyDictionary<int, ProductVariant>> GetByIdsAsync(IEnumerable<int> ids)

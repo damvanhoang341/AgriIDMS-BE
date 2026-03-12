@@ -26,7 +26,6 @@ namespace AgriIDMS.Application.DTOs.Category
         [StringLength(500, ErrorMessage = "Mô tả tối đa 500 ký tự.")]
         public string? Description { get; set; }
 
-        public int? Status { get; set; }
     }
 
     public class UpdateStatusCategoryRequest
