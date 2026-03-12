@@ -21,6 +21,7 @@ namespace AgriIDMS.Application.Services
         private readonly IBoxRepository _boxRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<ExportService> _logger;
+        private readonly INotificationService _notificationService;
 
         public ExportService(
             IExportReceiptRepository exportRepo,
@@ -28,7 +29,8 @@ namespace AgriIDMS.Application.Services
             IOrderAllocationRepository allocationRepo,
             IBoxRepository boxRepo,
             IUnitOfWork uow,
-            ILogger<ExportService> logger)
+            ILogger<ExportService> logger,
+            INotificationService notificationService)
         {
             _exportRepo = exportRepo;
             _orderRepo = orderRepo;
@@ -36,6 +38,7 @@ namespace AgriIDMS.Application.Services
             _boxRepo = boxRepo;
             _uow = uow;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         public async Task<ExportReceiptResponseDto> CreateExportReceiptAsync(int orderId, string userId)
@@ -171,6 +174,8 @@ namespace AgriIDMS.Application.Services
                 _logger.LogInformation(
                     "ExportReceipt {ExportId} approved. {Count} boxes exported. Order {OrderId} → Shipping",
                     exportId, receipt.Details.Count, receipt.OrderId);
+
+                await _notificationService.NotifyExportApprovedAsync(receipt.Id);
 
                 return MapToDto(receipt);
             }

@@ -22,6 +22,7 @@ namespace AgriIDMS.Application.Services
         private readonly IOrderRepository _orderRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<PaymentService> _logger;
+        private readonly INotificationService _notificationService;
         private readonly PayOSClient _payOSClient;
         private readonly string _returnUrl;
         private readonly string _cancelUrl;
@@ -31,6 +32,7 @@ namespace AgriIDMS.Application.Services
             IOrderRepository orderRepo,
             IUnitOfWork uow,
             ILogger<PaymentService> logger,
+            INotificationService notificationService,
             PayOSClient payOSClient,
             IConfiguration config)
         {
@@ -38,6 +40,7 @@ namespace AgriIDMS.Application.Services
             _orderRepo = orderRepo;
             _uow = uow;
             _logger = logger;
+            _notificationService = notificationService;
             _payOSClient = payOSClient;
             _returnUrl = config["PayOS:ReturnUrl"]!;
             _cancelUrl = config["PayOS:CancelUrl"]!;
@@ -130,6 +133,8 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation(
                 "COD payment {PaymentId} confirmed. Order {OrderId} → Paid",
                 payment.Id, order.Id);
+
+            await _notificationService.NotifyOrderPaidAsync(order.Id);
 
             return MapToDto(payment);
         }
@@ -281,6 +286,9 @@ namespace AgriIDMS.Application.Services
             }
 
             await _uow.SaveChangesAsync();
+
+            if (payment.PaymentStatus == PaymentStatus.Success)
+                await _notificationService.NotifyOrderPaidAsync(payment.OrderId);
         }
 
         // ===================== Cancel Banking =====================
