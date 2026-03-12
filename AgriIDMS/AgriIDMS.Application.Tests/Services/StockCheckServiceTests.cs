@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.StockCheck;
 using AgriIDMS.Application.Exceptions;
+using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
@@ -23,6 +24,8 @@ namespace AgriIDMS.Application.Tests.Services
         private readonly Mock<IInventoryTransactionRepository> _inventoryTranRepo;
         private readonly Mock<IUnitOfWork> _unitOfWork;
         private readonly Mock<ILogger<StockCheckService>> _logger;
+        private readonly Mock<INotificationService> _notificationService;
+
         private readonly StockCheckService _sut;
 
         public StockCheckServiceTests()
@@ -35,6 +38,7 @@ namespace AgriIDMS.Application.Tests.Services
             _inventoryTranRepo = new Mock<IInventoryTransactionRepository>();
             _unitOfWork = new Mock<IUnitOfWork>();
             _logger = new Mock<ILogger<StockCheckService>>();
+            _notificationService = new Mock<INotificationService>();
 
             _unitOfWork.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
@@ -46,7 +50,9 @@ namespace AgriIDMS.Application.Tests.Services
                 _inventoryRequestRepo.Object,
                 _inventoryTranRepo.Object,
                 _unitOfWork.Object,
-                _logger.Object);
+                _logger.Object,
+                _notificationService.Object
+            );
         }
 
         [Fact]
