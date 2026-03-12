@@ -82,6 +82,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public string Status { get; set; }
 
         public DateTime OrderDate { get; set; }
+        public string? NameCreater { get; set; }
 
     }
     public class PurchaseOrderResponse
@@ -97,6 +98,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public string Status { get; set; }
 
         public DateTime OrderDate { get; set; }
+        public string NameCreater { get; set; }
 
         public List<PurchaseOrderDetailResponse> Details { get; set; }
     }
@@ -124,5 +126,6 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
         /// <summary>Ngày thu hoạch dùng để tính hạn sử dụng Lot.</summary>
         public DateTime HarvestDate { get; set; }
+        public string? NameApprover { get; set; }
     }
 }

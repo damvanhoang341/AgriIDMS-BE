@@ -133,6 +133,7 @@ namespace AgriIDMS.Application.Services
                     Id = x.Id,
                     Name = x.Name,
                     Description = x.Description,
+                    Status = x.Status
                 });
         }
 

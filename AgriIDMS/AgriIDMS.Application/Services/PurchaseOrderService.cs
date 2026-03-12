@@ -14,19 +14,23 @@ public class PurchaseOrderService : IPurchaseOrderService
     private readonly ILogger<PurchaseOrderService> _logger;
     private readonly ISupplierService _supplierRepository;
     private readonly IProductVariantRepository _productVariantRepository;
+    private readonly IUserRepository _userRepository;
 
     public PurchaseOrderService(
         IPurchaseOrderRepository repository,
         IUnitOfWork unitOfWork,
         ILogger<PurchaseOrderService> logger,
         ISupplierService supplierRepository,
-        IProductVariantRepository productVariantRepository)
+        IProductVariantRepository productVariantRepository,
+        IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _logger = logger;
         _supplierRepository = supplierRepository;
         _productVariantRepository = productVariantRepository;
+        _userRepository = userRepository;
+
     }
 
     public async Task<int> CreateAsync(CreatePurchaseOrderRequest request, string userId)
@@ -103,7 +107,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         if (order == null)
             throw new NotFoundException("Purchase Order không tồn tại");
-
+        var peopleCcreate= await _userRepository.GetByIdAsync(order.CreatedBy);
             return new PurchaseOrderResponse
             {
                 Id = order.Id,
@@ -112,6 +116,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 SupplierName = order.Supplier.Name,
                 Status = order.Status.ToString(),
                 OrderDate = order.OrderDate,
+                NameCreater =peopleCcreate.FullName,
                 Details = order.Details.Select(d => new PurchaseOrderDetailResponse
                 {
                     Id = d.Id,
@@ -121,7 +126,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                     UnitPrice = d.UnitPrice,
                     TolerancePercent = d.TolerancePercent,
                     ReceivedWeight = d.ReceivedWeight,
-                    HarvestDate = d.HarvestDate
+                    HarvestDate = d.HarvestDate,
+                    NameApprover = order.ApprovedBy != null ? _userRepository.GetByIdAsync(order.ApprovedBy).Result.FullName : null
                 }).ToList()
             };
     }
@@ -297,14 +303,24 @@ public class PurchaseOrderService : IPurchaseOrderService
     {
         var orders = await _repository.GetAllAsync();
 
-        return orders.Select(order => new PurchaseOrderGetAllResponse
+        var result = new List<PurchaseOrderGetAllResponse>();
+
+        foreach (var order in orders)
         {
-            Id = order.Id,
-            OrderCode = order.OrderCode,
-            SupplierId = order.SupplierId,
-            SupplierName = order.Supplier.Name,
-            Status = order.Status.ToString(),
-            OrderDate = order.OrderDate
-        }).ToList();
+            var peopleCreate = await _userRepository.GetByIdAsync(order.CreatedBy);
+
+            result.Add(new PurchaseOrderGetAllResponse
+            {
+                Id = order.Id,
+                OrderCode = order.OrderCode,
+                SupplierId = order.SupplierId,
+                SupplierName = order.Supplier.Name,
+                Status = order.Status.ToString(),
+                OrderDate = order.OrderDate,
+                NameCreater = peopleCreate.FullName
+            });
+        }
+
+        return result;
     }
 }
