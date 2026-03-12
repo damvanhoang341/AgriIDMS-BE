@@ -69,6 +69,21 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public DateTime HarvestDate { get; set; }
     }
 
+    public class PurchaseOrderGetAllResponse
+    {
+        public int Id { get; set; }
+
+        public string OrderCode { get; set; }
+
+        public int SupplierId { get; set; }
+
+        public string SupplierName { get; set; }
+
+        public string Status { get; set; }
+
+        public DateTime OrderDate { get; set; }
+
+    }
     public class PurchaseOrderResponse
     {
         public int Id { get; set; }

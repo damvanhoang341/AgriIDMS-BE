@@ -292,4 +292,19 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (po.Status == PurchaseOrderStatus.Approved)
             throw new InvalidBusinessRuleException("Không được chỉnh sửa đơn mua sau khi đã duyệt.");
     }
+
+    public async Task<IEnumerable<PurchaseOrderGetAllResponse>> GetAllAsync()
+    {
+        var orders = await _repository.GetAllAsync();
+
+        return orders.Select(order => new PurchaseOrderGetAllResponse
+        {
+            Id = order.Id,
+            OrderCode = order.OrderCode,
+            SupplierId = order.SupplierId,
+            SupplierName = order.Supplier.Name,
+            Status = order.Status.ToString(),
+            OrderDate = order.OrderDate
+        }).ToList();
+    }
 }

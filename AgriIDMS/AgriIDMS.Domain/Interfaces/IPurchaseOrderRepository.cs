@@ -18,5 +18,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task DeleteAsync(PurchaseOrder purchaseOrder);
         void RemoveDetails(IEnumerable<PurchaseOrderDetail> details);
         Task<string> GenerateOrderCodeAsync();
+        Task<IEnumerable<PurchaseOrder>> GetAllAsync();
     }
 }
