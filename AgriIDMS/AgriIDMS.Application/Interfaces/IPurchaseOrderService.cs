@@ -15,5 +15,6 @@ namespace AgriIDMS.Application.Interfaces
         Task ApprovePurchaseOrderAsync(int id, string userId);
         Task UpdateAsync(int id, UpdatePurchaseOrderRequest request, string userId);
         Task DeleteAsync(int id);
+        Task<IEnumerable<PurchaseOrderGetAllResponse>> GetAllAsync();
     }
 }

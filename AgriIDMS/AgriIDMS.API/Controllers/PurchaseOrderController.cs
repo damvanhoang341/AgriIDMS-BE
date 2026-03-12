@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class PurchaseOrderController : ControllerBase
     {
         private readonly IPurchaseOrderService _purchaseOrderService;
@@ -111,6 +111,13 @@ namespace AgriIDMS.API.Controllers
         {
             await _purchaseOrderService.DeleteAsync(id);
             return Ok(new { Message = "Xóa đơn mua thành công" });
+        }
+
+        [HttpGet()]
+        public async Task<IActionResult> GetAll()
+        {
+            var result = await _purchaseOrderService.GetAllAsync();
+            return Ok(result);
         }
     }
 }

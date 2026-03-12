@@ -16,6 +16,16 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
         await _context.PurchaseOrders.AddAsync(order);
     }
 
+    public async Task<IEnumerable<PurchaseOrder>> GetAllAsync()
+    {
+        return await _context.PurchaseOrders
+            .Include(x => x.Supplier)
+            .Include(x => x.Details)
+                .ThenInclude(x => x.ProductVariant)
+                    .ThenInclude(pv => pv!.Product)
+            .ToListAsync();
+    }
+
     public async Task<PurchaseOrder?> GetByIdAsync(int id)
     {
         return await _context.PurchaseOrders
