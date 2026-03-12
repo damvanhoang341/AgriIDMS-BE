@@ -56,8 +56,7 @@ namespace AgriIDMS.Application.Services
 
             category.Update(
                 request.Name,
-                request.Description,
-                (CategoryStatus)request.Status
+                request.Description
             );
 
             _categoryRepo.Update(category);

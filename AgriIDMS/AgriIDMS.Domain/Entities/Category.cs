@@ -26,11 +26,10 @@ namespace AgriIDMS.Domain.Entities
         }
 
         // Update
-        public void Update(string name, string? description, CategoryStatus status)
+        public void Update(string name, string? description)
         {
             Name = name;
             Description = description;
-            Status = status;
         }
 
         public void UpdateStatus(CategoryStatus status)
