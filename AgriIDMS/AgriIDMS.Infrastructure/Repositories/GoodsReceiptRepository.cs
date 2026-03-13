@@ -33,7 +33,12 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<IEnumerable<GoodsReceipt>> GetAllGoodsReceiptsAsync()
         {
-            return await _context.GoodsReceipts.AsNoTracking().ToListAsync();
+            return await _context.GoodsReceipts
+                .AsNoTracking()
+                .Include(r => r.Supplier)
+                .Include(r => r.Warehouse)
+                .Include(r => r.PurchaseOrder)
+                .ToListAsync();
         }
 
         public async Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(int goodsReceiptId)
@@ -45,7 +50,14 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<GoodsReceipt?> GetGoodsReceiptWithDetailsAsync(int goodsReceiptId)
         {
             return await _context.GoodsReceipts
+                .Include(r => r.Supplier)
+                .Include(r => r.Warehouse)
+                .Include(r => r.PurchaseOrder)
                 .Include(r => r.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(pv => pv.Product)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.PurchaseOrderDetail)
                 .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
         }
 

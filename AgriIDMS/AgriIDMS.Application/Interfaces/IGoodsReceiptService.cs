@@ -14,5 +14,8 @@ namespace AgriIDMS.Application.Interfaces
         Task ManagerApproveReceiptAsync(int receiptId, string userId);
         Task ManagerRejectReceiptAsync(int receiptId, string userId);
         Task GenerateLotAsync(int goodsReceiptDetailId);
+
+        Task<IEnumerable<GoodsReceiptSummaryDto>> GetAllAsync();
+        Task<GoodsReceiptResponseDto> GetByIdAsync(int id);
     }
 }
