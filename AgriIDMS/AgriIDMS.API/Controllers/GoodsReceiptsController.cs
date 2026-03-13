@@ -25,6 +25,34 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
+        // GET ALL / GET BY ID / GET DETAILS
+        // ===============================
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetAll()
+        {
+            var result = await _goodsReceiptService.GetAllAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("{id:int:min(1)}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var result = await _goodsReceiptService.GetByIdAsync(id);
+            return Ok(result);
+        }
+
+        [HttpGet("{id:int:min(1)}/details")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetDetails(int id)
+        {
+            var result = await _goodsReceiptService.GetByIdAsync(id);
+            return Ok(result.Details);
+        }
+
+        // ===============================
         // CREATE RECEIPT (WarehouseStaff / Manager / Admin)
         // ===============================
         [HttpPost]

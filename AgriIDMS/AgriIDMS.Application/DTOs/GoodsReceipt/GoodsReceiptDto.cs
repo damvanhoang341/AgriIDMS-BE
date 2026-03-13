@@ -2,8 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AgriIDMS.Application.DTOs.GoodsReceipt
 {
-    using System.ComponentModel.DataAnnotations;
-
     public class CreateGoodsReceiptRequest
     {
         [Required(ErrorMessage = "SupplierId không được để trống")]
@@ -102,5 +100,38 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Range(0.01, double.MaxValue, ErrorMessage = "BoxSize phải lớn hơn 0")]
         public decimal BoxSize { get; set; }
+    }
+
+    // ===================== Response DTOs =====================
+
+    public class GoodsReceiptSummaryDto
+    {
+        public int Id { get; set; }
+        public string ReceiptCode { get; set; } = null!;
+        public string Status { get; set; } = null!;
+        public int? PurchaseOrderId { get; set; }
+        public int SupplierId { get; set; }
+        public string SupplierName { get; set; } = null!;
+        public int WarehouseId { get; set; }
+        public string WarehouseName { get; set; } = null!;
+        public DateTime ReceivedDate { get; set; }
+        public decimal TotalReceivedWeight { get; set; }
+        public decimal TotalUsableWeight { get; set; }
+    }
+
+    public class GoodsReceiptDetailLineDto
+    {
+        public int Id { get; set; }
+        public int ProductVariantId { get; set; }
+        public string ProductName { get; set; } = null!;
+        public decimal ReceivedWeight { get; set; }
+        public decimal UsableWeight { get; set; }
+        public decimal RejectWeight { get; set; }
+        public string QCResult { get; set; } = null!;
+    }
+
+    public class GoodsReceiptResponseDto : GoodsReceiptSummaryDto
+    {
+        public List<GoodsReceiptDetailLineDto> Details { get; set; } = new();
     }
 }

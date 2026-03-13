@@ -457,5 +457,63 @@ namespace AgriIDMS.Application.Services
             await _lotRepo.AddRangeAsync(new List<Lot> { lot });
             await _unitOfWork.SaveChangesAsync();
         }
+
+        // ===============================
+        // QUERY: Get all / get by id
+        // ===============================
+
+        public async Task<IEnumerable<GoodsReceiptSummaryDto>> GetAllAsync()
+        {
+            var receipts = await _receiptRepo.GetAllGoodsReceiptsAsync();
+
+            return receipts.Select(r => new GoodsReceiptSummaryDto
+            {
+                Id = r.Id,
+                ReceiptCode = r.ReceiptCode,
+                Status = r.Status.ToString(),
+                PurchaseOrderId = r.PurchaseOrderId,
+                SupplierId = r.SupplierId,
+                SupplierName = r.Supplier?.Name ?? string.Empty,
+                WarehouseId = r.WarehouseId,
+                WarehouseName = r.Warehouse?.Name ?? string.Empty,
+                ReceivedDate = r.ReceivedDate,
+                TotalReceivedWeight = r.TotalReceivedWeight,
+                TotalUsableWeight = r.TotalUsableWeight
+            }).ToList();
+        }
+
+        public async Task<GoodsReceiptResponseDto> GetByIdAsync(int id)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(id)
+                ?? throw new NotFoundException("Phiếu nhập không tồn tại");
+
+            var dto = new GoodsReceiptResponseDto
+            {
+                Id = receipt.Id,
+                ReceiptCode = receipt.ReceiptCode,
+                Status = receipt.Status.ToString(),
+                PurchaseOrderId = receipt.PurchaseOrderId,
+                SupplierId = receipt.SupplierId,
+                SupplierName = receipt.Supplier?.Name ?? string.Empty,
+                WarehouseId = receipt.WarehouseId,
+                WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
+                ReceivedDate = receipt.ReceivedDate,
+                TotalReceivedWeight = receipt.TotalReceivedWeight,
+                TotalUsableWeight = receipt.TotalUsableWeight
+            };
+
+            dto.Details = receipt.Details.Select(d => new GoodsReceiptDetailLineDto
+            {
+                Id = d.Id,
+                ProductVariantId = d.ProductVariantId,
+                ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                ReceivedWeight = d.ReceivedWeight,
+                UsableWeight = d.UsableWeight,
+                RejectWeight = d.RejectWeight,
+                QCResult = d.QCResult.ToString()
+            }).ToList();
+
+            return dto;
+        }
     }
 }
