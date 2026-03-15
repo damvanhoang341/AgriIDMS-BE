@@ -1,4 +1,5 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using AgriIDMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,17 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<IEnumerable<Category>> GetAllAsync()
         {
             return await _context.Categories
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Category>> GetActiveWithProductsAndVariantsForDisplayAsync()
+        {
+            return await _context.Categories
+                .AsNoTracking()
+                .Where(c => c.Status == CategoryStatus.Active)
+                .Include(c => c.Products.Where(p => p.IsActive))
+                .ThenInclude(p => p.Variants.Where(v => v.IsActive))
+                .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 

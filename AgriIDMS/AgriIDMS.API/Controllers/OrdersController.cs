@@ -22,11 +22,13 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> CreateFromCart()
         {
             var userId = GetCurrentUserId();
-            var orderId = await _orderService.CreateOrderFromCartAsync(userId);
+            var result = await _orderService.CreateOrderFromCartAsync(userId);
             return Ok(new
             {
                 Message = "Tạo đơn hàng từ giỏ thành công",
-                OrderId = orderId
+                OrderId = result.OrderId,
+                TotalAmount = result.TotalAmount,
+                Items = result.Items
             });
         }
 
