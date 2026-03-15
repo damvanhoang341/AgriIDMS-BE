@@ -1,3 +1,4 @@
+using AgriIDMS.Application.DTOs.Order;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain;
@@ -44,7 +45,7 @@ namespace AgriIDMS.Application.Services
             _logger = logger;
         }
 
-        public async Task<int> CreateOrderFromCartAsync(string userId)
+        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId)
         {
             _logger.LogInformation("Creating order from cart for user {UserId}", userId);
 
@@ -81,6 +82,15 @@ namespace AgriIDMS.Application.Services
 
                 order.TotalAmount = estimatedTotal;
 
+                var items = cart.Items.Select(i => new OrderItemDto
+                {
+                    ProductVariantId = i.ProductVariantId,
+                    ProductName = i.ProductVariant?.Product?.Name ?? string.Empty,
+                    Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
+                    Quantity = (int)i.Quantity,
+                    UnitPrice = i.UnitPrice
+                }).ToList();
+
                 await _orderRepo.AddAsync(order);
                 await _cartRepo.ClearCartAsync(cart);
                 await _uow.CommitAsync();
@@ -89,7 +99,12 @@ namespace AgriIDMS.Application.Services
                     "Order {OrderId} created from cart for user {UserId}, estimated total {Total}",
                     order.Id, userId, estimatedTotal);
 
-                return order.Id;
+                return new CreateOrderFromCartResponse
+                {
+                    OrderId = order.Id,
+                    TotalAmount = estimatedTotal,
+                    Items = items
+                };
             }
             catch
             {

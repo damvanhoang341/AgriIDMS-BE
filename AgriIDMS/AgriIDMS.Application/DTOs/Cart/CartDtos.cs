@@ -22,11 +22,14 @@ namespace AgriIDMS.Application.DTOs.Cart
         public int Quantity { get; set; }
     }
 
+    /// <summary>Thông tin sản phẩm trong giỏ để hiển thị cho khách hàng.</summary>
     public class CartItemDto
     {
         public int ProductVariantId { get; set; }
+        public string ProductVariantName { get; set; } = null!;
         public string ProductName { get; set; } = null!;
         public string Grade { get; set; } = null!;
+        public string? ImageUrl { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal LineAmount => Quantity * UnitPrice;

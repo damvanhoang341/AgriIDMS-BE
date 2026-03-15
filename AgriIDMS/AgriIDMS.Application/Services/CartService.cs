@@ -15,6 +15,7 @@ namespace AgriIDMS.Application.Services
     public class CartService : ICartService
     {
         private readonly ICartRepository _cartRepo;
+        private readonly ICartItemService _cartItemService;
         private readonly IProductVariantRepository _variantRepo;
         private readonly IBoxRepository _boxRepo;
         private readonly IUnitOfWork _uow;
@@ -22,12 +23,14 @@ namespace AgriIDMS.Application.Services
 
         public CartService(
             ICartRepository cartRepo,
+            ICartItemService cartItemService,
             IProductVariantRepository variantRepo,
             IBoxRepository boxRepo,
             IUnitOfWork uow,
             ILogger<CartService> logger)
         {
             _cartRepo = cartRepo;
+            _cartItemService = cartItemService;
             _variantRepo = variantRepo;
             _boxRepo = boxRepo;
             _uow = uow;
@@ -46,18 +49,10 @@ namespace AgriIDMS.Application.Services
                 };
             }
 
-            var items = cart.Items.Select(i => new CartItemDto
-            {
-                ProductVariantId = i.ProductVariantId,
-                ProductName = i.ProductVariant?.Product?.Name ?? string.Empty,
-                Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
-                Quantity = (int)i.Quantity,
-                UnitPrice = i.UnitPrice
-            }).ToList();
-
+            var items = _cartItemService.GetCartItemDtos(cart);
             return new CartDto
             {
-                Items = items,
+                Items = items.ToList(),
                 TotalAmount = items.Sum(x => x.LineAmount),
                 CreatedAt = cart.CreatedAt,
                 UpdatedAt = cart.UpdatedAt
