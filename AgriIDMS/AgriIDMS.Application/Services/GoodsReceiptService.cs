@@ -584,5 +584,46 @@ namespace AgriIDMS.Application.Services
 
             return dto;
         }
+
+        public async Task<GoodsReceiptForApprovalDto> GetByIdForApprovalAsync(int id)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(id)
+                ?? throw new NotFoundException("Phiếu nhập không tồn tại");
+
+            var details = receipt.Details.Select(d =>
+            {
+                var lineTotal = d.UsableWeight * d.UnitPrice;
+                return new GoodsReceiptDetailLineForApprovalDto
+                {
+                    Id = d.Id,
+                    ProductVariantId = d.ProductVariantId,
+                    ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                    ReceivedWeight = d.ReceivedWeight,
+                    UsableWeight = d.UsableWeight,
+                    RejectWeight = d.RejectWeight,
+                    QCResult = d.QCResult.ToString(),
+                    UnitPrice = d.UnitPrice,
+                    LineTotal = lineTotal
+                };
+            }).ToList();
+
+            return new GoodsReceiptForApprovalDto
+            {
+                Id = receipt.Id,
+                ReceiptCode = receipt.ReceiptCode,
+                Status = receipt.Status.ToString(),
+                PendingReason = receipt.PendingReason,
+                PurchaseOrderId = receipt.PurchaseOrderId,
+                SupplierId = receipt.SupplierId,
+                SupplierName = receipt.Supplier?.Name ?? string.Empty,
+                WarehouseId = receipt.WarehouseId,
+                WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
+                ReceivedDate = receipt.ReceivedDate,
+                TotalReceivedWeight = receipt.TotalReceivedWeight,
+                TotalUsableWeight = receipt.TotalUsableWeight,
+                TotalAmount = details.Sum(x => x.LineTotal),
+                Details = details
+            };
+        }
     }
 }

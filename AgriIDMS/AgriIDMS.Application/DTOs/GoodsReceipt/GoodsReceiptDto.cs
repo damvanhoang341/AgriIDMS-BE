@@ -136,4 +136,22 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
     {
         public List<GoodsReceiptDetailLineDto> Details { get; set; } = new();
     }
+
+    /// <summary>
+    /// Chi tiết dòng phiếu nhập kèm giá nhập. Chỉ dùng cho API duyệt phiếu (Manager/Admin).
+    /// </summary>
+    public class GoodsReceiptDetailLineForApprovalDto : GoodsReceiptDetailLineDto
+    {
+        public decimal UnitPrice { get; set; }
+        public decimal LineTotal { get; set; }
+    }
+
+    /// <summary>
+    /// Phiếu nhập đầy đủ kèm giá nhập để Manager/Admin xem xét khi Approve/Reject. Chỉ trả về từ GET .../for-approval.
+    /// </summary>
+    public class GoodsReceiptForApprovalDto : GoodsReceiptSummaryDto
+    {
+        public decimal TotalAmount { get; set; }
+        public List<GoodsReceiptDetailLineForApprovalDto> Details { get; set; } = new();
+    }
 }
