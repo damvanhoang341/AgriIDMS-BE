@@ -17,5 +17,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task UpdateAsync(Warehouse warehouse);
 
         Task DeleteAsync(Warehouse warehouse);
+
+        /// <summary>Tổng dung lượng còn trống (Capacity - CurrentCapacity) của tất cả slot thuộc kho.</summary>
+        Task<decimal> GetTotalRemainingCapacityByWarehouseIdAsync(int warehouseId);
     }
 }

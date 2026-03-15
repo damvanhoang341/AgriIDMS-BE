@@ -235,6 +235,8 @@ namespace AgriIDMS.Application.Services
                     return;
                 }
 
+                await EnsureWarehouseCapacityAsync(receipt);
+
                 await CreateLotsAndSetApprovedAsync(receipt, userId);
                 await _unitOfWork.CommitAsync();
                 _logger.LogInformation("Receipt {ReceiptId} đã được approve bởi {UserId}", receiptId, userId);
@@ -259,6 +261,8 @@ namespace AgriIDMS.Application.Services
                     throw new NotFoundException("Phiếu nhập không tồn tại");
                 if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
                     throw new InvalidBusinessRuleException("Chỉ Manager có thể duyệt phiếu đang chờ duyệt (PendingManagerApproval)");
+
+                await EnsureWarehouseCapacityAsync(receipt);
 
                 await CreateLotsAndSetApprovedAsync(receipt, userId);
                 await _unitOfWork.CommitAsync();
@@ -334,6 +338,22 @@ namespace AgriIDMS.Application.Services
             receipt.ApprovedBy = userId;
             receipt.ApprovedAt = DateTime.UtcNow;
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>Check Capacity: đảm bảo kho đích còn đủ dung lượng trống cho tổng UsableWeight của phiếu.</summary>
+        private async Task EnsureWarehouseCapacityAsync(GoodsReceipt receipt)
+        {
+            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight);
+            if (totalUsableWeight <= 0)
+                return;
+
+            decimal remainingCapacity = await _warehouseRepo.GetTotalRemainingCapacityByWarehouseIdAsync(receipt.WarehouseId);
+            if (totalUsableWeight > remainingCapacity)
+            {
+                var warehouseName = receipt.Warehouse?.Name ?? $"Id={receipt.WarehouseId}";
+                throw new InvalidBusinessRuleException(
+                    $"Kho [{warehouseName}] chỉ còn {remainingCapacity:N2} kg trống. Phiếu nhập {totalUsableWeight:N2} kg. Không đủ dung lượng. Vui lòng giải phóng dung lượng (xuất hàng / chuyển slot) hoặc nhập vào kho khác.");
+            }
         }
 
         /// <summary>Dung sai theo từng dòng PO: mất mát thực tế vượt quá OrderedWeight * TolerancePercent của dòng.</summary>

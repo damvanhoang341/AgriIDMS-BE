@@ -49,5 +49,14 @@ namespace AgriIDMS.Infrastructure.Repositories
             _context.Warehouses.Remove(warehouse);
             return Task.CompletedTask;
         }
+
+        /// <inheritdoc />
+        public async Task<decimal> GetTotalRemainingCapacityByWarehouseIdAsync(int warehouseId)
+        {
+            var total = await _context.Slots
+                .Where(s => s.Rack.Zone.WarehouseId == warehouseId)
+                .SumAsync(s => s.Capacity - s.CurrentCapacity);
+            return total;
+        }
     }
 }
