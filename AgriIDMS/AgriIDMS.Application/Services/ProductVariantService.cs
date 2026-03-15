@@ -53,7 +53,8 @@ namespace AgriIDMS.Application.Services
                 Price = dto.Price,
                 IsActive = true,
                 ShelfLifeDays = dto.ShelfLifeDays,
-                ImageUrl = dto.ImageUrl
+                ImageUrl = dto.ImageUrl,
+                MinReceiptWeight = dto.MinReceiptWeight
             };
 
             await _repo.AddAsync(variant);
@@ -93,6 +94,7 @@ namespace AgriIDMS.Application.Services
                     IsActive = x.IsActive,
                     ShelfLifeDays = x.ShelfLifeDays,
                     ImageUrl = x.ImageUrl,
+                    MinReceiptWeight = x.MinReceiptWeight,
                     AvailableBoxCount = boxCount
                 });
             }
@@ -120,6 +122,7 @@ namespace AgriIDMS.Application.Services
                 IsActive = variant.IsActive,
                 ShelfLifeDays = variant.ShelfLifeDays,
                 ImageUrl = variant.ImageUrl,
+                MinReceiptWeight = variant.MinReceiptWeight,
                 AvailableBoxCount = boxCount
             };
         }
@@ -147,6 +150,8 @@ namespace AgriIDMS.Application.Services
 
             if (dto.ImageUrl != null)
                 variant.ImageUrl = dto.ImageUrl;
+
+            variant.MinReceiptWeight = dto.MinReceiptWeight;
 
             _repo.Update(variant);
 

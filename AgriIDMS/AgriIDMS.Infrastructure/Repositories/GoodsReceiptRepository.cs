@@ -64,8 +64,11 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId)
         {
             return await _context.GoodsReceipts
+                .Include(r => r.Warehouse)
                 .Include(r => r.Details)
                     .ThenInclude(d => d.PurchaseOrderDetail)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.ProductVariant)
                 .Include(r => r.Details)
                     .ThenInclude(d => d.Lots)
                         .ThenInclude(l => l.Boxes)

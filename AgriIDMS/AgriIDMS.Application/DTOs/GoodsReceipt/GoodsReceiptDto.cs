@@ -109,6 +109,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public int Id { get; set; }
         public string ReceiptCode { get; set; } = null!;
         public string Status { get; set; } = null!;
+        /// <summary>Lý do chờ Manager (vượt dung sai / dưới định mức). Chỉ có khi Status = PendingManagerApproval.</summary>
+        public string? PendingReason { get; set; }
         public int? PurchaseOrderId { get; set; }
         public int SupplierId { get; set; }
         public string SupplierName { get; set; } = null!;

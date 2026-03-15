@@ -28,6 +28,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         /// <summary>Đường dẫn ảnh của biến thể.</summary>
         public string? ImageUrl { get; set; }
 
+        /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập sản phẩm này. Null = không bắt buộc.</summary>
+        public decimal? MinReceiptWeight { get; set; }
+
         /// <summary>Số box khả dụng trong kho.</summary>
         public int AvailableBoxCount { get; set; }
     }
@@ -51,6 +54,10 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         [StringLength(500, ErrorMessage = "ImageUrl tối đa 500 ký tự")]
         public string? ImageUrl { get; set; }
+
+        /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập. Null = không bắt buộc.</summary>
+        [Range(0, double.MaxValue, ErrorMessage = "MinReceiptWeight phải >= 0")]
+        public decimal? MinReceiptWeight { get; set; }
     }
 
     public class UpdateProductVariantDto
@@ -67,6 +74,10 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         [StringLength(500, ErrorMessage = "ImageUrl tối đa 500 ký tự")]
         public string? ImageUrl { get; set; }
+
+        /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập. Null = không bắt buộc.</summary>
+        [Range(0, double.MaxValue, ErrorMessage = "MinReceiptWeight phải >= 0")]
+        public decimal? MinReceiptWeight { get; set; }
     }
 
     public class UpdateProductVariantStatusDto

@@ -54,6 +54,9 @@ namespace AgriIDMS.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ApprovedAt { get; set; }
 
+        /// <summary>Lý do chuyển sang chờ Manager (vượt dung sai / dưới định mức). Hiển thị cho Manager xem xét Approve/Reject.</summary>
+        public string? PendingReason { get; set; }
+
         public ICollection<GoodsReceiptDetail> Details { get; set; } = new List<GoodsReceiptDetail>();
     }
 }
