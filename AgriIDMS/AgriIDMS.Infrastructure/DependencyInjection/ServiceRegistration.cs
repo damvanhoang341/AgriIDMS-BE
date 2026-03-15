@@ -127,6 +127,7 @@ public static class ServiceRegistration
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IExportService, ExportService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IHomePageService, HomePageService>();
 
         // PayOS client (singleton vì nội bộ dùng HttpClient)
         var payOsSection = config.GetSection("PayOS");
