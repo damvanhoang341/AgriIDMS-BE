@@ -52,6 +52,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result.Details);
         }
 
+        /// <summary>Phiếu nhập kèm giá nhập để Manager/Admin xem xét khi Approve/Reject. Warehouse không gọi được.</summary>
+        [HttpGet("{id:int:min(1)}/for-approval")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetForApproval(int id)
+        {
+            var result = await _goodsReceiptService.GetByIdForApprovalAsync(id);
+            return Ok(result);
+        }
+
         // ===============================
         // CREATE RECEIPT (WarehouseStaff / Manager / Admin)
         // ===============================

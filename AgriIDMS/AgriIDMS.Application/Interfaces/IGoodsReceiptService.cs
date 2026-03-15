@@ -17,5 +17,7 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<IEnumerable<GoodsReceiptSummaryDto>> GetAllAsync();
         Task<GoodsReceiptResponseDto> GetByIdAsync(int id);
+        /// <summary>Phiếu nhập kèm giá nhập, chỉ dùng cho màn duyệt phiếu (Manager/Admin).</summary>
+        Task<GoodsReceiptForApprovalDto> GetByIdForApprovalAsync(int id);
     }
 }
