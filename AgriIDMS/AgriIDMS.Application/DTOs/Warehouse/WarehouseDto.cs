@@ -18,6 +18,8 @@ namespace AgriIDMS.Application.DTOs.Warehouse
 
         /// <summary>Số giờ tối thiểu box phải trong kho lạnh trước khi xuất. Chỉ áp dụng khi TitleWarehouse = Cold. Mặc định 48.</summary>
         public decimal? MinColdStorageHours { get; set; }
+        /// <summary>Định mức tối thiểu (kg) cho mỗi phiếu nhập vào kho. Null = không bắt buộc.</summary>
+        public decimal? MinReceiptWeight { get; set; }
     }
 
     public class WarehouseDto
@@ -27,6 +29,8 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public string Location { get; set; } = null!;
         public TitleWarehouse TitleWarehouse { get; set; }
         public decimal? MinColdStorageHours { get; set; }
+        /// <summary>Định mức tối thiểu (kg) cho mỗi phiếu nhập vào kho. Null = không bắt buộc.</summary>
+        public decimal? MinReceiptWeight { get; set; }
     }
 }
 

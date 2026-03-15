@@ -153,6 +153,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ShelfLifeDays)
                   .IsRequired();
 
+            entity.Property(x => x.MinReceiptWeight)
+                  .HasColumnType("decimal(18,2)");
+
             entity.Property(x => x.IsActive)
                   .HasDefaultValue(true);
 
@@ -262,6 +265,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasDefaultValueSql("GETUTCDATE()");
 
             entity.Property(x => x.ApprovedAt);
+
+            entity.Property(x => x.PendingReason)
+                  .HasMaxLength(500);
 
             entity.Property(x => x.ReceivedBy)
                   .HasMaxLength(450);
@@ -662,6 +668,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
 
             entity.Property(x => x.MinColdStorageHours)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.MinReceiptWeight)
                   .HasColumnType("decimal(18,2)");
 
             // =============================

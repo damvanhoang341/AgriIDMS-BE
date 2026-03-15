@@ -227,11 +227,26 @@ namespace AgriIDMS.Application.Services
                 if (toleranceExceeded)
                 {
                     receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                    receipt.PendingReason = "Vượt dung sai cho phép, cần Manager xem xét Approve hoặc Reject.";
                     receipt.ApprovedBy = userId;
                     receipt.ApprovedAt = DateTime.UtcNow;
                     await _unitOfWork.SaveChangesAsync();
                     await _unitOfWork.CommitAsync();
                     _logger.LogInformation("Receipt {ReceiptId} vượt dung sai, chuyển PendingManagerApproval", receiptId);
+                    return;
+                }
+
+                // Định mức tối thiểu: chỉ cảnh báo → chuyển Manager xem xét, không chặn duyệt
+                string? minReceiptWarning = TryGetMinReceiptWeightWarning(receipt);
+                if (minReceiptWarning != null)
+                {
+                    receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                    receipt.PendingReason = minReceiptWarning;
+                    receipt.ApprovedBy = userId;
+                    receipt.ApprovedAt = DateTime.UtcNow;
+                    await _unitOfWork.SaveChangesAsync();
+                    await _unitOfWork.CommitAsync();
+                    _logger.LogInformation("Receipt {ReceiptId} dưới định mức tối thiểu, chuyển PendingManagerApproval: {Reason}", receiptId, minReceiptWarning);
                     return;
                 }
 
@@ -263,6 +278,7 @@ namespace AgriIDMS.Application.Services
                     throw new InvalidBusinessRuleException("Chỉ Manager có thể duyệt phiếu đang chờ duyệt (PendingManagerApproval)");
 
                 await EnsureWarehouseCapacityAsync(receipt);
+                // Định mức tối thiểu chỉ là cảnh báo: Manager vẫn có thể Approve hoặc Reject, không chặn ở đây.
 
                 await CreateLotsAndSetApprovedAsync(receipt, userId);
                 await _unitOfWork.CommitAsync();
@@ -337,6 +353,7 @@ namespace AgriIDMS.Application.Services
             receipt.Status = GoodsReceiptStatus.Approved;
             receipt.ApprovedBy = userId;
             receipt.ApprovedAt = DateTime.UtcNow;
+            receipt.PendingReason = null; // Đã duyệt, xóa lý do chờ Manager
             await _unitOfWork.SaveChangesAsync();
         }
 
@@ -354,6 +371,36 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Kho [{warehouseName}] chỉ còn {remainingCapacity:N2} kg trống. Phiếu nhập {totalUsableWeight:N2} kg. Không đủ dung lượng. Vui lòng giải phóng dung lượng (xuất hàng / chuyển slot) hoặc nhập vào kho khác.");
             }
+        }
+
+        /// <summary>Định mức tối thiểu chỉ là cảnh báo. Nếu dưới định mức (kho hoặc sản phẩm) trả về thông báo để chuyển Manager xem xét; null = đạt định mức.</summary>
+        private string? TryGetMinReceiptWeightWarning(GoodsReceipt receipt)
+        {
+            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight);
+            var warnings = new List<string>();
+
+            // Theo kho: tổng phiếu nhỏ hơn định mức tối thiểu của kho
+            decimal? warehouseMin = receipt.Warehouse?.MinReceiptWeight;
+            if (warehouseMin.HasValue && warehouseMin.Value > 0 && totalUsableWeight < warehouseMin.Value)
+            {
+                var warehouseName = receipt.Warehouse?.Name ?? $"Id={receipt.WarehouseId}";
+                warnings.Add($"Tổng khối lượng nhập {totalUsableWeight:N2} kg thấp hơn định mức tối thiểu của kho [{warehouseName}] ({warehouseMin.Value:N2} kg).");
+            }
+
+            // Theo từng dòng: dòng nào nhỏ hơn định mức tối thiểu của sản phẩm
+            foreach (var d in receipt.Details)
+            {
+                decimal? lineMin = d.ProductVariant?.MinReceiptWeight;
+                if (!lineMin.HasValue || lineMin.Value <= 0) continue;
+                if (d.UsableWeight < lineMin.Value)
+                {
+                    var productName = d.ProductVariant?.Name ?? $"Id={d.ProductVariantId}";
+                    warnings.Add($"Dòng sản phẩm [{productName}] nhập {d.UsableWeight:N2} kg thấp hơn định mức tối thiểu ({lineMin.Value:N2} kg).");
+                }
+            }
+
+            if (warnings.Count == 0) return null;
+            return "Cảnh báo định mức tối thiểu: " + string.Join(" ", warnings) + " Cần Manager xem xét Approve hoặc Reject.";
         }
 
         /// <summary>Dung sai theo từng dòng PO: mất mát thực tế vượt quá OrderedWeight * TolerancePercent của dòng.</summary>
@@ -491,6 +538,7 @@ namespace AgriIDMS.Application.Services
                 Id = r.Id,
                 ReceiptCode = r.ReceiptCode,
                 Status = r.Status.ToString(),
+                PendingReason = r.PendingReason,
                 PurchaseOrderId = r.PurchaseOrderId,
                 SupplierId = r.SupplierId,
                 SupplierName = r.Supplier?.Name ?? string.Empty,
@@ -512,6 +560,7 @@ namespace AgriIDMS.Application.Services
                 Id = receipt.Id,
                 ReceiptCode = receipt.ReceiptCode,
                 Status = receipt.Status.ToString(),
+                PendingReason = receipt.PendingReason,
                 PurchaseOrderId = receipt.PurchaseOrderId,
                 SupplierId = receipt.SupplierId,
                 SupplierName = receipt.Supplier?.Name ?? string.Empty,

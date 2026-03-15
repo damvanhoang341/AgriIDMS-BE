@@ -21,6 +21,8 @@ namespace AgriIDMS.Domain.Entities
 
         /// <summary>Đường dẫn ảnh đại diện cho biến thể sản phẩm.</summary>
         public string? ImageUrl { get; set; }
+        /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập sản phẩm này. Null = không bắt buộc.</summary>
+        public decimal? MinReceiptWeight { get; set; }
 
         public bool IsActive { get; set; } = true;
 
