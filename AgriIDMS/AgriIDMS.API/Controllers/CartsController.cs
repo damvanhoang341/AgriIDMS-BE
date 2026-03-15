@@ -27,6 +27,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(cart);
         }
 
+        /// <summary>Lấy danh sách sản phẩm trong giỏ để hiển thị cho khách hàng.</summary>
+        [HttpGet("items")]
+        public async Task<IActionResult> GetCartItems()
+        {
+            var userId = GetCurrentUserId();
+            var cart = await _cartService.GetMyCartAsync(userId);
+            return Ok(cart.Items);
+        }
+
         [HttpPost("items")]
         public async Task<IActionResult> AddItem([FromBody] AddCartItemRequest request)
         {
