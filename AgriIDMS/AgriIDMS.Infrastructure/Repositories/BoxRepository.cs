@@ -1,7 +1,9 @@
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
+using AgriIDMS.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -93,17 +95,25 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight)
         {
-            return await _context.Boxes
+            var now = DateTime.UtcNow;
+
+            var candidateBoxes = await _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                 .Where(b =>
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
-                    b.Lot.ExpiryDate > DateTime.UtcNow &&
                     b.IsPartial == isPartial &&
                     b.Weight == weight)
-                .CountAsync();
+                .ToListAsync();
+
+            if (candidateBoxes.Any(b => b.Lot.ExpiryDate <= now))
+            {
+                throw new InvalidBusinessRuleException("Có box thuộc loại này đã hết hạn hoặc ExpiryDate không hợp lệ.");
+            }
+
+            return candidateBoxes.Count(b => b.Lot.ExpiryDate > now);
         }
 
         public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)

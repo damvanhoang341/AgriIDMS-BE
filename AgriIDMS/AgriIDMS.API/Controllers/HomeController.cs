@@ -20,7 +20,7 @@ namespace AgriIDMS.API.Controllers
         }
 
 
-        [HttpGet]
+        [HttpGet("{id}")]
         public async Task<IActionResult> GetDetailAsync(int id)
         {
             var data= await _homePageService.GetDetailAsync(id);
