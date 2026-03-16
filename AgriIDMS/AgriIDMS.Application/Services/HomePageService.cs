@@ -29,42 +29,65 @@ namespace AgriIDMS.Application.Services
             _repo = repo;
         }
 
-
-        public async Task<IEnumerable<ProductVariantResponseCustomerDto>> GetAllAsync()
+        public async Task<IEnumerable<ProductVariantResponseCustomerHomeDto>> GetAllProductVariantAsync()
         {
             _logger.LogInformation("Getting all product variants");
 
             var variants = await _repo.GetAllAsync();
-
-            var result = new List<ProductVariantResponseCustomerDto>();
+            var result = new List<ProductVariantResponseCustomerHomeDto>();
             foreach (var x in variants)
             {
-                var boxTypeSummaries = await _boxRepo.GetAvailableBoxTypeSummaryByVariantIdAsync(x.Id);
-                var boxTypes = boxTypeSummaries
-                    .Select(bt => new BoxTypeDto
-                    {
-                        BoxType = bt.IsPartial ? "Partial" : "Full",
-                        Weight = bt.Weight,
-                        AvailableCount = bt.AvailableCount,
-                        BoxPrice = x.Price * bt.Weight
-                    })
-                    .OrderBy(bt => bt.Weight)
-                    .ToList();
-                var boxCount = boxTypes.Sum(bt => bt.AvailableCount);
-                result.Add(new ProductVariantResponseCustomerDto
+                result.Add(new ProductVariantResponseCustomerHomeDto
                 {
                     Id = x.Id,
                     ProductId = x.ProductId,
-                    ProductName = $"{x.Product.Name} {x.Grade}",
+                    ProductName = $"{x.Product.Name}",
                     Grade = x.Grade,
                     Price = x.Price,
-                    IsActive = x.IsActive,
-                    ShelfLifeDays = x.ShelfLifeDays,
                     ImageUrl = x.ImageUrl,
-                    AvailableBoxCount = boxCount,
-                    BoxTypes = boxTypes
                 });
             }
+            return result;
+        }
+
+        public async Task<ProductVariantResponseCustomerDto> GetDetailAsync(int idProductVariant)
+        {
+            _logger.LogInformation("Getting detail product variants");
+
+            var variant = await _repo.GetProductVariantByIdAsync(idProductVariant);
+
+            if (variant == null)
+                throw new Exception("Product variant not found");
+
+            var boxTypeSummaries = await _boxRepo.GetAvailableBoxTypeSummaryByVariantIdAsync(variant.Id);
+
+            var boxTypes = boxTypeSummaries
+                .Select(bt => new BoxTypeDto
+                {
+                    BoxType = bt.IsPartial ? "Partial" : "Full",
+                    Weight = bt.Weight,
+                    AvailableCount = bt.AvailableCount,
+                    BoxPrice = variant.Price * bt.Weight
+                })
+                .OrderBy(bt => bt.Weight)
+                .ToList();
+
+            var boxCount = boxTypes.Sum(bt => bt.AvailableCount);
+
+            var result = new ProductVariantResponseCustomerDto
+            {
+                Id = variant.Id,
+                ProductId = variant.ProductId,
+                ProductName = $"{variant.Product.Name} {variant.Grade}",
+                Grade = variant.Grade,
+                Price = variant.Price,
+                IsActive = variant.IsActive,
+                ShelfLifeDays = variant.ShelfLifeDays,
+                ImageUrl = variant.ImageUrl,
+                AvailableBoxCount = boxCount,
+                BoxTypes = boxTypes
+            };
+
             return result;
         }
     }

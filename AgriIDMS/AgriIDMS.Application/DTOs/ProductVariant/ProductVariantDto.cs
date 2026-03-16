@@ -74,6 +74,23 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public List<BoxTypeDto> BoxTypes { get; set; } = new();
     }
 
+    public class ProductVariantResponseCustomerHomeDto
+    {
+        public int Id { get; set; }
+
+        public int ProductId { get; set; }
+
+        public string ProductName { get; set; } = null!;
+
+        public ProductGrade Grade { get; set; }
+
+        public decimal Price { get; set; }
+
+        /// <summary>Đường dẫn ảnh của biến thể.</summary>
+        public string? ImageUrl { get; set; }
+
+    }
+
     public class CreateProductVariantDto
     {
         [Required(ErrorMessage = "ProductId không được để trống")]
