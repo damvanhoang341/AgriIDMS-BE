@@ -97,23 +97,24 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             var now = DateTime.UtcNow;
 
-            var candidateBoxes = await _context.Boxes
-                .Include(b => b.Lot)
-                    .ThenInclude(l => l.GoodsReceiptDetail)
+            // Query tối ưu: không Include toàn bộ entity, chỉ dùng navigation để filter ExpiryDate.
+            var query = _context.Boxes
                 .Where(b =>
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.IsPartial == isPartial &&
-                    b.Weight == weight)
-                .ToListAsync();
+                    b.Weight == weight);
 
-            if (candidateBoxes.Any(b => b.Lot.ExpiryDate <= now))
+            // 1) Kiểm tra nhanh xem có box hết hạn / ExpiryDate <= now không
+            bool hasExpired = await query.AnyAsync(b => b.Lot.ExpiryDate <= now);
+            if (hasExpired)
             {
                 throw new InvalidBusinessRuleException("Có box thuộc loại này đã hết hạn hoặc ExpiryDate không hợp lệ.");
             }
 
-            return candidateBoxes.Count(b => b.Lot.ExpiryDate > now);
+            // 2) Đếm số box còn hạn
+            return await query.CountAsync(b => b.Lot.ExpiryDate > now);
         }
 
         public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)
