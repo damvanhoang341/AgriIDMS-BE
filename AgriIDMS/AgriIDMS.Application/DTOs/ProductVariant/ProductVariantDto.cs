@@ -8,6 +8,18 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.DTOs.ProductVariant
 {
+    public class BoxTypeDto
+    {
+        /// <summary>Loại box hiển thị cho customer (ví dụ: Full / Partial).</summary>
+        public string BoxType { get; set; } = null!;
+        /// <summary>Trọng lượng của box (kg).</summary>
+        public decimal Weight { get; set; }
+        /// <summary>Số lượng box khả dụng của loại này.</summary>
+        public int AvailableCount { get; set; }
+        /// <summary>Giá cho 1 box (Price per kg * Weight).</summary>
+        public decimal BoxPrice { get; set; }
+    }
+
     public class ProductVariantResponseDto
     {
         public int Id { get; set; }
@@ -57,6 +69,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         /// <summary>Số box khả dụng trong kho.</summary>
         public int AvailableBoxCount { get; set; }
+
+        /// <summary>Các loại box khác nhau của biến thể (group theo loại + trọng lượng).</summary>
+        public List<BoxTypeDto> BoxTypes { get; set; } = new();
     }
 
     public class CreateProductVariantDto

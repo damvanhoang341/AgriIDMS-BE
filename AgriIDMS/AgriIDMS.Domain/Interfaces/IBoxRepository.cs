@@ -17,5 +17,7 @@ namespace AgriIDMS.Domain.Interfaces
         Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId);
         Task<Box?> GetByQrCodeAsync(string qrCode);
         Task<int> GetAvailableBoxCountByVariantIdAsync(int productVariantId);
+        /// <summary>Lấy tổng hợp các loại box khả dụng (group theo IsPartial & Weight) cho 1 ProductVariant.</summary>
+        Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId);
     }
 }

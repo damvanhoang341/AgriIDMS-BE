@@ -39,7 +39,18 @@ namespace AgriIDMS.Application.Services
             var result = new List<ProductVariantResponseCustomerDto>();
             foreach (var x in variants)
             {
-                var boxCount = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(x.Id);
+                var boxTypeSummaries = await _boxRepo.GetAvailableBoxTypeSummaryByVariantIdAsync(x.Id);
+                var boxTypes = boxTypeSummaries
+                    .Select(bt => new BoxTypeDto
+                    {
+                        BoxType = bt.IsPartial ? "Partial" : "Full",
+                        Weight = bt.Weight,
+                        AvailableCount = bt.AvailableCount,
+                        BoxPrice = x.Price * bt.Weight
+                    })
+                    .OrderBy(bt => bt.Weight)
+                    .ToList();
+                var boxCount = boxTypes.Sum(bt => bt.AvailableCount);
                 result.Add(new ProductVariantResponseCustomerDto
                 {
                     Id = x.Id,
@@ -50,7 +61,8 @@ namespace AgriIDMS.Application.Services
                     IsActive = x.IsActive,
                     ShelfLifeDays = x.ShelfLifeDays,
                     ImageUrl = x.ImageUrl,
-                    AvailableBoxCount = boxCount
+                    AvailableBoxCount = boxCount,
+                    BoxTypes = boxTypes
                 });
             }
             return result;
