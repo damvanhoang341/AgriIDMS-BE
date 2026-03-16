@@ -1,7 +1,9 @@
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
+using AgriIDMS.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -93,17 +95,26 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight)
         {
-            return await _context.Boxes
-                .Include(b => b.Lot)
-                    .ThenInclude(l => l.GoodsReceiptDetail)
+            var now = DateTime.UtcNow;
+
+            // Query tối ưu: không Include toàn bộ entity, chỉ dùng navigation để filter ExpiryDate.
+            var query = _context.Boxes
                 .Where(b =>
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
-                    b.Lot.ExpiryDate > DateTime.UtcNow &&
                     b.IsPartial == isPartial &&
-                    b.Weight == weight)
-                .CountAsync();
+                    b.Weight == weight);
+
+            // 1) Kiểm tra nhanh xem có box hết hạn / ExpiryDate <= now không
+            bool hasExpired = await query.AnyAsync(b => b.Lot.ExpiryDate <= now);
+            if (hasExpired)
+            {
+                throw new InvalidBusinessRuleException("Có box thuộc loại này đã hết hạn hoặc ExpiryDate không hợp lệ.");
+            }
+
+            // 2) Đếm số box còn hạn
+            return await query.CountAsync(b => b.Lot.ExpiryDate > now);
         }
 
         public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)
