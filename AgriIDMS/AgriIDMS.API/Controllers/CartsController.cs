@@ -55,10 +55,13 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("items/{productVariantId:int:min(1)}")]
-        public async Task<IActionResult> RemoveItem(int productVariantId)
+        public async Task<IActionResult> RemoveItem(
+            int productVariantId,
+            [FromQuery] decimal boxWeight,
+            [FromQuery] bool isPartial)
         {
             var userId = GetCurrentUserId();
-            await _cartService.RemoveItemAsync(productVariantId, userId);
+            await _cartService.RemoveItemAsync(productVariantId, boxWeight, isPartial, userId);
             return Ok(new { Message = "Xóa sản phẩm khỏi giỏ hàng thành công" });
         }
 

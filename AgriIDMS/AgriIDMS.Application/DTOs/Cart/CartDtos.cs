@@ -49,8 +49,13 @@ namespace AgriIDMS.Application.DTOs.Cart
         public string Grade { get; set; } = null!;
         public string? ImageUrl { get; set; }
         public int Quantity { get; set; }
+        /// <summary>Trọng lượng mỗi box (kg).</summary>
+        public decimal BoxWeight { get; set; }
+        /// <summary>Box lẻ (partial) hay box đầy.</summary>
+        public bool IsPartial { get; set; }
         public decimal UnitPrice { get; set; }
-        public decimal LineAmount => Quantity * UnitPrice;
+        /// <summary>Thành tiền dòng = số box * đơn giá (kg) * trọng lượng mỗi box.</summary>
+        public decimal LineAmount => Quantity * UnitPrice * BoxWeight;
     }
 
     public class CartDto
