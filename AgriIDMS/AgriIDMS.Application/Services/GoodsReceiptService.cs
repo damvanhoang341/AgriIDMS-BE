@@ -429,7 +429,8 @@ namespace AgriIDMS.Application.Services
                     LotId = lot.Id,
                     Weight = boxSize,
                     Status = BoxStatus.Stored,
-                    BoxCode = $"{baseCode}-{i + 1}"
+                    BoxCode = $"{baseCode}-{i + 1}",
+                    IsPartial = false
                 });
             }
             if (remainder > 0)
@@ -439,7 +440,8 @@ namespace AgriIDMS.Application.Services
                     LotId = lot.Id,
                     Weight = remainder,
                     Status = BoxStatus.Stored,
-                    BoxCode = $"{baseCode}-{fullCount + 1}"
+                    BoxCode = $"{baseCode}-{fullCount + 1}",
+                    IsPartial = true
                 });
             }
 

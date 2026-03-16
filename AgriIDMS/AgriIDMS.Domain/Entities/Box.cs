@@ -16,6 +16,7 @@ namespace AgriIDMS.Domain.Entities
         public Lot Lot { get; set; } = null!;
 
         public decimal Weight { get; set; }
+        public bool IsPartial { get; set; }
 
         public int? SlotId { get; set; }
         public Slot? Slot { get; set; }
