@@ -94,20 +94,6 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
-        // ===============================
-        // UPDATE TRUCK WEIGHT
-        // ===============================
-        [HttpPut("truck-weight")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
-        public async Task<IActionResult> UpdateTruckWeight([FromBody] UpdateTruckWeightRequest request)
-        {
-            await _goodsReceiptService.UpdateTruckWeightAsync(request);
-
-            return Ok(new
-            {
-                Message = "Cập nhật trọng lượng xe thành công"
-            });
-        }
 
         // ===============================
         // QC INSPECTION

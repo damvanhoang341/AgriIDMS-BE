@@ -4,8 +4,6 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 {
     public class CreateGoodsReceiptRequest
     {
-        [Required(ErrorMessage = "SupplierId không được để trống")]
-        public int SupplierId { get; set; }
 
         [Required(ErrorMessage = "WarehouseId không được để trống")]
         public int WarehouseId { get; set; }
@@ -20,6 +18,11 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [MaxLength(100, ErrorMessage = "Tên công ty vận chuyển tối đa 100 ký tự")]
         public string? TransportCompany { get; set; }
+        [Range(0.01, double.MaxValue, ErrorMessage = "GrossWeight phải lớn hơn 0")]
+        public decimal GrossWeight { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "TareWeight phải lớn hơn 0")]
+        public decimal TareWeight { get; set; }
 
         [Required(ErrorMessage = "PurchaseOrderId không được để trống")]
         public int PurchaseOrderId { get; set; }
@@ -43,17 +46,6 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal ReceivedWeight { get; set; }
     }
 
-    public class UpdateTruckWeightRequest
-    {
-        [Required(ErrorMessage = "GoodsReceiptId không được để trống")]
-        public int GoodsReceiptId { get; set; }
-
-        [Range(0.01, double.MaxValue, ErrorMessage = "GrossWeight phải lớn hơn 0")]
-        public decimal GrossWeight { get; set; }
-
-        [Range(0.01, double.MaxValue, ErrorMessage = "TareWeight phải lớn hơn 0")]
-        public decimal TareWeight { get; set; }
-    }
 
     public class QCInspectionRequest
     {
