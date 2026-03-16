@@ -35,6 +35,30 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public int AvailableBoxCount { get; set; }
     }
 
+    public class ProductVariantResponseCustomerDto
+    {
+        public int Id { get; set; }
+
+        public int ProductId { get; set; }
+
+        public string ProductName { get; set; } = null!;
+
+        public ProductGrade Grade { get; set; }
+
+        public decimal Price { get; set; }
+
+        public bool IsActive { get; set; }
+
+        /// <summary>Số ngày bảo quản (shelf life) kể từ ngày thu hoạch.</summary>
+        public int ShelfLifeDays { get; set; }
+
+        /// <summary>Đường dẫn ảnh của biến thể.</summary>
+        public string? ImageUrl { get; set; }
+
+        /// <summary>Số box khả dụng trong kho.</summary>
+        public int AvailableBoxCount { get; set; }
+    }
+
     public class CreateProductVariantDto
     {
         [Required(ErrorMessage = "ProductId không được để trống")]

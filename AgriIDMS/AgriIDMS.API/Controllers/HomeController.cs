@@ -1,3 +1,4 @@
+using AgriIDMS.Application.DTOs.ProductVariant;
 using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,13 @@ namespace AgriIDMS.API.Controllers
         {
             var result = await _homePageService.GetCatalogForHomePageAsync();
             return Ok(result);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAllAsync()
+        {
+            var data= await _homePageService.GetAllAsync();
+            return Ok(data);
         }
     }
 }
