@@ -65,12 +65,6 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Đơn mua không tồn tại");
             if (po.Status != PurchaseOrderStatus.Approved)
                 throw new InvalidBusinessRuleException("Chỉ được tạo phiếu nhập theo đơn mua đã duyệt");
-            if (request.SupplierId != po.SupplierId)
-                throw new InvalidBusinessRuleException("Nhà cung cấp của phiếu nhập phải trùng với đơn mua");
-
-            var supplier = await _supplierRepo.GetByIdAsync(request.SupplierId);
-            if (supplier == null)
-                throw new NotFoundException("Nhà cung cấp không tồn tại");
 
             var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
             if (warehouse == null)
@@ -80,11 +74,13 @@ namespace AgriIDMS.Application.Services
             {
                 ReceiptCode = await _receiptRepo.GenerateReceiptCodeAsync(),
                 PurchaseOrderId = request.PurchaseOrderId,
-                SupplierId = request.SupplierId,
+                SupplierId = po.SupplierId,
                 WarehouseId = request.WarehouseId,
                 VehicleNumber = request.VehicleNumber,
                 DriverName = request.DriverName,
                 TransportCompany = request.TransportCompany,
+                GrossWeight = request.GrossWeight,
+                TareWeight = request.TareWeight,
                 CreatedBy = userId,
                 ReceivedBy = userId,
                 ReceivedDate = DateTime.UtcNow,
@@ -148,21 +144,6 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        // ===============================
-        // UPDATE TRUCK WEIGHT (GrossWeight > TareWeight)
-        // ===============================
-        public async Task UpdateTruckWeightAsync(UpdateTruckWeightRequest request)
-        {
-            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(request.GoodsReceiptId);
-            if (receipt == null)
-                throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (request.GrossWeight <= request.TareWeight)
-                throw new InvalidBusinessRuleException("Cân xe đầy (GrossWeight) phải lớn hơn cân xe rỗng (TareWeight)");
-
-            receipt.GrossWeight = request.GrossWeight;
-            receipt.TareWeight = request.TareWeight;
-            await _unitOfWork.SaveChangesAsync();
-        }
 
         // ===============================
         // QC INSPECTION (3.6: Failed => UsableWeight = 0; 3.4: chuyển QCCompleted khi tất cả dòng đã QC)
@@ -448,7 +429,8 @@ namespace AgriIDMS.Application.Services
                     LotId = lot.Id,
                     Weight = boxSize,
                     Status = BoxStatus.Stored,
-                    BoxCode = $"{baseCode}-{i + 1}"
+                    BoxCode = $"{baseCode}-{i + 1}",
+                    IsPartial = false
                 });
             }
             if (remainder > 0)
@@ -458,7 +440,8 @@ namespace AgriIDMS.Application.Services
                     LotId = lot.Id,
                     Weight = remainder,
                     Status = BoxStatus.Stored,
-                    BoxCode = $"{baseCode}-{fullCount + 1}"
+                    BoxCode = $"{baseCode}-{fullCount + 1}",
+                    IsPartial = true
                 });
             }
 

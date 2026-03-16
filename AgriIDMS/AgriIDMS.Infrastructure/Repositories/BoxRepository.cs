@@ -90,5 +90,25 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Lot.ExpiryDate > DateTime.UtcNow)
                 .CountAsync();
         }
+
+        public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Status == BoxStatus.Stored &&
+                    b.Lot.Status == LotStatus.Active &&
+                    b.Lot.ExpiryDate > DateTime.UtcNow)
+                .GroupBy(b => new { b.IsPartial, b.Weight })
+                .Select(g => new BoxTypeSummary
+                {
+                    IsPartial = g.Key.IsPartial,
+                    Weight = g.Key.Weight,
+                    AvailableCount = g.Count()
+                })
+                .ToListAsync();
+        }
     }
 }

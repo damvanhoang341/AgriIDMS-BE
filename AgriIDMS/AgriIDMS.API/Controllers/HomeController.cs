@@ -19,13 +19,6 @@ namespace AgriIDMS.API.Controllers
             _homePageService = homePageService;
         }
 
-        /// <summary>Lấy catalog hiển thị trang chủ: danh mục → sản phẩm → biến thể (chỉ Active, có số lượng tồn).</summary>
-        [HttpGet("catalog")]
-        public async Task<IActionResult> GetCatalog()
-        {
-            var result = await _homePageService.GetCatalogForHomePageAsync();
-            return Ok(result);
-        }
 
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
