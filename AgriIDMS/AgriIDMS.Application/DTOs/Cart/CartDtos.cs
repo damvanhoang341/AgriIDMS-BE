@@ -10,6 +10,15 @@ namespace AgriIDMS.Application.DTOs.Cart
         [Range(1, int.MaxValue, ErrorMessage = "ProductVariantId không hợp lệ")]
         public int ProductVariantId { get; set; }
 
+        /// <summary>Trọng lượng mỗi box (kg) mà customer chọn.</summary>
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "BoxWeight phải > 0")]
+        public decimal BoxWeight { get; set; }
+
+        /// <summary>Box lẻ (partial) hay box đầy.</summary>
+        [Required]
+        public bool IsPartial { get; set; }
+
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "Số lượng box phải >= 1")]
         public int Quantity { get; set; }
@@ -17,6 +26,15 @@ namespace AgriIDMS.Application.DTOs.Cart
 
     public class UpdateCartItemRequest
     {
+        /// <summary>Trọng lượng mỗi box (kg) mà customer chọn.</summary>
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "BoxWeight phải > 0")]
+        public decimal BoxWeight { get; set; }
+
+        /// <summary>Box lẻ (partial) hay box đầy.</summary>
+        [Required]
+        public bool IsPartial { get; set; }
+
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "Số lượng box phải >= 1")]
         public int Quantity { get; set; }

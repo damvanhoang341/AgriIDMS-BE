@@ -68,8 +68,15 @@ namespace AgriIDMS.Application.Services
             {
                 var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
 
-                var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(request.ProductVariantId);
-                var alreadyInCart = cart?.Items?.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
+                var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantAndTypeAsync(
+                    request.ProductVariantId,
+                    request.IsPartial,
+                    request.BoxWeight);
+
+                var alreadyInCart = cart?.Items?.FirstOrDefault(i =>
+                    i.ProductVariantId == request.ProductVariantId &&
+                    i.IsPartial == request.IsPartial &&
+                    i.BoxWeight == request.BoxWeight);
                 var requestedTotal = request.Quantity + (int)(alreadyInCart?.Quantity ?? 0);
 
                 if (requestedTotal > availableBoxes)
@@ -88,13 +95,18 @@ namespace AgriIDMS.Application.Services
                     await _uow.SaveChangesAsync();
                 }
 
-                var existingItem = cart.Items.FirstOrDefault(i => i.ProductVariantId == request.ProductVariantId);
+                var existingItem = cart.Items.FirstOrDefault(i =>
+                    i.ProductVariantId == request.ProductVariantId &&
+                    i.IsPartial == request.IsPartial &&
+                    i.BoxWeight == request.BoxWeight);
                 if (existingItem == null)
                 {
                     cart.Items.Add(new CartItem
                     {
                         ProductVariantId = request.ProductVariantId,
                         Quantity = request.Quantity,
+                        BoxWeight = request.BoxWeight,
+                        IsPartial = request.IsPartial,
                         UnitPrice = variant.Price
                     });
                 }
@@ -123,10 +135,16 @@ namespace AgriIDMS.Application.Services
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId)
                 ?? throw new NotFoundException("Giỏ hàng trống");
 
-            var item = cart.Items.FirstOrDefault(i => i.ProductVariantId == productVariantId)
+            var item = cart.Items.FirstOrDefault(i =>
+                    i.ProductVariantId == productVariantId &&
+                    i.IsPartial == request.IsPartial &&
+                    i.BoxWeight == request.BoxWeight)
                 ?? throw new NotFoundException("Sản phẩm không có trong giỏ hàng");
 
-            var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantIdAsync(productVariantId);
+            var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantAndTypeAsync(
+                productVariantId,
+                request.IsPartial,
+                request.BoxWeight);
             if (request.Quantity > availableBoxes)
                 throw new InvalidBusinessRuleException(
                     $"Số lượng box yêu cầu ({request.Quantity}) vượt số box khả dụng ({availableBoxes}).");

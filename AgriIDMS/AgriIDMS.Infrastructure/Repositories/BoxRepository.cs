@@ -91,6 +91,21 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .CountAsync();
         }
 
+        public async Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Status == BoxStatus.Stored &&
+                    b.Lot.Status == LotStatus.Active &&
+                    b.Lot.ExpiryDate > DateTime.UtcNow &&
+                    b.IsPartial == isPartial &&
+                    b.Weight == weight)
+                .CountAsync();
+        }
+
         public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)
         {
             return await _context.Boxes
