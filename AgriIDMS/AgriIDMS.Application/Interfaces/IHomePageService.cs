@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.Home;
+using AgriIDMS.Application.DTOs.ProductVariant;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Interfaces
@@ -7,5 +8,6 @@ namespace AgriIDMS.Application.Interfaces
     public interface IHomePageService
     {
         Task<HomePageCatalogResponse> GetCatalogForHomePageAsync();
+        Task<IEnumerable<ProductVariantResponseCustomerDto>> GetAllAsync();
     }
 }
