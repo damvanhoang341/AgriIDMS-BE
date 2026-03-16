@@ -162,12 +162,15 @@ namespace AgriIDMS.Application.Services
                 userId, productVariantId, request.Quantity);
         }
 
-        public async Task RemoveItemAsync(int productVariantId, string userId)
+        public async Task RemoveItemAsync(int productVariantId, decimal boxWeight, bool isPartial, string userId)
         {
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId)
                 ?? throw new NotFoundException("Giỏ hàng trống");
 
-            var item = cart.Items.FirstOrDefault(i => i.ProductVariantId == productVariantId)
+            var item = cart.Items.FirstOrDefault(i =>
+                    i.ProductVariantId == productVariantId &&
+                    i.IsPartial == isPartial &&
+                    i.BoxWeight == boxWeight)
                 ?? throw new NotFoundException("Sản phẩm không có trong giỏ hàng");
 
             _cartRepo.RemoveItem(item);

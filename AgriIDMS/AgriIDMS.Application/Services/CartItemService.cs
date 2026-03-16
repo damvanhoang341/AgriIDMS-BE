@@ -22,6 +22,8 @@ namespace AgriIDMS.Application.Services
                 Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
                 ImageUrl = i.ProductVariant?.ImageUrl,
                 Quantity = (int)i.Quantity,
+                BoxWeight = i.BoxWeight,
+                IsPartial = i.IsPartial,
                 UnitPrice = i.UnitPrice
             }).ToList();
         }

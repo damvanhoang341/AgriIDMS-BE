@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.Cart;
+using AgriIDMS.Application.DTOs.Cart;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Interfaces
@@ -11,7 +11,7 @@ namespace AgriIDMS.Application.Interfaces
 
         Task UpdateItemQuantityAsync(int productVariantId, UpdateCartItemRequest request, string userId);
 
-        Task RemoveItemAsync(int productVariantId, string userId);
+        Task RemoveItemAsync(int productVariantId, decimal boxWeight, bool isPartial, string userId);
 
         Task ClearCartAsync(string userId);
     }
