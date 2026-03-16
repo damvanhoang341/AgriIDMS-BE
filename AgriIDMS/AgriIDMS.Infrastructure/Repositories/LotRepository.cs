@@ -35,5 +35,13 @@ namespace AgriIDMS.Infrastructure.Repositories
                     .ThenInclude(d => d!.GoodsReceipt)
                 .FirstOrDefaultAsync(l => l.Id == id);
         }
+
+        public async Task<List<Lot>> GetByGoodsReceiptIdAsync(int goodsReceiptId)
+        {
+            return await _context.Lots
+                .Where(l => l.GoodsReceiptDetail.GoodsReceiptId == goodsReceiptId)
+                .ToListAsync();
+        }
+
     }
 }

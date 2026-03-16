@@ -12,5 +12,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task AddRangeAsync(IEnumerable<Lot> lots);
         Task<Lot?> GetByIdAsync(int id);
         Task<Lot?> GetByIdWithDetailAndReceiptAsync(int id);
+        Task<List<Lot>> GetByGoodsReceiptIdAsync(int goodsReceiptId);
     }
 }
