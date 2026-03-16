@@ -7,6 +7,7 @@ namespace AgriIDMS.Application.Interfaces
     /// <summary>Service dữ liệu trang chủ: hiển thị sản phẩm theo luồng Category → Product → ProductVariant.</summary>
     public interface IHomePageService
     {
-        Task<IEnumerable<ProductVariantResponseCustomerDto>> GetAllAsync();
+        Task<ProductVariantResponseCustomerDto> GetDetailAsync(int idProductVariant);
+        Task<IEnumerable<ProductVariantResponseCustomerHomeDto>> GetAllProductVariantAsync();
     }
 }

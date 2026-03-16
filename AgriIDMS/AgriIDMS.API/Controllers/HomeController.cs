@@ -21,9 +21,16 @@ namespace AgriIDMS.API.Controllers
 
 
         [HttpGet]
-        public async Task<IActionResult> GetAllAsync()
+        public async Task<IActionResult> GetDetailAsync(int id)
         {
-            var data= await _homePageService.GetAllAsync();
+            var data= await _homePageService.GetDetailAsync(id);
+            return Ok(data);
+        }
+
+        [HttpGet("product-variants")]
+        public async Task<IActionResult> GetAllProductVariantAsync()
+        {
+            var data = await _homePageService.GetAllProductVariantAsync();
             return Ok(data);
         }
     }
