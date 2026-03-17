@@ -101,6 +101,14 @@ namespace AgriIDMS.Application.Services
             var detail = await _detailRepo.GetByIdAsync(request.DetailId);
             if (detail == null)
                 throw new NotFoundException("Chi tiết phiếu nhập không tồn tại");
+
+            // Không cho QC khi phiếu đang chờ Manager duyệt (PendingManagerApproval)
+            var parentReceipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
+            if (parentReceipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (parentReceipt.Status == GoodsReceiptStatus.PendingManagerApproval)
+                throw new InvalidBusinessRuleException("Phiếu nhập đang chờ Manager duyệt, không được QC. Vui lòng đợi Manager xử lý.");
+
             if (request.UsableWeight > detail.ReceivedWeight)
                 throw new InvalidBusinessRuleException("Khối lượng sử dụng được (UsableWeight) không được vượt quá khối lượng thực nhận (ReceivedWeight)");
 
