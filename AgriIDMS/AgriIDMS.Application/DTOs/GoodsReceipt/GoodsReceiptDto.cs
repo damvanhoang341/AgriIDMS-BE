@@ -83,16 +83,6 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Range(0, double.MaxValue, ErrorMessage = "UsableWeight phải lớn hơn hoặc bằng 0 (bằng 0 khi QC không đạt)")]
         public decimal UsableWeight { get; set; }
-
-        /// <summary>Khối lượng loại bỏ sau QC (optional). Nếu truyền lên sẽ được validate = ReceivedWeight - UsableWeight.</summary>
-        [Range(0, double.MaxValue, ErrorMessage = "RejectWeight phải >= 0")]
-        public decimal? RejectWeight { get; set; }
-
-        [Required(ErrorMessage = "QCResult không được để trống")]
-        public string QCResult { get; set; } = null!;
-
-        [MaxLength(500, ErrorMessage = "QCNote tối đa 500 ký tự")]
-        public string? QCNote { get; set; }
     }
 
     public class CreateLotRequest

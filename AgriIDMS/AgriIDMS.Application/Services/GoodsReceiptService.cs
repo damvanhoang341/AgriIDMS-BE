@@ -113,7 +113,7 @@ namespace AgriIDMS.Application.Services
 
 
         // ===============================
-        // QC INSPECTION (3.6: Failed => UsableWeight = 0; sau QC check dung sai + định mức, set QCCompleted hoặc PendingManagerApproval)
+        // QC INSPECTION (tự tính RejectWeight, QCResult theo dung sai từng dòng; sau QC check dung sai tổng + định mức kho)
         // ===============================
         public async Task QCInspectionAsync(QCInspectionRequest request, string userId)
         {
@@ -132,21 +132,23 @@ namespace AgriIDMS.Application.Services
             if (request.UsableWeight > detail.ReceivedWeight)
                 throw new InvalidBusinessRuleException("Khối lượng sử dụng được (UsableWeight) không được vượt quá khối lượng thực nhận (ReceivedWeight)");
 
-            // Nếu client truyền RejectWeight thì validate = ReceivedWeight - UsableWeight (không âm)
+            // Tự tính RejectWeight = ReceivedWeight - UsableWeight (không âm)
             var expectedReject = Math.Max(0, detail.ReceivedWeight - request.UsableWeight);
             if (request.RejectWeight.HasValue && request.RejectWeight.Value != expectedReject)
                 throw new InvalidBusinessRuleException($"Khối lượng loại bỏ (RejectWeight) phải bằng ReceivedWeight - UsableWeight = {expectedReject:N2} kg.");
 
-            var qcResult = Enum.TryParse<QCResult>(request.QCResult, out var result) ? result
-                : throw new InvalidBusinessRuleException("QCResult không hợp lệ");
+            // Tự tính QCResult theo dung sai từng dòng PO
+            var poDetail = detail.PurchaseOrderDetail ?? await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId)
+                ?? throw new NotFoundException("Chi tiết đơn mua không tồn tại");
 
-            // 3.6: Khi QC không đạt (Failed), UsableWeight phải bằng 0
-            if (qcResult == QCResult.Failed && request.UsableWeight != 0)
-                throw new InvalidBusinessRuleException("Khi QC không đạt (Failed), khối lượng sử dụng được (UsableWeight) phải bằng 0");
+            decimal allowedLoss = poDetail.OrderedWeight * poDetail.TolerancePercent / 100m;
+            var qcResult = expectedReject > allowedLoss ? QCResult.Failed : QCResult.Passed;
 
             detail.UsableWeight = request.UsableWeight;
             detail.QCResult = qcResult;
-            detail.QCNote = request.QCNote;
+
+            // Ghi QCNote tự động theo khối lượng reject
+            detail.QCNote = $"Reject {expectedReject:N2} kg (Received {detail.ReceivedWeight:N2} - Usable {request.UsableWeight:N2}).";
             detail.InspectedBy = userId;
             detail.InspectedAt = DateTime.UtcNow;
 
