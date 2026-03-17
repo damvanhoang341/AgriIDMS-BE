@@ -8,7 +8,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;

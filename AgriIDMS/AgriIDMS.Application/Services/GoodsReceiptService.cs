@@ -17,6 +17,7 @@ namespace AgriIDMS.Application.Services
     {
         private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly IGoodsReceiptDetailRepository _detailRepo;
+        private readonly IGoodsReceiptDetailService _detailService;
         private readonly ILotRepository _lotRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISupplierRepository _supplierRepo;
@@ -30,6 +31,7 @@ namespace AgriIDMS.Application.Services
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
             IGoodsReceiptDetailRepository detailRepo,
+            IGoodsReceiptDetailService detailService,
             ILotRepository lotRepo,
             IUnitOfWork unitOfWork,
             ISupplierRepository supplierRepository,
@@ -42,6 +44,7 @@ namespace AgriIDMS.Application.Services
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
+            _detailService = detailService;
             _lotRepo = lotRepo;
             _unitOfWork = unitOfWork;
             _supplierRepo = supplierRepository;
@@ -87,6 +90,24 @@ namespace AgriIDMS.Application.Services
 
             await _receiptRepo.AddGoodsReceiptAsync(receipt);
             await _unitOfWork.SaveChangesAsync();
+
+            // Nếu request có kèm danh sách chi tiết thì thêm luôn các dòng detail vào phiếu vừa tạo
+            if (request.Details != null && request.Details.Count > 0)
+            {
+                foreach (var line in request.Details)
+                {
+                    var addDetailRequest = new AddGoodsReceiptDetailRequest
+                    {
+                        GoodsReceiptId = receipt.Id,
+                        PurchaseOrderDetailId = line.PurchaseOrderDetailId,
+                        ProductVariantId = line.ProductVariantId,
+                        ReceivedWeight = line.ReceivedWeight
+                    };
+
+                    await _detailService.AddGoodsReceiptDetailAsync(addDetailRequest);
+                }
+            }
+
             return receipt.Id;
         }
 

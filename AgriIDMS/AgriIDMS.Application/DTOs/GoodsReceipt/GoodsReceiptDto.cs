@@ -26,6 +26,22 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Required(ErrorMessage = "PurchaseOrderId không được để trống")]
         public int PurchaseOrderId { get; set; }
+
+        /// <summary>Các dòng chi tiết nhập theo PO ngay khi tạo phiếu (tùy chọn). Nếu truyền lên sẽ được validate giống AddGoodsReceiptDetail.</summary>
+        public List<CreateGoodsReceiptDetailLineRequest> Details { get; set; } = new();
+    }
+
+    /// <summary>Dòng chi tiết đi kèm khi tạo phiếu nhập.</summary>
+    public class CreateGoodsReceiptDetailLineRequest
+    {
+        [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
+        public int PurchaseOrderDetailId { get; set; }
+
+        [Required(ErrorMessage = "ProductVariantId không được để trống")]
+        public int ProductVariantId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
+        public decimal ReceivedWeight { get; set; }
     }
 
     /// <summary>

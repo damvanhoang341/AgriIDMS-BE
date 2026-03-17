@@ -7,7 +7,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/racks/{rackId:int}/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class SlotsController : ControllerBase
     {
         private readonly ISlotService _slotService;
@@ -25,7 +25,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Create([FromRoute] int rackId, [FromBody] CreateSlotRequest request)
         {
             var id = await _slotService.CreateAsync(rackId, request);
@@ -42,7 +42,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Update([FromRoute] int rackId, [FromRoute] int id, [FromBody] CreateSlotRequest request)
         {
             await _slotService.UpdateAsync(id, request);
@@ -50,7 +50,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin,Manager")]
+        //[Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Delete([FromRoute] int rackId, [FromRoute] int id)
         {
             await _slotService.DeleteAsync(id);
