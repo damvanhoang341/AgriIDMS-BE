@@ -134,8 +134,7 @@ namespace AgriIDMS.Application.Services
 
             // Tự tính RejectWeight = ReceivedWeight - UsableWeight (không âm)
             var expectedReject = Math.Max(0, detail.ReceivedWeight - request.UsableWeight);
-            if (request.RejectWeight.HasValue && request.RejectWeight.Value != expectedReject)
-                throw new InvalidBusinessRuleException($"Khối lượng loại bỏ (RejectWeight) phải bằng ReceivedWeight - UsableWeight = {expectedReject:N2} kg.");
+            
 
             // Tự tính QCResult theo dung sai từng dòng PO
             var poDetail = detail.PurchaseOrderDetail ?? await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId)
@@ -329,10 +328,11 @@ namespace AgriIDMS.Application.Services
                     };
                     await _lotRepo.AddRangeAsync(new List<Lot> { lot });
 
-                    if (poDetail.ReceivedWeight + detail.UsableWeight > poDetail.OrderedWeight)
+                    // Đối chiếu khối lượng PO theo khối lượng thực nhận (ReceivedWeight), không phải khối lượng sau QC
+                    if (poDetail.ReceivedWeight + detail.ReceivedWeight > poDetail.OrderedWeight)
                         throw new InvalidBusinessRuleException(
-                            $"Dòng đơn mua Id={poDetail.Id}: tổng đã nhận ({poDetail.ReceivedWeight} + {detail.UsableWeight}) vượt quá khối lượng đặt ({poDetail.OrderedWeight}).");
-                    poDetail.ReceivedWeight += detail.UsableWeight;
+                            $"Dòng đơn mua Id={poDetail.Id}: tổng đã nhận ({poDetail.ReceivedWeight} + {detail.ReceivedWeight}) vượt quá khối lượng đặt ({poDetail.OrderedWeight}).");
+                    poDetail.ReceivedWeight += detail.ReceivedWeight;
                 }
             }
 
