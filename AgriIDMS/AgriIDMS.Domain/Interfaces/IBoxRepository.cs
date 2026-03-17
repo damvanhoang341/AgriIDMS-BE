@@ -12,6 +12,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task<Box?> GetByIdAsync(int id);
         Task<Box?> GetByIdWithLotAndReceiptAsync(int id);
         Task<Dictionary<int, Box>> GetByIdsAsync(IEnumerable<int> ids);
+        /// <summary>Lấy nhiều box kèm Lot, GoodsReceiptDetail, GoodsReceipt, Slot (dùng cho batch assign).</summary>
+        Task<List<Box>> GetByIdsWithLotAndReceiptAsync(IEnumerable<int> ids);
         Task CreateAsync(Box box);
         Task UpdateAsync(Box box);
         Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId);

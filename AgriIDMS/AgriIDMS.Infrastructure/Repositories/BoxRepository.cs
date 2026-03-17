@@ -45,6 +45,19 @@ namespace AgriIDMS.Infrastructure.Repositories
             return boxes.ToDictionary(b => b.Id);
         }
 
+        public async Task<List<Box>> GetByIdsWithLotAndReceiptAsync(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0) return new List<Box>();
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.GoodsReceipt)
+                .Include(b => b.Slot)
+                .Where(b => idList.Contains(b.Id))
+                .ToListAsync();
+        }
+
         public Task UpdateAsync(Box box)
         {
             _context.Boxes.Update(box);

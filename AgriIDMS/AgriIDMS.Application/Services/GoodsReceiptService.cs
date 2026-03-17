@@ -467,7 +467,17 @@ namespace AgriIDMS.Application.Services
             {
                 await _boxRepo.CreateAsync(box);
             }
-            await _unitOfWork.SaveChangesAsync();
+            //await _unitOfWork.SaveChangesAsync();
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.InnerException?.Message);
+                throw;
+            }
+
 
             foreach (var box in boxesToCreate)
             {

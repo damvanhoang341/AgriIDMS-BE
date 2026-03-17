@@ -1,12 +1,14 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using AgriIDMS.Application.Interfaces;
-using QRCoder;
 
 namespace AgriIDMS.Infrastructure.Services
 {
-    /// <summary>Triển khai IQrCodeGenerator bằng thư viện QRCoder. Thuộc Infrastructure vì phụ thuộc thư viện ngoài.</summary>
+    /// <summary>
+    /// Triển khai IQrCodeGenerator.
+    /// Hiện tại để tránh lỗi tràn cột QRCode trong DB (nvarchar(300)), ta lưu payload text (BoxCode) làm nội dung QR,
+    /// còn việc render ảnh QR sẽ do client hoặc endpoint riêng xử lý khi cần.
+    /// </summary>
     public class QrCodeGenerator : IQrCodeGenerator
     {
         public Task<string> GenerateAsync(string content)
@@ -14,13 +16,9 @@ namespace AgriIDMS.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(content))
                 throw new ArgumentException("Nội dung QR không được để trống", nameof(content));
 
-            using var qrGenerator = new QRCodeGenerator();
-            using var qrData = qrGenerator.CreateQrCode(content, QRCodeGenerator.ECCLevel.Q);
-            using var qrCode = new PngByteQRCode(qrData);
-            // Trả về Base64 của ảnh PNG để FE hiển thị bằng data URL
-            byte[] pngBytes = qrCode.GetGraphic(20);
-            string base64 = Convert.ToBase64String(pngBytes);
-            return Task.FromResult(base64);
+            // Lưu thẳng nội dung payload (ví dụ BoxCode) vào cột QRCode.
+            // Độ dài ngắn (< 300) nên không bị SqlException truncation.
+            return Task.FromResult(content);
         }
     }
 }
