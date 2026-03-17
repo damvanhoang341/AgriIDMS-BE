@@ -75,7 +75,14 @@ public class PurchaseOrderService : IPurchaseOrderService
 
                 if (item.HarvestDate == default)
                     throw new InvalidBusinessRuleException("HarvestDate phải được cung cấp cho từng dòng đơn mua");
-
+                if (item.HarvestDate > DateTime.UtcNow)
+                    throw new InvalidBusinessRuleException("Ngày thu hoạch không được ở tương lai");
+                if (item.HarvestDate < DateTime.UtcNow.AddDays(-7))
+                {
+                    throw new InvalidBusinessRuleException(
+                        $"Sản phẩm chỉ cho phép thu hoạch trong 7 ngày gần đây"
+                    );
+                }
                 order.Details.Add(new PurchaseOrderDetail
                 {
                     ProductVariantId = item.ProductVariantId,
