@@ -595,7 +595,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
               .HasForeignKey(x => x.ReferenceRequestId)
               .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne<ExportReceipt>()
+                  .WithMany()
+                  .HasForeignKey(x => x.ExportReceiptId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(x => x.BoxId);
+            entity.HasIndex(x => x.ExportReceiptId);
             entity.HasIndex(x => x.TransactionType);
             entity.HasIndex(x => x.CreatedAt);
             entity.HasIndex(x => new { x.ReferenceType, x.ReferenceRequestId });
@@ -893,8 +899,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
 
-            // 1 sản phẩm chỉ xuất hiện 1 lần trong 1 cart
-            entity.HasIndex(x => new { x.CartId, x.ProductVariantId })
+            // Một cart có thể có nhiều dòng cùng ProductVariantId nếu khác loại box (BoxWeight / IsPartial)
+            entity.HasIndex(x => new { x.CartId, x.ProductVariantId, x.BoxWeight, x.IsPartial })
                   .IsUnique();
 
             entity.HasOne(x => x.Cart)
