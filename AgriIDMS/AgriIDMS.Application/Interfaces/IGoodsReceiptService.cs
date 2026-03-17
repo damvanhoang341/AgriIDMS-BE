@@ -6,9 +6,6 @@ namespace AgriIDMS.Application.Interfaces
     public interface IGoodsReceiptService
     {
         Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string userId);
-        Task AddGoodsReceiptDetailAsync(AddGoodsReceiptDetailRequest request);
-        Task UpdateGoodsReceiptDetailAsync(UpdateGoodsReceiptDetailRequest request);
-        Task DeleteGoodsReceiptDetailAsync(int detailId);
         Task QCInspectionAsync(QCInspectionRequest request, string userId);
         Task GenerateBoxesAsync(CreateBoxesRequest request, string userId);
         Task ApproveGoodsReceiptAsync(int receiptId, string userId);

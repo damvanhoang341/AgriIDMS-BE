@@ -80,52 +80,6 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // ADD RECEIPT DETAIL
-        // ===============================
-        [HttpPost("detail")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
-        public async Task<IActionResult> AddDetail([FromBody] AddGoodsReceiptDetailRequest request)
-        {
-            await _goodsReceiptService.AddGoodsReceiptDetailAsync(request);
-
-            return Ok(new
-            {
-                Message = "Thêm chi tiết phiếu nhập thành công"
-            });
-        }
-
-        // ===============================
-        // UPDATE RECEIPT DETAIL
-        // ===============================
-        [HttpPut("detail")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
-        public async Task<IActionResult> UpdateDetail([FromBody] UpdateGoodsReceiptDetailRequest request)
-        {
-            await _goodsReceiptService.UpdateGoodsReceiptDetailAsync(request);
-
-            return Ok(new
-            {
-                Message = "Cập nhật chi tiết phiếu nhập thành công"
-            });
-        }
-
-        // ===============================
-        // DELETE RECEIPT DETAIL
-        // ===============================
-        [HttpDelete("detail/{detailId:int:min(1)}")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
-        public async Task<IActionResult> DeleteDetail(int detailId)
-        {
-            await _goodsReceiptService.DeleteGoodsReceiptDetailAsync(detailId);
-
-            return Ok(new
-            {
-                Message = "Xóa chi tiết phiếu nhập thành công"
-            });
-        }
-
-
-        // ===============================
         // QC INSPECTION
         // ===============================
         [HttpPost("qc")]
