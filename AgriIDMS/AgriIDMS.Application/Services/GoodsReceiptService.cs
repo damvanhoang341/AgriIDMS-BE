@@ -229,6 +229,26 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
+        // MANAGER ALLOW QC (khi status = PendingManagerApproval do cảnh báo; cho phép quay lại flow QC/Approve)
+        // ===============================
+        public async Task ManagerAllowQcAsync(int receiptId, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
+                throw new InvalidBusinessRuleException("Chỉ xử lý phiếu đang chờ duyệt (PendingManagerApproval)");
+
+            // Nếu còn dòng QCResult = Pending → đưa về Received để QC tiếp; nếu không còn dòng Pending → đưa về QCCompleted.
+            bool hasPendingQc = receipt.Details.Any(d => d.QCResult == QCResult.Pending);
+            receipt.Status = hasPendingQc ? GoodsReceiptStatus.Received : GoodsReceiptStatus.QCCompleted;
+            receipt.PendingReason = null;
+
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Receipt {ReceiptId} được Manager cho phép tiếp tục flow QC/Approve bởi {UserId}", receiptId, userId);
+        }
+
+        // ===============================
         // MANAGER REJECT (when status = PendingManagerApproval)
         // ===============================
         public async Task ManagerRejectReceiptAsync(int receiptId, string userId)

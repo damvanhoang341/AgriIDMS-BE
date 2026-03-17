@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using AgriIDMS.Application.DTOs.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
     /// Logout -> revoke refresh token (cần Bearer token)
     /// </summary>
     [HttpPost]
-    [Authorize]
+    //[Authorize]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -77,7 +77,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged out." });
     }
 
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
     [HttpPost("admin/create-employee")]
     //[HttpPost]
     public async Task<IActionResult> CreateEmployee([FromBody] RegisterEmployeeDto request)
@@ -129,7 +129,7 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Đổi mật khẩu khi đã đăng nhập
     /// </summary>
-    [Authorize]
+    //[Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
         [FromBody] ChangePasswordRequest request)

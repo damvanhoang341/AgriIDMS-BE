@@ -7,7 +7,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/zones/{zoneId:int}/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class RacksController : ControllerBase
     {
         private readonly IRackService _rackService;
@@ -25,7 +25,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Create([FromRoute] int zoneId, [FromBody] CreateRackRequest request)
         {
             var id = await _rackService.CreateAsync(zoneId, request);
@@ -33,7 +33,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Update([FromRoute] int zoneId, [FromRoute] int id, [FromBody] CreateRackRequest request)
         {
             await _rackService.UpdateAsync(id, request);
@@ -41,7 +41,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin,Manager")]
+        //[Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Delete([FromRoute] int zoneId, [FromRoute] int id)
         {
             await _rackService.DeleteAsync(id);
