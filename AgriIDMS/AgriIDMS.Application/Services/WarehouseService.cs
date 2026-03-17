@@ -49,7 +49,7 @@ namespace AgriIDMS.Application.Services
 
             if (request.TitleWarehouse == TitleWarehouse.Cold)
             {
-                if (!request.MinColdStorageHours.HasValue || request.MinColdStorageHours <= 0)
+                if (!request.MinColdStorageHours.HasValue || request.MinColdStorageHours < 0)
                 {
                     throw new InvalidBusinessRuleException(
                         "Kho lạnh phải có thời gian bảo quản tối thiểu > 0"

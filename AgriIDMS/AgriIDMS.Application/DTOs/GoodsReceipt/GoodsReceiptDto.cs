@@ -46,6 +46,19 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal ReceivedWeight { get; set; }
     }
 
+    /// <summary>
+    /// Cập nhật lại khối lượng nhận của một dòng chi tiết phiếu nhập trước khi QC/Approve.
+    /// Không cho phép đổi PO line hoặc ProductVariant, chỉ sửa ReceivedWeight.
+    /// </summary>
+    public class UpdateGoodsReceiptDetailRequest
+    {
+        [Required(ErrorMessage = "DetailId không được để trống")]
+        public int DetailId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
+        public decimal ReceivedWeight { get; set; }
+    }
+
 
     public class QCInspectionRequest
     {

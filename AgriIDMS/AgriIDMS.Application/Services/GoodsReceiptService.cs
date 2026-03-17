@@ -144,6 +144,72 @@ namespace AgriIDMS.Application.Services
             }
         }
 
+        // ===============================
+        // UPDATE / DELETE DETAIL (chỉ khi phiếu còn Draft/Received, chưa QC)
+        // ===============================
+        public async Task UpdateGoodsReceiptDetailAsync(UpdateGoodsReceiptDetailRequest request)
+        {
+            var detail = await _detailRepo.GetByIdAsync(request.DetailId);
+            if (detail == null)
+                throw new NotFoundException("Chi tiết phiếu nhập không tồn tại");
+
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received)
+                throw new InvalidBusinessRuleException("Chỉ được sửa chi tiết khi phiếu nhập ở trạng thái Nháp (Draft) hoặc Đã nhập số liệu (Received)");
+
+            if (detail.QCResult != QCResult.Pending)
+                throw new InvalidBusinessRuleException("Chỉ được sửa chi tiết khi chưa QC (QCResult = Pending)");
+
+            var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
+            if (poDetail == null)
+                throw new NotFoundException("Chi tiết đơn mua không tồn tại");
+
+            // Reuse các rule chính: PO đã duyệt, NCC trùng, sản phẩm khớp
+            if (poDetail.PurchaseOrder.Status != PurchaseOrderStatus.Approved)
+                throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
+            if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
+                throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
+            if (detail.ProductVariantId != poDetail.ProductVariantId)
+                throw new InvalidBusinessRuleException("Sản phẩm trên chi tiết phiếu nhập không khớp với dòng đơn mua");
+
+            // Kiểm tra không vượt OrderedWeight:
+            // totalPending hiện tại bao gồm cả detail này → trừ ReceivedWeight cũ, cộng ReceivedWeight mới.
+            decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
+            decimal otherPending = totalPending - detail.ReceivedWeight;
+            if (poDetail.ReceivedWeight + otherPending + request.ReceivedWeight > poDetail.OrderedWeight)
+                throw new InvalidBusinessRuleException(
+                    $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ (không tính dòng này): {otherPending}, khối lượng mới: {request.ReceivedWeight}, đặt hàng: {poDetail.OrderedWeight}.");
+
+            detail.ReceivedWeight = request.ReceivedWeight;
+            // Trước khi QC, UsableWeight luôn = ReceivedWeight
+            detail.UsableWeight = request.ReceivedWeight;
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task DeleteGoodsReceiptDetailAsync(int detailId)
+        {
+            var detail = await _detailRepo.GetByIdAsync(detailId);
+            if (detail == null)
+                throw new NotFoundException("Chi tiết phiếu nhập không tồn tại");
+
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received)
+                throw new InvalidBusinessRuleException("Chỉ được xóa chi tiết khi phiếu nhập ở trạng thái Nháp (Draft) hoặc Đã nhập số liệu (Received)");
+
+            if (detail.QCResult != QCResult.Pending)
+                throw new InvalidBusinessRuleException("Chỉ được xóa chi tiết khi chưa QC (QCResult = Pending)");
+
+            _detailRepo.Remove(detail);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Nếu sau khi xóa hết chi tiết, có thể cân nhắc chuyển phiếu về Draft, nhưng hiện để nguyên để không ảnh hưởng flow.
+        }
+
 
         // ===============================
         // QC INSPECTION (3.6: Failed => UsableWeight = 0; 3.4: chuyển QCCompleted khi tất cả dòng đã QC)
