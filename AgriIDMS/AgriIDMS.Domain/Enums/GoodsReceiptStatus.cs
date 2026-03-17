@@ -13,6 +13,7 @@ namespace AgriIDMS.Domain.Enums
         Received = 1,           // Đã nhập số liệu (cân xe / chi tiết)
         QCCompleted = 2,       // Đã QC toàn bộ dòng
         Approved = 3,
+        PendingManagerApprovalQc = 7, // dưới định mức tối thiểu cần duyệt để vào qc
         Cancelled = 4,          // Hủy phiếu
         PendingManagerApproval = 5,  // Vượt dung sai, chờ Manager
         Rejected = 6,                 // Quản lý từ chối

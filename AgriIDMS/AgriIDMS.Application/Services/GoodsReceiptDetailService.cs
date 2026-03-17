@@ -57,15 +57,6 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ: {totalPending}, đặt hàng: {poDetail.OrderedWeight}.");
 
-            // Check MinReceiptWeight của ProductVariant cho từng dòng: không đạt thì KHÔNG cho tạo detail (không đẩy cho Manager duyệt)
-            var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
-            if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
-            {
-                var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
-                throw new InvalidBusinessRuleException(
-                    $"Dòng sản phẩm [{productName}] phải nhập tối thiểu {minReceiptWeight.Value:N2} kg. Đã nhập {request.ReceivedWeight:N2} kg.");
-            }
-
             var detail = new Domain.Entities.GoodsReceiptDetail
             {
                 GoodsReceiptId = request.GoodsReceiptId,
@@ -83,6 +74,27 @@ namespace AgriIDMS.Application.Services
             if (receipt.Status == GoodsReceiptStatus.Draft)
             {
                 receipt.Status = GoodsReceiptStatus.Received;
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            // Check MinReceiptWeight của ProductVariant cho từng dòng: nếu thấp hơn thì vẫn cho nhập,
+            // nhưng chuyển status của Receipt sang PendingManagerApproval để Manager xem xét trước khi tiếp tục QC.
+            var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
+            if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
+            {
+                receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
+                var warning = $"Dòng sản phẩm [{productName}] vừa nhập {request.ReceivedWeight:N2} kg nhỏ hơn định mức tối thiểu ({minReceiptWeight.Value:N2} kg). Cần Manager xem xét để tiếp tục QC.";
+
+                if (string.IsNullOrWhiteSpace(receipt.PendingReason))
+                {
+                    receipt.PendingReason = warning;
+                }
+                else
+                {
+                    receipt.PendingReason += " " + warning;
+                }
+
                 await _unitOfWork.SaveChangesAsync();
             }
         }
@@ -122,20 +134,32 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ (không tính dòng này): {otherPending}, khối lượng mới: {request.ReceivedWeight}, đặt hàng: {poDetail.OrderedWeight}.");
 
-            // Check MinReceiptWeight sau khi sửa: không đạt thì không cho sửa
-            var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
-            if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
-            {
-                var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
-                throw new InvalidBusinessRuleException(
-                    $"Dòng sản phẩm [{productName}] phải nhập tối thiểu {minReceiptWeight.Value:N2} kg. Đã nhập {request.ReceivedWeight:N2} kg.");
-            }
-
             detail.ReceivedWeight = request.ReceivedWeight;
             // Trước khi QC, UsableWeight luôn = ReceivedWeight
             detail.UsableWeight = request.ReceivedWeight;
 
             await _unitOfWork.SaveChangesAsync();
+
+            // Check MinReceiptWeight sau khi sửa: nếu thấp hơn thì cho cập nhật,
+            // nhưng chuyển Receipt sang PendingManagerApproval để Manager xem xét trước khi tiếp tục QC.
+            var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
+            if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
+            {
+                receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
+                var warning = $"Dòng sản phẩm [{productName}] sau khi sửa nhập {request.ReceivedWeight:N2} kg nhỏ hơn định mức tối thiểu ({minReceiptWeight.Value:N2} kg). Cần Manager xem xét để tiếp tục QC.";
+
+                if (string.IsNullOrWhiteSpace(receipt.PendingReason))
+                {
+                    receipt.PendingReason = warning;
+                }
+                else
+                {
+                    receipt.PendingReason += " " + warning;
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+            }
         }
 
         public async Task DeleteGoodsReceiptDetailAsync(int detailId)
