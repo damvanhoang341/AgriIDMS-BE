@@ -43,6 +43,15 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (request.Details == null || !request.Details.Any())
             throw new InvalidBusinessRuleException("Đơn hàng phải có ít nhất một sản phẩm");
 
+        // Không cho phép trùng ProductVariantId trong cùng một đơn mua
+        var duplicateVariantIds = request.Details
+            .GroupBy(d => d.ProductVariantId)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+        if (duplicateVariantIds.Any())
+            throw new InvalidBusinessRuleException("Không được tạo nhiều dòng cho cùng một sản phẩm (ProductVariant) trong một đơn mua");
+
         var supplier = await _supplierRepository.GetSupplierByIdAsync(request.SupplierId);
         if (supplier == null) throw new NotFoundException("Supplier không tồn tại");
 
@@ -198,6 +207,15 @@ public class PurchaseOrderService : IPurchaseOrderService
             {
                 if (!request.Details.Any())
                     throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết");
+
+                // Không cho phép trùng ProductVariantId trong cùng một đơn mua
+                var duplicateVariantIds = request.Details
+                    .GroupBy(d => d.ProductVariantId)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+                if (duplicateVariantIds.Any())
+                    throw new InvalidBusinessRuleException("Không được tạo nhiều dòng cho cùng một sản phẩm (ProductVariant) trong một đơn mua");
 
                 var variantIds = request.Details.Select(d => d.ProductVariantId).Distinct().ToList();
                 var variantsById = await _productVariantRepository.GetByIdsAsync(variantIds);

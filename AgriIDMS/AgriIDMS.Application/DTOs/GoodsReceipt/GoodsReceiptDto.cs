@@ -18,11 +18,6 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [MaxLength(100, ErrorMessage = "Tên công ty vận chuyển tối đa 100 ký tự")]
         public string? TransportCompany { get; set; }
-        [Range(0, double.MaxValue, ErrorMessage = "GrossWeight phải >= 0")]
-        public decimal GrossWeight { get; set; }
-
-        [Range(0, double.MaxValue, ErrorMessage = "TareWeight phải >= 0")]
-        public decimal TareWeight { get; set; }
 
         [Required(ErrorMessage = "PurchaseOrderId không được để trống")]
         public int PurchaseOrderId { get; set; }
