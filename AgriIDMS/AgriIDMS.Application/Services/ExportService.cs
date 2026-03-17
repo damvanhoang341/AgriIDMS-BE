@@ -19,6 +19,7 @@ namespace AgriIDMS.Application.Services
         private readonly IOrderRepository _orderRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
         private readonly IBoxRepository _boxRepo;
+        private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<ExportService> _logger;
         private readonly INotificationService _notificationService;
@@ -28,6 +29,7 @@ namespace AgriIDMS.Application.Services
             IOrderRepository orderRepo,
             IOrderAllocationRepository allocationRepo,
             IBoxRepository boxRepo,
+            IInventoryTransactionRepository inventoryTranRepo,
             IUnitOfWork uow,
             ILogger<ExportService> logger,
             INotificationService notificationService)
@@ -36,6 +38,7 @@ namespace AgriIDMS.Application.Services
             _orderRepo = orderRepo;
             _allocationRepo = allocationRepo;
             _boxRepo = boxRepo;
+            _inventoryTranRepo = inventoryTranRepo;
             _uow = uow;
             _logger = logger;
             _notificationService = notificationService;
@@ -149,22 +152,42 @@ namespace AgriIDMS.Application.Services
             await _uow.BeginTransactionAsync();
             try
             {
+                var exportTransactions = new List<InventoryTransaction>();
+
                 foreach (var detail in receipt.Details)
                 {
                     if (detail.Box == null) continue;
 
-                    var slot = detail.Box.Slot;
+                    var box = detail.Box;
+                    var fromSlotId = box.SlotId;
+
+                    var slot = box.Slot;
                     if (slot != null)
                     {
-                        slot.CurrentCapacity -= detail.Box.Weight;
+                        slot.CurrentCapacity -= box.Weight;
                         if (slot.CurrentCapacity < 0)
                             slot.CurrentCapacity = 0;
                     }
 
-                    detail.Box.Status = BoxStatus.Exported;
-                    detail.Box.SlotId = null;
-                    await _boxRepo.UpdateAsync(detail.Box);
+                    exportTransactions.Add(new InventoryTransaction
+                    {
+                        BoxId = box.Id,
+                        TransactionType = InventoryTransactionType.Export,
+                        ReferenceType = ReferenceType.GoodsIssue,
+                        ExportReceiptId = receipt.Id,
+                        FromSlotId = fromSlotId,
+                        ToSlotId = null,
+                        Quantity = box.Weight,
+                        CreatedBy = userId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    box.Status = BoxStatus.Exported;
+                    box.SlotId = null;
+                    await _boxRepo.UpdateAsync(box);
                 }
+
+                await _inventoryTranRepo.AddRangeAsync(exportTransactions);
 
                 receipt.Status = ExportStatus.Approved;
                 receipt.Order.Status = OrderStatus.Shipping;

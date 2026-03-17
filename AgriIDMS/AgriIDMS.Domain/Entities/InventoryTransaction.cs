@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +23,8 @@ namespace AgriIDMS.Domain.Entities
 
         public ReferenceType? ReferenceType { get; set; }
         public int? ReferenceRequestId { get; set; }
+        /// <summary>Phiếu xuất kho (khi TransactionType = Export, ReferenceType = GoodsIssue).</summary>
+        public int? ExportReceiptId { get; set; }
 
         public string CreatedBy { get; set; }
         public ApplicationUser CreatedUser { get; set; } = null!;

@@ -27,6 +27,7 @@ namespace AgriIDMS.Application.Services
         private readonly IPurchaseOrderRepository _purchaseOrderRepo;
         private readonly IBoxRepository _boxRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
+        private readonly IQrCodeGenerator _qrCodeGenerator;
 
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
@@ -40,7 +41,8 @@ namespace AgriIDMS.Application.Services
             ILogger<GoodsReceiptService> logger,
             IPurchaseOrderRepository purchaseOrderRepo,
             IBoxRepository boxRepo,
-            IInventoryTransactionRepository inventoryTranRepo)
+            IInventoryTransactionRepository inventoryTranRepo,
+            IQrCodeGenerator qrCodeGenerator)
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
@@ -54,6 +56,7 @@ namespace AgriIDMS.Application.Services
             _purchaseOrderRepo = purchaseOrderRepo;
             _boxRepo = boxRepo;
             _inventoryTranRepo = inventoryTranRepo;
+            _qrCodeGenerator = qrCodeGenerator;
         }
 
         // ===============================
@@ -399,6 +402,8 @@ namespace AgriIDMS.Application.Services
         // ===============================
         public async Task GenerateBoxesAsync(CreateBoxesRequest request, string userId)
         {
+            const int maxBoxesPerRequest = 5000;
+
             var lot = await _lotRepo.GetByIdWithDetailAndReceiptAsync(request.LotId);
             if (lot == null)
                 throw new NotFoundException("Lot không tồn tại");
@@ -407,35 +412,53 @@ namespace AgriIDMS.Application.Services
             if (lot.GoodsReceiptDetail.GoodsReceipt.Status != GoodsReceiptStatus.Approved)
                 throw new InvalidBusinessRuleException("Chỉ được tạo Box sau khi phiếu nhập đã được duyệt (Approved)");
 
-            decimal total = lot.TotalQuantity;
+            // Chỉ cho phép đóng box trên phần còn lại của lot để tránh tạo box vô hạn.
+            decimal total = lot.RemainingQuantity;
             decimal boxSize = request.BoxSize;
             if (boxSize <= 0)
                 throw new InvalidBusinessRuleException("BoxSize phải lớn hơn 0");
+            if (total <= 0)
+                throw new InvalidBusinessRuleException("Lot đã hết khối lượng khả dụng để tạo box");
 
             int fullCount = (int)(total / boxSize);
             decimal remainder = total - fullCount * boxSize;
+            int estimatedBoxes = fullCount + (remainder > 0 ? 1 : 0);
+            if (estimatedBoxes > maxBoxesPerRequest)
+            {
+                throw new InvalidBusinessRuleException(
+                    $"Số box dự kiến ({estimatedBoxes:N0}) vượt giới hạn {maxBoxesPerRequest:N0}/lần tạo. " +
+                    "Vui lòng tăng BoxSize hoặc chia nhỏ thao tác tạo box.");
+            }
             var boxesToCreate = new List<Box>();
             string baseCode = $"BOX-{DateTime.UtcNow:yyyyMMddHHmmss}";
 
             for (int i = 0; i < fullCount; i++)
             {
+                var boxCode = $"{baseCode}-{i + 1}";
+                var qr = await _qrCodeGenerator.GenerateAsync(boxCode);
+
                 boxesToCreate.Add(new Box
                 {
                     LotId = lot.Id,
                     Weight = boxSize,
                     Status = BoxStatus.Stored,
-                    BoxCode = $"{baseCode}-{i + 1}",
+                    BoxCode = boxCode,
+                    QRCode = qr,
                     IsPartial = false
                 });
             }
             if (remainder > 0)
             {
+                var boxCode = $"{baseCode}-{fullCount + 1}";
+                var qr = await _qrCodeGenerator.GenerateAsync(boxCode);
+
                 boxesToCreate.Add(new Box
                 {
                     LotId = lot.Id,
                     Weight = remainder,
                     Status = BoxStatus.Stored,
-                    BoxCode = $"{baseCode}-{fullCount + 1}",
+                    BoxCode = boxCode,
+                    QRCode = qr,
                     IsPartial = true
                 });
             }
@@ -444,7 +467,17 @@ namespace AgriIDMS.Application.Services
             {
                 await _boxRepo.CreateAsync(box);
             }
-            await _unitOfWork.SaveChangesAsync();
+            //await _unitOfWork.SaveChangesAsync();
+            try
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.InnerException?.Message);
+                throw;
+            }
+
 
             foreach (var box in boxesToCreate)
             {
@@ -457,6 +490,10 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = DateTime.UtcNow
                 });
             }
+
+            // Trừ phần đã đóng box khỏi lot để lần sau không thể tạo vượt quá khối lượng còn lại.
+            var createdWeight = boxesToCreate.Sum(b => b.Weight);
+            lot.RemainingQuantity = Math.Max(0, lot.RemainingQuantity - createdWeight);
             await _unitOfWork.SaveChangesAsync();
         }
 

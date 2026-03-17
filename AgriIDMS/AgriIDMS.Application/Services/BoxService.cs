@@ -6,6 +6,8 @@ using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
@@ -77,6 +79,69 @@ namespace AgriIDMS.Application.Services
                 await _slotRepo.UpdateAsync(slot);
             }
             await _boxRepo.UpdateAsync(box);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>Gán nhiều box vào cùng một slot trong một lần. Box và slot phải cùng kho; tổng dung lượng không vượt Capacity.</summary>
+        public async Task AssignBoxesToSlotAsync(AssignBoxesToSlotRequest request)
+        {
+            if (request.BoxIds == null || request.BoxIds.Count == 0)
+                throw new InvalidBusinessRuleException("Danh sách BoxId không được để trống");
+
+            var slot = await _slotRepo.GetByIdWithWarehouseAsync(request.SlotId);
+            if (slot == null)
+                throw new NotFoundException("Slot không tồn tại");
+
+            int slotWarehouseId = slot.Rack?.Zone?.Warehouse?.Id ?? 0;
+            if (slotWarehouseId == 0)
+                throw new InvalidBusinessRuleException("Slot không thuộc kho hợp lệ");
+
+            var boxes = await _boxRepo.GetByIdsWithLotAndReceiptAsync(request.BoxIds);
+            if (boxes.Count != request.BoxIds.Distinct().Count())
+                throw new NotFoundException("Một hoặc nhiều Box không tồn tại");
+
+            foreach (var box in boxes)
+            {
+                int? boxWarehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId;
+                if (!boxWarehouseId.HasValue)
+                    throw new InvalidBusinessRuleException($"Box Id={box.Id} không thuộc phiếu nhập hợp lệ");
+                if (boxWarehouseId.Value != slotWarehouseId)
+                    throw new InvalidBusinessRuleException($"Box Id={box.Id} và slot phải thuộc cùng một kho");
+            }
+
+            // Chỉ tính box đang chuyển sang slot này (chưa ở slot này)
+            var boxesToAssign = boxes.Where(b => b.SlotId != request.SlotId).ToList();
+            decimal totalWeightToAdd = boxesToAssign.Sum(b => b.Weight);
+
+            if (slot.CurrentCapacity + totalWeightToAdd > slot.Capacity)
+                throw new InvalidBusinessRuleException(
+                    $"Slot không đủ dung lượng: còn trống {slot.Capacity - slot.CurrentCapacity:N2}, tổng khối lượng {totalWeightToAdd:N2}.");
+
+            // Trừ dung lượng ở các slot cũ (group theo SlotId)
+            foreach (var group in boxesToAssign.Where(b => b.SlotId.HasValue).GroupBy(b => b.SlotId!.Value))
+            {
+                var oldSlot = group.First().Slot;
+                if (oldSlot != null)
+                {
+                    decimal subtract = group.Sum(b => b.Weight);
+                    oldSlot.CurrentCapacity = Math.Max(0, oldSlot.CurrentCapacity - subtract);
+                    await _slotRepo.UpdateAsync(oldSlot);
+                }
+            }
+
+            bool isColdWarehouse = slot.Rack?.Zone?.Warehouse != null &&
+                slot.Rack.Zone.Warehouse.TitleWarehouse == TitleWarehouse.Cold;
+
+            foreach (var box in boxes)
+            {
+                box.SlotId = request.SlotId;
+                if (isColdWarehouse && !box.PlacedInColdAt.HasValue)
+                    box.PlacedInColdAt = DateTime.UtcNow;
+                await _boxRepo.UpdateAsync(box);
+            }
+
+            slot.CurrentCapacity += totalWeightToAdd;
+            await _slotRepo.UpdateAsync(slot);
             await _unitOfWork.SaveChangesAsync();
         }
 

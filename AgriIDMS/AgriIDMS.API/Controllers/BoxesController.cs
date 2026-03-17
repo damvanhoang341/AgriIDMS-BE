@@ -26,6 +26,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { Message = "Đã gán box vào slot thành công" });
         }
 
+        /// <summary>Gán nhiều box vào cùng một slot trong một lần (nhanh hơn gọi assign-slot từng box).</summary>
+        [HttpPost("assign-slot-batch")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> AssignBoxesToSlot([FromBody] AssignBoxesToSlotRequest request)
+        {
+            await _boxService.AssignBoxesToSlotAsync(request);
+            return Ok(new { Message = "Đã gán box vào slot thành công", AssignedCount = request.BoxIds.Count });
+        }
+
         /// <summary>Cập nhật hoặc xoá QR của box (nếu qrCode = null/empty).</summary>
         [HttpPut("{boxId:int}/qr")]
         //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]

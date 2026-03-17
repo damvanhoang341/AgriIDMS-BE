@@ -6,6 +6,7 @@ using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using AgriIDMS.Infrastructure.Data;
 using AgriIDMS.Infrastructure.Repositories;
+using AgriIDMS.Infrastructure.Services;
 using AgriIDMS.Infrastructure.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -131,6 +132,9 @@ public static class ServiceRegistration
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IHomePageService, HomePageService>();
         services.AddScoped<ILotService, LotService>();
+
+        // Cross-cutting services
+        services.AddScoped<IQrCodeGenerator, QrCodeGenerator>();
 
 
         // PayOS client (singleton vì nội bộ dùng HttpClient)
