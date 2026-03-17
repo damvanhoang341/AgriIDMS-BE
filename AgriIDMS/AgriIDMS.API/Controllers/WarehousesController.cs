@@ -6,7 +6,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class WarehousesController : ControllerBase
     {
         private readonly IWarehouseService _warehouseService;
@@ -17,7 +17,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager")]
+        //[Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Create([FromBody] Application.DTOs.Warehouse.CreateWarehouseRequest request)
         {
             var id = await _warehouseService.CreateAsync(request);
@@ -39,7 +39,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPut("{id:int}")]
-        [Authorize(Roles = "Admin,Manager")]
+        //[Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] Application.DTOs.Warehouse.CreateWarehouseRequest request)
         {
             await _warehouseService.UpdateAsync(id, request);
@@ -47,7 +47,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        [Authorize(Roles = "Admin,Manager")]
+        //[Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {
             await _warehouseService.DeleteAsync(id);

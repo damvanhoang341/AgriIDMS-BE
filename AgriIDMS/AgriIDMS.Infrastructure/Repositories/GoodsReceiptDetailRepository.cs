@@ -39,5 +39,10 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .SumAsync(d => d.ReceivedWeight);
             return sum;
         }
+
+        public void Remove(GoodsReceiptDetail entity)
+        {
+            _context.GoodsReceiptDetails.Remove(entity);
+        }
     }
 }

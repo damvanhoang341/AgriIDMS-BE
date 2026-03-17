@@ -252,12 +252,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.TransportCompany)
                   .HasMaxLength(150);
 
-            entity.Property(x => x.GrossWeight)
-                  .HasPrecision(18, 2);
-
-            entity.Property(x => x.TareWeight)
-                  .HasPrecision(18, 2);
-
             entity.Property(x => x.ReceivedDate)
                   .IsRequired();
 

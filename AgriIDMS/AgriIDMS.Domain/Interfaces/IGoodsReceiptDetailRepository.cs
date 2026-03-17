@@ -13,5 +13,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task<GoodsReceiptDetail?> GetByIdAsync(int id);
         /// <summary>Tổng ReceivedWeight của các dòng GR (phiếu Draft hoặc PendingManagerApproval) cho một dòng PO.</summary>
         Task<decimal> GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(int purchaseOrderDetailId);
+        void Remove(GoodsReceiptDetail entity);
     }
 }

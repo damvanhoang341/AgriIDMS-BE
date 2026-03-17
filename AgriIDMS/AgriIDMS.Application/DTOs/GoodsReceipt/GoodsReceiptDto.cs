@@ -18,14 +18,30 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [MaxLength(100, ErrorMessage = "Tên công ty vận chuyển tối đa 100 ký tự")]
         public string? TransportCompany { get; set; }
-        [Range(0.01, double.MaxValue, ErrorMessage = "GrossWeight phải lớn hơn 0")]
+        [Range(0, double.MaxValue, ErrorMessage = "GrossWeight phải >= 0")]
         public decimal GrossWeight { get; set; }
 
-        [Range(0.01, double.MaxValue, ErrorMessage = "TareWeight phải lớn hơn 0")]
+        [Range(0, double.MaxValue, ErrorMessage = "TareWeight phải >= 0")]
         public decimal TareWeight { get; set; }
 
         [Required(ErrorMessage = "PurchaseOrderId không được để trống")]
         public int PurchaseOrderId { get; set; }
+
+        /// <summary>Các dòng chi tiết nhập theo PO ngay khi tạo phiếu (tùy chọn). Nếu truyền lên sẽ được validate giống AddGoodsReceiptDetail.</summary>
+        public List<CreateGoodsReceiptDetailLineRequest> Details { get; set; } = new();
+    }
+
+    /// <summary>Dòng chi tiết đi kèm khi tạo phiếu nhập.</summary>
+    public class CreateGoodsReceiptDetailLineRequest
+    {
+        [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
+        public int PurchaseOrderDetailId { get; set; }
+
+        [Required(ErrorMessage = "ProductVariantId không được để trống")]
+        public int ProductVariantId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
+        public decimal ReceivedWeight { get; set; }
     }
 
     /// <summary>
@@ -46,6 +62,19 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal ReceivedWeight { get; set; }
     }
 
+    /// <summary>
+    /// Cập nhật lại khối lượng nhận của một dòng chi tiết phiếu nhập trước khi QC/Approve.
+    /// Không cho phép đổi PO line hoặc ProductVariant, chỉ sửa ReceivedWeight.
+    /// </summary>
+    public class UpdateGoodsReceiptDetailRequest
+    {
+        [Required(ErrorMessage = "DetailId không được để trống")]
+        public int DetailId { get; set; }
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
+        public decimal ReceivedWeight { get; set; }
+    }
+
 
     public class QCInspectionRequest
     {
@@ -54,6 +83,10 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Range(0, double.MaxValue, ErrorMessage = "UsableWeight phải lớn hơn hoặc bằng 0 (bằng 0 khi QC không đạt)")]
         public decimal UsableWeight { get; set; }
+
+        /// <summary>Khối lượng loại bỏ sau QC (optional). Nếu truyền lên sẽ được validate = ReceivedWeight - UsableWeight.</summary>
+        [Range(0, double.MaxValue, ErrorMessage = "RejectWeight phải >= 0")]
+        public decimal? RejectWeight { get; set; }
 
         [Required(ErrorMessage = "QCResult không được để trống")]
         public string QCResult { get; set; } = null!;

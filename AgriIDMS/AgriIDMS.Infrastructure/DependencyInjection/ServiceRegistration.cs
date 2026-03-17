@@ -114,6 +114,7 @@ public static class ServiceRegistration
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductVariantService, ProductVariantService>();
         services.AddScoped<IGoodsReceiptService,GoodsReceiptService>();
+        services.AddScoped<IGoodsReceiptDetailService, GoodsReceiptDetailService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<AuthService>();
         services.AddScoped<IWarehouseService, WarehouseService>();

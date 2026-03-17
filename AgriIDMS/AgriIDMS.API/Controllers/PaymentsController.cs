@@ -10,7 +10,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class PaymentsController : ControllerBase
     {
         private readonly IPaymentService _paymentService;
@@ -37,7 +37,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{paymentId:int:min(1)}/confirm-cod")]
-        [Authorize(Roles = "Admin,Shipper")]
+        //[Authorize(Roles = "Admin,Shipper")]
         public async Task<IActionResult> ConfirmCODPaid(int paymentId)
         {
             var result = await _paymentService.ConfirmCODPaidAsync(paymentId);

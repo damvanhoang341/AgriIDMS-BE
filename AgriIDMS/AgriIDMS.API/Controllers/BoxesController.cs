@@ -7,7 +7,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class BoxesController : ControllerBase
     {
         private readonly IBoxService _boxService;
@@ -19,7 +19,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Gán box vào vị trí slot. Box và slot phải cùng kho; slot phải đủ dung lượng. Nếu kho lạnh sẽ ghi nhận PlacedInColdAt.</summary>
         [HttpPost("assign-slot")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> AssignBoxToSlot([FromBody] AssignBoxToSlotRequest request)
         {
             await _boxService.AssignBoxToSlotAsync(request);
@@ -28,7 +28,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Cập nhật hoặc xoá QR của box (nếu qrCode = null/empty).</summary>
         [HttpPut("{boxId:int}/qr")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateQrCode(int boxId, [FromBody] string? qrCode)
         {
             await _boxService.UpdateQrCodeAsync(boxId, qrCode);

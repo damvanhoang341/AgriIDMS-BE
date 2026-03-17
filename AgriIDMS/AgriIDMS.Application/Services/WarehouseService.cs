@@ -38,6 +38,25 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Tên kho đã tồn tại");
             }
 
+            // ✅ Validate loại kho
+            if (request.TitleWarehouse == TitleWarehouse.Normal
+                && request.MinColdStorageHours.HasValue)
+            {
+                throw new InvalidBusinessRuleException(
+                    "Kho thường không được có thời gian bảo quản lạnh"
+                );
+            }
+
+            if (request.TitleWarehouse == TitleWarehouse.Cold)
+            {
+                if (!request.MinColdStorageHours.HasValue || request.MinColdStorageHours < 0)
+                {
+                    throw new InvalidBusinessRuleException(
+                        "Kho lạnh phải có thời gian bảo quản tối thiểu > 0"
+                    );
+                }
+            }
+
             var warehouse = new Warehouse
             {
                 Name = normalizedName,

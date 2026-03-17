@@ -17,6 +17,7 @@ namespace AgriIDMS.Application.Services
     {
         private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly IGoodsReceiptDetailRepository _detailRepo;
+        private readonly IGoodsReceiptDetailService _detailService;
         private readonly ILotRepository _lotRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ISupplierRepository _supplierRepo;
@@ -30,6 +31,7 @@ namespace AgriIDMS.Application.Services
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
             IGoodsReceiptDetailRepository detailRepo,
+            IGoodsReceiptDetailService detailService,
             ILotRepository lotRepo,
             IUnitOfWork unitOfWork,
             ISupplierRepository supplierRepository,
@@ -42,6 +44,7 @@ namespace AgriIDMS.Application.Services
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
+            _detailService = detailService;
             _lotRepo = lotRepo;
             _unitOfWork = unitOfWork;
             _supplierRepo = supplierRepository;
@@ -79,8 +82,6 @@ namespace AgriIDMS.Application.Services
                 VehicleNumber = request.VehicleNumber,
                 DriverName = request.DriverName,
                 TransportCompany = request.TransportCompany,
-                GrossWeight = request.GrossWeight,
-                TareWeight = request.TareWeight,
                 CreatedBy = userId,
                 ReceivedBy = userId,
                 ReceivedDate = DateTime.UtcNow,
@@ -89,72 +90,52 @@ namespace AgriIDMS.Application.Services
 
             await _receiptRepo.AddGoodsReceiptAsync(receipt);
             await _unitOfWork.SaveChangesAsync();
+
+            // Nếu request có kèm danh sách chi tiết thì thêm luôn các dòng detail vào phiếu vừa tạo
+            if (request.Details != null && request.Details.Count > 0)
+            {
+                foreach (var line in request.Details)
+                {
+                    var addDetailRequest = new AddGoodsReceiptDetailRequest
+                    {
+                        GoodsReceiptId = receipt.Id,
+                        PurchaseOrderDetailId = line.PurchaseOrderDetailId,
+                        ProductVariantId = line.ProductVariantId,
+                        ReceivedWeight = line.ReceivedWeight
+                    };
+
+                    await _detailService.AddGoodsReceiptDetailAsync(addDetailRequest);
+                }
+            }
+
             return receipt.Id;
         }
 
-        // ===============================
-        // ADD DETAIL (3.1/3.2: không vượt RemainingWeight; 3.3: chi tiết phải thuộc đúng PO của phiếu; 3.4: chuyển Received sau khi thêm)
-        // ===============================
-        public async Task AddGoodsReceiptDetailAsync(AddGoodsReceiptDetailRequest request)
-        {
-            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(request.GoodsReceiptId);
-            if (receipt == null)
-                throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received)
-                throw new InvalidBusinessRuleException("Chỉ được thêm chi tiết khi phiếu nhập ở trạng thái Nháp (Draft) hoặc Đã nhập số liệu (Received)");
-
-            var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(request.PurchaseOrderDetailId);
-            if (poDetail == null)
-                throw new NotFoundException("Chi tiết đơn mua không tồn tại");
-            if (poDetail.PurchaseOrder.Status != PurchaseOrderStatus.Approved)
-                throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
-            if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
-                throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
-            if (request.ProductVariantId != poDetail.ProductVariantId)
-                throw new InvalidBusinessRuleException("Sản phẩm không khớp với dòng đơn mua");
-
-            // 3.3: Chi tiết phải thuộc đúng đơn mua của phiếu nhập
-            if (receipt.PurchaseOrderId.HasValue && poDetail.PurchaseOrderId != receipt.PurchaseOrderId.Value)
-                throw new InvalidBusinessRuleException("Chi tiết đơn mua phải thuộc đúng đơn mua của phiếu nhập");
-
-            // 3.1 & 3.2: Tổng đã nhận (đã duyệt) + tổng đang chờ (Draft/Received/QCCompleted/PendingManagerApproval) + khối lượng mới không vượt OrderedWeight
-            decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
-            if (poDetail.ReceivedWeight + totalPending + request.ReceivedWeight > poDetail.OrderedWeight)
-                throw new InvalidBusinessRuleException(
-                    $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ: {totalPending}, đặt hàng: {poDetail.OrderedWeight}.");
-
-            var detail = new GoodsReceiptDetail
-            {
-                GoodsReceiptId = request.GoodsReceiptId,
-                PurchaseOrderDetailId = request.PurchaseOrderDetailId,
-                ProductVariantId = poDetail.ProductVariantId,
-                ReceivedWeight = request.ReceivedWeight,
-                UsableWeight = request.ReceivedWeight,
-                UnitPrice = poDetail.UnitPrice
-            };
-
-            await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
-            await _unitOfWork.SaveChangesAsync();
-
-            // 3.4: Chuyển trạng thái sang Received khi đã có chi tiết
-            if (receipt.Status == GoodsReceiptStatus.Draft)
-            {
-                receipt.Status = GoodsReceiptStatus.Received;
-                await _unitOfWork.SaveChangesAsync();
-            }
-        }
-
 
         // ===============================
-        // QC INSPECTION (3.6: Failed => UsableWeight = 0; 3.4: chuyển QCCompleted khi tất cả dòng đã QC)
+        // QC INSPECTION (3.6: Failed => UsableWeight = 0; sau QC check dung sai + định mức, set QCCompleted hoặc PendingManagerApproval)
         // ===============================
         public async Task QCInspectionAsync(QCInspectionRequest request, string userId)
         {
             var detail = await _detailRepo.GetByIdAsync(request.DetailId);
             if (detail == null)
                 throw new NotFoundException("Chi tiết phiếu nhập không tồn tại");
+
+            // Không cho QC khi phiếu đang chờ Manager duyệt (PendingManagerApproval / PendingManagerApprovalQc)
+            var parentReceipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
+            if (parentReceipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (parentReceipt.Status == GoodsReceiptStatus.PendingManagerApproval ||
+                parentReceipt.Status == GoodsReceiptStatus.PendingManagerApprovalQc)
+                throw new InvalidBusinessRuleException("Phiếu nhập đang chờ Manager duyệt, không được QC. Vui lòng đợi Manager xử lý.");
+
             if (request.UsableWeight > detail.ReceivedWeight)
                 throw new InvalidBusinessRuleException("Khối lượng sử dụng được (UsableWeight) không được vượt quá khối lượng thực nhận (ReceivedWeight)");
+
+            // Nếu client truyền RejectWeight thì validate = ReceivedWeight - UsableWeight (không âm)
+            var expectedReject = Math.Max(0, detail.ReceivedWeight - request.UsableWeight);
+            if (request.RejectWeight.HasValue && request.RejectWeight.Value != expectedReject)
+                throw new InvalidBusinessRuleException($"Khối lượng loại bỏ (RejectWeight) phải bằng ReceivedWeight - UsableWeight = {expectedReject:N2} kg.");
 
             var qcResult = Enum.TryParse<QCResult>(request.QCResult, out var result) ? result
                 : throw new InvalidBusinessRuleException("QCResult không hợp lệ");
@@ -171,17 +152,40 @@ namespace AgriIDMS.Application.Services
 
             await _unitOfWork.SaveChangesAsync();
 
-            // 3.4: Nếu tất cả dòng đã QC xong thì chuyển phiếu sang QCCompleted
+            // Sau khi QC xong 1 dòng: nếu tất cả dòng đã QC, kiểm tra dung sai + định mức tối thiểu để quyết định QCCompleted hay PendingManagerApproval
             var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(detail.GoodsReceiptId);
-            if (receipt != null && receipt.Details.All(d => d.QCResult != QCResult.Pending))
+            if (receipt == null) return;
+
+            // Nếu vẫn còn dòng chưa QC thì chưa kết luận
+            if (receipt.Details.Any(d => d.QCResult == QCResult.Pending))
+                return;
+
+            bool toleranceExceeded = CheckToleranceExceeded(receipt);
+            string? minReceiptWarning = TryGetMinReceiptWeightWarning(receipt);
+
+            if (toleranceExceeded || minReceiptWarning != null)
             {
+                receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                var reason = "";
+                if (toleranceExceeded)
+                    reason += "Vượt dung sai cho phép cho ít nhất một dòng PO. ";
+                if (minReceiptWarning != null)
+                    reason += minReceiptWarning;
+
+                receipt.PendingReason = reason;
+                await _unitOfWork.SaveChangesAsync();
+            }
+            else
+            {
+                // Tất cả dòng đã QC và nằm trong dung sai + đạt định mức tối thiểu
                 receipt.Status = GoodsReceiptStatus.QCCompleted;
+                receipt.PendingReason = null;
                 await _unitOfWork.SaveChangesAsync();
             }
         }
 
         // ===============================
-        // APPROVE RECEIPT (tolerance check; Lots created here; no Boxes/Transactions)
+        // APPROVE RECEIPT (sau khi QC xong & đã xử lý dung sai/định mức; tạo Lots; không còn check dung sai ở đây)
         // ===============================
         public async Task ApproveGoodsReceiptAsync(int receiptId, string userId)
         {
@@ -191,9 +195,9 @@ namespace AgriIDMS.Application.Services
                 var receipt = await _receiptRepo.GetGoodsReceiptForApproveAsync(receiptId);
                 if (receipt == null)
                     throw new NotFoundException("Phiếu nhập không tồn tại");
-                // 3.4: Cho phép duyệt khi Draft, Received hoặc QCCompleted
-                if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received && receipt.Status != GoodsReceiptStatus.QCCompleted)
-                    throw new InvalidBusinessRuleException("Chỉ được duyệt phiếu nhập ở trạng thái Nháp (Draft), Đã nhập số liệu (Received) hoặc Đã QC (QCCompleted)");
+                // Sau khi đổi luồng: chỉ cho phép duyệt khi đã QCCompleted hoặc đang PendingManagerApproval (đã được Manager xem xét dung sai trước đó).
+                if (receipt.Status != GoodsReceiptStatus.QCCompleted && receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
+                    throw new InvalidBusinessRuleException("Chỉ được duyệt phiếu nhập ở trạng thái Đã QC (QCCompleted) hoặc Đang chờ duyệt (PendingManagerApproval)");
 
                 if (!receipt.Details.Any())
                     throw new InvalidBusinessRuleException("Phiếu nhập chưa có chi tiết");
@@ -202,33 +206,6 @@ namespace AgriIDMS.Application.Services
                 {
                     if (d.QCResult == QCResult.Pending)
                         throw new InvalidBusinessRuleException("Có sản phẩm chưa QC");
-                }
-
-                bool toleranceExceeded = CheckToleranceExceeded(receipt);
-                if (toleranceExceeded)
-                {
-                    receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
-                    receipt.PendingReason = "Vượt dung sai cho phép, cần Manager xem xét Approve hoặc Reject.";
-                    receipt.ApprovedBy = userId;
-                    receipt.ApprovedAt = DateTime.UtcNow;
-                    await _unitOfWork.SaveChangesAsync();
-                    await _unitOfWork.CommitAsync();
-                    _logger.LogInformation("Receipt {ReceiptId} vượt dung sai, chuyển PendingManagerApproval", receiptId);
-                    return;
-                }
-
-                // Định mức tối thiểu: chỉ cảnh báo → chuyển Manager xem xét, không chặn duyệt
-                string? minReceiptWarning = TryGetMinReceiptWeightWarning(receipt);
-                if (minReceiptWarning != null)
-                {
-                    receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
-                    receipt.PendingReason = minReceiptWarning;
-                    receipt.ApprovedBy = userId;
-                    receipt.ApprovedAt = DateTime.UtcNow;
-                    await _unitOfWork.SaveChangesAsync();
-                    await _unitOfWork.CommitAsync();
-                    _logger.LogInformation("Receipt {ReceiptId} dưới định mức tối thiểu, chuyển PendingManagerApproval: {Reason}", receiptId, minReceiptWarning);
-                    return;
                 }
 
                 await EnsureWarehouseCapacityAsync(receipt);
@@ -245,9 +222,45 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // MANAGER APPROVE (when status = PendingManagerApproval)
+        // MANAGER ALLOW QC (wrapper: luôn Approve ngoại lệ định mức tối thiểu, cho phép quay lại flow QC/Approve)
         // ===============================
-        public async Task ManagerApproveReceiptAsync(int receiptId, string userId)
+        public async Task ManagerAllowQcAsync(int receiptId, string userId)
+        {
+            await ManagerReviewMinWeightAsync(receiptId, true, userId);
+        }
+
+        // ===============================
+        // MANAGER REVIEW MIN WEIGHT (Approve / Reject khi status = PendingManagerApprovalQc - dưới định mức tối thiểu)
+        // ===============================
+        public async Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (receipt.Status != GoodsReceiptStatus.PendingManagerApprovalQc)
+                throw new InvalidBusinessRuleException("Chỉ xử lý phiếu đang chờ duyệt định mức tối thiểu (PendingManagerApprovalQc)");
+
+            if (isApproved)
+            {
+                // Nếu còn dòng QCResult = Pending → đưa về Received để QC tiếp; nếu không còn dòng Pending → đưa về QCCompleted.
+                bool hasPendingQc = receipt.Details.Any(d => d.QCResult == QCResult.Pending);
+                receipt.Status = hasPendingQc ? GoodsReceiptStatus.Received : GoodsReceiptStatus.QCCompleted;
+                receipt.PendingReason = null;
+                await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("Receipt {ReceiptId} được Manager cho phép tiếp tục flow QC/Approve (ngoại lệ định mức tối thiểu) bởi {UserId}", receiptId, userId);
+            }
+            else
+            {
+                receipt.Status = GoodsReceiptStatus.Rejected;
+                await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối do dưới định mức tối thiểu bởi {UserId}", receiptId, userId);
+            }
+        }
+
+        // ===============================
+        // MANAGER REVIEW TOLERANCE (Approve / Reject khi status = PendingManagerApproval - vượt dung sai)
+        // ===============================
+        public async Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId)
         {
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -256,36 +269,28 @@ namespace AgriIDMS.Application.Services
                 if (receipt == null)
                     throw new NotFoundException("Phiếu nhập không tồn tại");
                 if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
-                    throw new InvalidBusinessRuleException("Chỉ Manager có thể duyệt phiếu đang chờ duyệt (PendingManagerApproval)");
+                    throw new InvalidBusinessRuleException("Chỉ xử lý phiếu đang chờ duyệt do vượt dung sai (PendingManagerApproval)");
 
-                await EnsureWarehouseCapacityAsync(receipt);
-                // Định mức tối thiểu chỉ là cảnh báo: Manager vẫn có thể Approve hoặc Reject, không chặn ở đây.
+                if (isApproved)
+                {
+                    await EnsureWarehouseCapacityAsync(receipt);
+                    await CreateLotsAndSetApprovedAsync(receipt, userId);
+                    _logger.LogInformation("Receipt {ReceiptId} đã được Manager approve (vượt dung sai) bởi {UserId}", receiptId, userId);
+                }
+                else
+                {
+                    receipt.Status = GoodsReceiptStatus.Rejected;
+                    await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối (vượt dung sai) bởi {UserId}", receiptId, userId);
+                }
 
-                await CreateLotsAndSetApprovedAsync(receipt, userId);
                 await _unitOfWork.CommitAsync();
-                _logger.LogInformation("Receipt {ReceiptId} đã được Manager approve bởi {UserId}", receiptId, userId);
             }
             catch
             {
                 await _unitOfWork.RollbackAsync();
                 throw;
             }
-        }
-
-        // ===============================
-        // MANAGER REJECT (when status = PendingManagerApproval)
-        // ===============================
-        public async Task ManagerRejectReceiptAsync(int receiptId, string userId)
-        {
-            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(receiptId);
-            if (receipt == null)
-                throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
-                throw new InvalidBusinessRuleException("Chỉ có thể từ chối phiếu đang chờ duyệt (PendingManagerApproval)");
-
-            receipt.Status = GoodsReceiptStatus.Rejected;
-            await _unitOfWork.SaveChangesAsync();
-            _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối bởi {UserId}", receiptId, userId);
         }
 
         // ===============================
@@ -366,18 +371,6 @@ namespace AgriIDMS.Application.Services
             {
                 var warehouseName = receipt.Warehouse?.Name ?? $"Id={receipt.WarehouseId}";
                 warnings.Add($"Tổng khối lượng nhập {totalUsableWeight:N2} kg thấp hơn định mức tối thiểu của kho [{warehouseName}] ({warehouseMin.Value:N2} kg).");
-            }
-
-            // Theo từng dòng: dòng nào nhỏ hơn định mức tối thiểu của sản phẩm
-            foreach (var d in receipt.Details)
-            {
-                decimal? lineMin = d.ProductVariant?.MinReceiptWeight;
-                if (!lineMin.HasValue || lineMin.Value <= 0) continue;
-                if (d.UsableWeight < lineMin.Value)
-                {
-                    var productName = d.ProductVariant?.Name ?? $"Id={d.ProductVariantId}";
-                    warnings.Add($"Dòng sản phẩm [{productName}] nhập {d.UsableWeight:N2} kg thấp hơn định mức tối thiểu ({lineMin.Value:N2} kg).");
-                }
             }
 
             if (warnings.Count == 0) return null;
