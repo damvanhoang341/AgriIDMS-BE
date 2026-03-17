@@ -78,11 +78,11 @@ namespace AgriIDMS.Application.Services
             }
 
             // Check MinReceiptWeight của ProductVariant cho từng dòng: nếu thấp hơn thì vẫn cho nhập,
-            // nhưng chuyển status của Receipt sang PendingManagerApproval để Manager xem xét trước khi tiếp tục QC.
+            // nhưng chuyển status của Receipt sang PendingManagerApprovalQc để Manager xem xét trước khi tiếp tục QC.
             var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
             if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
             {
-                receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                receipt.Status = GoodsReceiptStatus.PendingManagerApprovalQc;
                 var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
                 var warning = $"Dòng sản phẩm [{productName}] vừa nhập {request.ReceivedWeight:N2} kg nhỏ hơn định mức tối thiểu ({minReceiptWeight.Value:N2} kg). Cần Manager xem xét để tiếp tục QC.";
 
@@ -141,11 +141,11 @@ namespace AgriIDMS.Application.Services
             await _unitOfWork.SaveChangesAsync();
 
             // Check MinReceiptWeight sau khi sửa: nếu thấp hơn thì cho cập nhật,
-            // nhưng chuyển Receipt sang PendingManagerApproval để Manager xem xét trước khi tiếp tục QC.
+            // nhưng chuyển Receipt sang PendingManagerApprovalQc để Manager xem xét trước khi tiếp tục QC.
             var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
             if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
             {
-                receipt.Status = GoodsReceiptStatus.PendingManagerApproval;
+                receipt.Status = GoodsReceiptStatus.PendingManagerApprovalQc;
                 var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
                 var warning = $"Dòng sản phẩm [{productName}] sau khi sửa nhập {request.ReceivedWeight:N2} kg nhỏ hơn định mức tối thiểu ({minReceiptWeight.Value:N2} kg). Cần Manager xem xét để tiếp tục QC.";
 

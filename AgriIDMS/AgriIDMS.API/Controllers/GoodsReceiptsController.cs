@@ -122,18 +122,6 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // MANAGER APPROVE (khi status = PendingManagerApproval)
-        // ===============================
-        [HttpPost("{receiptId}/manager-approve")]
-        //[Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> ManagerApproveReceipt(int receiptId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-            await _goodsReceiptService.ManagerApproveReceiptAsync(receiptId, userId);
-            return Ok(new { Message = "Phiếu nhập đã được Manager duyệt" });
-        }
-
-        // ===============================
         // MANAGER ALLOW QC (khi status = PendingManagerApproval, cho phép quay lại bước QC rồi mới Approve)
         // ===============================
         [HttpPost("{receiptId}/manager-allow-qc")]
@@ -146,15 +134,49 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // MANAGER REJECT (khi status = PendingManagerApproval)
+        // MANAGER REVIEW MIN WEIGHT (Approve/Reject khi status = PendingManagerApprovalQc)
         // ===============================
-        [HttpPost("{receiptId}/manager-reject")]
+        public class ManagerReviewMinWeightRequest
+        {
+            public bool Approve { get; set; }
+        }
+
+        [HttpPost("{receiptId}/manager-review-min")]
         //[Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> ManagerRejectReceipt(int receiptId)
+        public async Task<IActionResult> ManagerReviewMin(int receiptId, [FromBody] ManagerReviewMinWeightRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-            await _goodsReceiptService.ManagerRejectReceiptAsync(receiptId, userId);
-            return Ok(new { Message = "Phiếu nhập đã bị Manager từ chối" });
+            await _goodsReceiptService.ManagerReviewMinWeightAsync(receiptId, request.Approve, userId);
+
+            return Ok(new
+            {
+                Message = request.Approve
+                    ? "Phiếu nhập dưới định mức tối thiểu đã được Manager cho phép tiếp tục QC/Approve"
+                    : "Phiếu nhập dưới định mức tối thiểu đã bị Manager từ chối"
+            });
+        }
+
+        // ===============================
+        // MANAGER REVIEW TOLERANCE (Approve/Reject khi status = PendingManagerApproval)
+        // ===============================
+        public class ManagerReviewToleranceRequest
+        {
+            public bool Approve { get; set; }
+        }
+
+        [HttpPost("{receiptId}/manager-review-tolerance")]
+        //[Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ManagerReviewTolerance(int receiptId, [FromBody] ManagerReviewToleranceRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.ManagerReviewToleranceAsync(receiptId, request.Approve, userId);
+
+            return Ok(new
+            {
+                Message = request.Approve
+                    ? "Phiếu nhập vượt dung sai đã được Manager duyệt"
+                    : "Phiếu nhập vượt dung sai đã bị Manager từ chối"
+            });
         }
     }
 }

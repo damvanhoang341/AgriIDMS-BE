@@ -121,11 +121,12 @@ namespace AgriIDMS.Application.Services
             if (detail == null)
                 throw new NotFoundException("Chi tiết phiếu nhập không tồn tại");
 
-            // Không cho QC khi phiếu đang chờ Manager duyệt (PendingManagerApproval)
+            // Không cho QC khi phiếu đang chờ Manager duyệt (PendingManagerApproval / PendingManagerApprovalQc)
             var parentReceipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
             if (parentReceipt == null)
                 throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (parentReceipt.Status == GoodsReceiptStatus.PendingManagerApproval)
+            if (parentReceipt.Status == GoodsReceiptStatus.PendingManagerApproval ||
+                parentReceipt.Status == GoodsReceiptStatus.PendingManagerApprovalQc)
                 throw new InvalidBusinessRuleException("Phiếu nhập đang chờ Manager duyệt, không được QC. Vui lòng đợi Manager xử lý.");
 
             if (request.UsableWeight > detail.ReceivedWeight)
@@ -221,9 +222,45 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // MANAGER APPROVE (when status = PendingManagerApproval)
+        // MANAGER ALLOW QC (wrapper: luôn Approve ngoại lệ định mức tối thiểu, cho phép quay lại flow QC/Approve)
         // ===============================
-        public async Task ManagerApproveReceiptAsync(int receiptId, string userId)
+        public async Task ManagerAllowQcAsync(int receiptId, string userId)
+        {
+            await ManagerReviewMinWeightAsync(receiptId, true, userId);
+        }
+
+        // ===============================
+        // MANAGER REVIEW MIN WEIGHT (Approve / Reject khi status = PendingManagerApprovalQc - dưới định mức tối thiểu)
+        // ===============================
+        public async Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (receipt.Status != GoodsReceiptStatus.PendingManagerApprovalQc)
+                throw new InvalidBusinessRuleException("Chỉ xử lý phiếu đang chờ duyệt định mức tối thiểu (PendingManagerApprovalQc)");
+
+            if (isApproved)
+            {
+                // Nếu còn dòng QCResult = Pending → đưa về Received để QC tiếp; nếu không còn dòng Pending → đưa về QCCompleted.
+                bool hasPendingQc = receipt.Details.Any(d => d.QCResult == QCResult.Pending);
+                receipt.Status = hasPendingQc ? GoodsReceiptStatus.Received : GoodsReceiptStatus.QCCompleted;
+                receipt.PendingReason = null;
+                await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("Receipt {ReceiptId} được Manager cho phép tiếp tục flow QC/Approve (ngoại lệ định mức tối thiểu) bởi {UserId}", receiptId, userId);
+            }
+            else
+            {
+                receipt.Status = GoodsReceiptStatus.Rejected;
+                await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối do dưới định mức tối thiểu bởi {UserId}", receiptId, userId);
+            }
+        }
+
+        // ===============================
+        // MANAGER REVIEW TOLERANCE (Approve / Reject khi status = PendingManagerApproval - vượt dung sai)
+        // ===============================
+        public async Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId)
         {
             await _unitOfWork.BeginTransactionAsync();
             try
@@ -232,56 +269,28 @@ namespace AgriIDMS.Application.Services
                 if (receipt == null)
                     throw new NotFoundException("Phiếu nhập không tồn tại");
                 if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
-                    throw new InvalidBusinessRuleException("Chỉ Manager có thể duyệt phiếu đang chờ duyệt (PendingManagerApproval)");
+                    throw new InvalidBusinessRuleException("Chỉ xử lý phiếu đang chờ duyệt do vượt dung sai (PendingManagerApproval)");
 
-                await EnsureWarehouseCapacityAsync(receipt);
-                // Định mức tối thiểu chỉ là cảnh báo: Manager vẫn có thể Approve hoặc Reject, không chặn ở đây.
+                if (isApproved)
+                {
+                    await EnsureWarehouseCapacityAsync(receipt);
+                    await CreateLotsAndSetApprovedAsync(receipt, userId);
+                    _logger.LogInformation("Receipt {ReceiptId} đã được Manager approve (vượt dung sai) bởi {UserId}", receiptId, userId);
+                }
+                else
+                {
+                    receipt.Status = GoodsReceiptStatus.Rejected;
+                    await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối (vượt dung sai) bởi {UserId}", receiptId, userId);
+                }
 
-                await CreateLotsAndSetApprovedAsync(receipt, userId);
                 await _unitOfWork.CommitAsync();
-                _logger.LogInformation("Receipt {ReceiptId} đã được Manager approve bởi {UserId}", receiptId, userId);
             }
             catch
             {
                 await _unitOfWork.RollbackAsync();
                 throw;
             }
-        }
-
-        // ===============================
-        // MANAGER ALLOW QC (khi status = PendingManagerApproval do cảnh báo; cho phép quay lại flow QC/Approve)
-        // ===============================
-        public async Task ManagerAllowQcAsync(int receiptId, string userId)
-        {
-            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(receiptId);
-            if (receipt == null)
-                throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
-                throw new InvalidBusinessRuleException("Chỉ xử lý phiếu đang chờ duyệt (PendingManagerApproval)");
-
-            // Nếu còn dòng QCResult = Pending → đưa về Received để QC tiếp; nếu không còn dòng Pending → đưa về QCCompleted.
-            bool hasPendingQc = receipt.Details.Any(d => d.QCResult == QCResult.Pending);
-            receipt.Status = hasPendingQc ? GoodsReceiptStatus.Received : GoodsReceiptStatus.QCCompleted;
-            receipt.PendingReason = null;
-
-            await _unitOfWork.SaveChangesAsync();
-            _logger.LogInformation("Receipt {ReceiptId} được Manager cho phép tiếp tục flow QC/Approve bởi {UserId}", receiptId, userId);
-        }
-
-        // ===============================
-        // MANAGER REJECT (when status = PendingManagerApproval)
-        // ===============================
-        public async Task ManagerRejectReceiptAsync(int receiptId, string userId)
-        {
-            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(receiptId);
-            if (receipt == null)
-                throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
-                throw new InvalidBusinessRuleException("Chỉ có thể từ chối phiếu đang chờ duyệt (PendingManagerApproval)");
-
-            receipt.Status = GoodsReceiptStatus.Rejected;
-            await _unitOfWork.SaveChangesAsync();
-            _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối bởi {UserId}", receiptId, userId);
         }
 
         // ===============================

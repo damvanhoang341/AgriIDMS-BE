@@ -9,9 +9,9 @@ namespace AgriIDMS.Application.Interfaces
         Task QCInspectionAsync(QCInspectionRequest request, string userId);
         Task GenerateBoxesAsync(CreateBoxesRequest request, string userId);
         Task ApproveGoodsReceiptAsync(int receiptId, string userId);
-        Task ManagerApproveReceiptAsync(int receiptId, string userId);
-        Task ManagerRejectReceiptAsync(int receiptId, string userId);
+        Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId);
         Task ManagerAllowQcAsync(int receiptId, string userId);
+        Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId);
         Task GenerateLotAsync(int goodsReceiptDetailId);
 
         Task<IEnumerable<GoodsReceiptSummaryDto>> GetAllAsync();
