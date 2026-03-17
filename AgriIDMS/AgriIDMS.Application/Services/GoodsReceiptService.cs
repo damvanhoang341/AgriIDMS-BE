@@ -364,18 +364,6 @@ namespace AgriIDMS.Application.Services
                 warnings.Add($"Tổng khối lượng nhập {totalUsableWeight:N2} kg thấp hơn định mức tối thiểu của kho [{warehouseName}] ({warehouseMin.Value:N2} kg).");
             }
 
-            // Theo từng dòng: dòng nào nhỏ hơn định mức tối thiểu của sản phẩm
-            foreach (var d in receipt.Details)
-            {
-                decimal? lineMin = d.ProductVariant?.MinReceiptWeight;
-                if (!lineMin.HasValue || lineMin.Value <= 0) continue;
-                if (d.UsableWeight < lineMin.Value)
-                {
-                    var productName = d.ProductVariant?.Name ?? $"Id={d.ProductVariantId}";
-                    warnings.Add($"Dòng sản phẩm [{productName}] nhập {d.UsableWeight:N2} kg thấp hơn định mức tối thiểu ({lineMin.Value:N2} kg).");
-                }
-            }
-
             if (warnings.Count == 0) return null;
             return "Cảnh báo định mức tối thiểu: " + string.Join(" ", warnings) + " Cần Manager xem xét Approve hoặc Reject.";
         }
