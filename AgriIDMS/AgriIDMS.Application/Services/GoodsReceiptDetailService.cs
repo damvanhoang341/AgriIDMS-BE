@@ -110,7 +110,7 @@ namespace AgriIDMS.Application.Services
             var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
             if (receipt == null)
                 throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received)
+            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received && receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
                 throw new InvalidBusinessRuleException("Chỉ được sửa chi tiết khi phiếu nhập ở trạng thái Nháp (Draft) hoặc Đã nhập số liệu (Received)");
 
             if (detail.QCResult != QCResult.Pending)
