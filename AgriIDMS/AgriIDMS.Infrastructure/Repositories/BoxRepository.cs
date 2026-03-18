@@ -93,6 +93,16 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<decimal> GetTotalBoxWeightByLotIdAsync(int lotId)
+        {
+            // SumAsync trả về 0 nếu không có bản ghi (do cast về decimal?)
+            // Dùng nullable để tránh exception khi sequence rỗng.
+            var total = await _context.Boxes
+                .Where(b => b.LotId == lotId)
+                .SumAsync(b => (decimal?)b.Weight);
+            return total ?? 0m;
+        }
+
         public async Task<int> GetAvailableBoxCountByVariantIdAsync(int productVariantId)
         {
             return await _context.Boxes

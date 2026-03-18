@@ -16,10 +16,10 @@ namespace AgriIDMS.Domain.Entities
         public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
 
         public decimal ReceivedWeight { get; set; }
-        /// <summary>Khối lượng sử dụng được sau QC. Trước QC = ReceivedWeight.</summary>
-        public decimal UsableWeight { get; set; }
-        /// <summary>Khối lượng loại (không âm).</summary>
-        public decimal RejectWeight => Math.Max(0, ReceivedWeight - UsableWeight);
+        /// <summary>Khối lượng sử dụng được sau QC. Trước QC = null.</summary>
+        public decimal? UsableWeight { get; set; }
+        /// <summary>Khối lượng loại (không âm). Trước QC trả về 0.</summary>
+        public decimal RejectWeight => UsableWeight.HasValue ? Math.Max(0, ReceivedWeight - UsableWeight.Value) : 0;
 
         /// <summary>Khối lượng kỳ vọng từ PO (không lưu DB, lấy từ PurchaseOrderDetail.OrderedWeight).</summary>
         public decimal ExpectedWeight => PurchaseOrderDetail?.OrderedWeight ?? 0;

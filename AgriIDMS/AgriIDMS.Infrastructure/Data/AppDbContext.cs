@@ -319,7 +319,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.UsableWeight)
                   .HasPrecision(18, 3)
-                  .IsRequired();
+                  .IsRequired(false);
 
             entity.Ignore(x => x.RejectWeight);
 
