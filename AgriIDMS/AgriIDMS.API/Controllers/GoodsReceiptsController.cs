@@ -122,18 +122,6 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
-        // MANAGER ALLOW QC (khi status = PendingManagerApproval, cho phép quay lại bước QC rồi mới Approve)
-        // ===============================
-        [HttpPost("{receiptId}/manager-allow-qc")]
-        //[Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> ManagerAllowQc(int receiptId)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-            await _goodsReceiptService.ManagerAllowQcAsync(receiptId, userId);
-            return Ok(new { Message = "Manager đã cho phép tiếp tục QC/Approve cho phiếu nhập" });
-        }
-
-        // ===============================
         // MANAGER REVIEW MIN WEIGHT (Approve/Reject khi status = PendingManagerApprovalQc)
         // ===============================
         public class ManagerReviewMinWeightRequest

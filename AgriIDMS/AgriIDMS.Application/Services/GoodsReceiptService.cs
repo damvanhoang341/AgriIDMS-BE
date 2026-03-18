@@ -226,14 +226,6 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // MANAGER ALLOW QC (wrapper: luôn Approve ngoại lệ định mức tối thiểu, cho phép quay lại flow QC/Approve)
-        // ===============================
-        public async Task ManagerAllowQcAsync(int receiptId, string userId)
-        {
-            await ManagerReviewMinWeightAsync(receiptId, true, userId);
-        }
-
-        // ===============================
         // MANAGER REVIEW MIN WEIGHT (Approve / Reject khi status = PendingManagerApprovalQc - dưới định mức tối thiểu)
         // ===============================
         public async Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId)
@@ -246,9 +238,7 @@ namespace AgriIDMS.Application.Services
 
             if (isApproved)
             {
-                // Nếu còn dòng QCResult = Pending → đưa về Received để QC tiếp; nếu không còn dòng Pending → đưa về QCCompleted.
-                bool hasPendingQc = receipt.Details.Any(d => d.QCResult == QCResult.Pending);
-                receipt.Status = hasPendingQc ? GoodsReceiptStatus.Received : GoodsReceiptStatus.QCCompleted;
+                receipt.Status = GoodsReceiptStatus.Received;
                 receipt.PendingReason = null;
                 await _unitOfWork.SaveChangesAsync();
                 _logger.LogInformation("Receipt {ReceiptId} được Manager cho phép tiếp tục flow QC/Approve (ngoại lệ định mức tối thiểu) bởi {UserId}", receiptId, userId);
