@@ -412,8 +412,12 @@ namespace AgriIDMS.Application.Services
             if (lot.GoodsReceiptDetail.GoodsReceipt.Status != GoodsReceiptStatus.Approved)
                 throw new InvalidBusinessRuleException("Chỉ được tạo Box sau khi phiếu nhập đã được duyệt (Approved)");
 
-            // Chỉ cho phép đóng box trên phần còn lại của lot để tránh tạo box vô hạn.
-            decimal total = lot.RemainingQuantity;
+            // Chống tạo box vô hạn: tính trực tiếp theo DB (TotalQuantity - tổng Weight các box đã tạo).
+            // Đồng thời đồng bộ lại RemainingQuantity nếu trước đó bị lệch.
+            var alreadyBoxed = await _boxRepo.GetTotalBoxWeightByLotIdAsync(lot.Id);
+            decimal total = Math.Max(0, lot.TotalQuantity - alreadyBoxed);
+            if (lot.RemainingQuantity != total)
+                lot.RemainingQuantity = total;
             decimal boxSize = request.BoxSize;
             if (boxSize <= 0)
                 throw new InvalidBusinessRuleException("BoxSize phải lớn hơn 0");
@@ -467,16 +471,7 @@ namespace AgriIDMS.Application.Services
             {
                 await _boxRepo.CreateAsync(box);
             }
-            //await _unitOfWork.SaveChangesAsync();
-            try
-            {
-                await _unitOfWork.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.InnerException?.Message);
-                throw;
-            }
+            await _unitOfWork.SaveChangesAsync();
 
 
             foreach (var box in boxesToCreate)

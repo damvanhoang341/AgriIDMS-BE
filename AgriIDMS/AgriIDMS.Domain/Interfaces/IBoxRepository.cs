@@ -23,5 +23,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId);
         /// <summary>Đếm số box khả dụng theo đúng loại box (full/partial + weight) cho 1 ProductVariant.</summary>
         Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight);
+
+        /// <summary>Tổng khối lượng box đã tạo cho 1 lot (dùng để chống tạo box vô hạn).</summary>
+        Task<decimal> GetTotalBoxWeightByLotIdAsync(int lotId);
     }
 }
