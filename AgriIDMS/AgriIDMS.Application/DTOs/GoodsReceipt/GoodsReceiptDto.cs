@@ -112,6 +112,13 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal BoxSize { get; set; }
     }
 
+    /// <summary>Chuyển đổi kho đích của phiếu nhập. Chỉ cho phép khi phiếu chưa Approved (chưa tạo Lot/Box).</summary>
+    public class UpdateGoodsReceiptWarehouseRequest
+    {
+        [Required(ErrorMessage = "WarehouseId không được để trống")]
+        public int WarehouseId { get; set; }
+    }
+
     // ===================== Response DTOs =====================
 
     public class GoodsReceiptSummaryDto

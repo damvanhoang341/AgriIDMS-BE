@@ -97,6 +97,18 @@ namespace AgriIDMS.API.Controllers
         }
 
         // ===============================
+        // UPDATE WAREHOUSE (chuyển đổi kho đích; chỉ khi phiếu chưa Approved)
+        // ===============================
+        [HttpPut("{receiptId:int:min(1)}/warehouse")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> UpdateWarehouse(int receiptId, [FromBody] UpdateGoodsReceiptWarehouseRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _goodsReceiptService.UpdateWarehouseAsync(receiptId, request, userId);
+            return Ok(new { Message = "Đã cập nhật kho đích của phiếu nhập" });
+        }
+
+        // ===============================
         // GENERATE BOXES (chỉ sau khi phiếu Approved)
         // ===============================
         [HttpPost("boxes")]

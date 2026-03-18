@@ -288,6 +288,32 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
+        // UPDATE WAREHOUSE (chỉ khi phiếu chưa Approved – chưa tạo Lot/Box)
+        // ===============================
+        public async Task UpdateWarehouseAsync(int receiptId, UpdateGoodsReceiptWarehouseRequest request, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+
+            if (receipt.Status == GoodsReceiptStatus.Approved || receipt.Status == GoodsReceiptStatus.Rejected ||
+                receipt.Status == GoodsReceiptStatus.Cancelled)
+                throw new InvalidBusinessRuleException(
+                    "Chỉ được đổi kho khi phiếu nhập chưa duyệt (Draft, Received, QCCompleted, PendingManagerApprovalQc, PendingManagerApproval). Phiếu đã Approved/Rejected/Cancelled không thể đổi kho.");
+
+            if (receipt.WarehouseId == request.WarehouseId)
+                return;
+
+            var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
+            if (warehouse == null)
+                throw new NotFoundException("Kho đích không tồn tại");
+
+            receipt.WarehouseId = request.WarehouseId;
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Phiếu nhập {ReceiptId} đã chuyển sang kho {WarehouseId} bởi {UserId}", receiptId, request.WarehouseId, userId);
+        }
+
+        // ===============================
         // GENERATE LOTS (internal: at Approve / ManagerApprove)
         // ===============================
         private async Task CreateLotsAndSetApprovedAsync(GoodsReceipt receipt, string userId)
