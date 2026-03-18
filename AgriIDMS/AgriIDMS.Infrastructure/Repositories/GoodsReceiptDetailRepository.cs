@@ -35,6 +35,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                     && (d.GoodsReceipt.Status == GoodsReceiptStatus.Draft
                         || d.GoodsReceipt.Status == GoodsReceiptStatus.Received
                         || d.GoodsReceipt.Status == GoodsReceiptStatus.QCCompleted
+                        || d.GoodsReceipt.Status == GoodsReceiptStatus.PendingManagerApprovalQc
                         || d.GoodsReceipt.Status == GoodsReceiptStatus.PendingManagerApproval))
                 .SumAsync(d => d.ReceivedWeight);
             return sum;
