@@ -29,7 +29,7 @@ namespace AgriIDMS.Domain.Entities
         /// <summary>Tổng khối lượng đặt (từ PO), từ Details.PurchaseOrderDetail.OrderedWeight.</summary>
         public decimal TotalExpectedWeight => Details.Sum(d => d.PurchaseOrderDetail?.OrderedWeight ?? 0);
         public decimal TotalReceivedWeight => Details.Sum(x => x.ReceivedWeight);
-        public decimal TotalUsableWeight => Details.Sum(x => x.UsableWeight);
+        public decimal TotalUsableWeight => Details.Sum(x => x.UsableWeight ?? 0m);
 
         public string CreatedBy { get; set; } = null!;
         public ApplicationUser CreatedUser { get; set; } = null!;

@@ -324,8 +324,8 @@ namespace AgriIDMS.Application.Services
                     {
                         LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}",
                         GoodsReceiptDetailId = detail.Id,
-                        TotalQuantity = detail.UsableWeight,
-                        RemainingQuantity = detail.UsableWeight,
+                        TotalQuantity = detail.UsableWeight ?? throw new InvalidBusinessRuleException("Có dòng chưa có khối lượng sử dụng được (UsableWeight). Vui lòng QC trước khi duyệt phiếu."),
+                        RemainingQuantity = detail.UsableWeight ?? throw new InvalidBusinessRuleException("Có dòng chưa có khối lượng sử dụng được (UsableWeight). Vui lòng QC trước khi duyệt phiếu."),
                         ReceivedDate = receivedAt,
                         ExpiryDate = expiryDate
                     };
@@ -351,7 +351,7 @@ namespace AgriIDMS.Application.Services
         /// <summary>Check Capacity: đảm bảo kho đích còn đủ dung lượng trống cho tổng UsableWeight của phiếu.</summary>
         private async Task EnsureWarehouseCapacityAsync(GoodsReceipt receipt)
         {
-            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight);
+            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight ?? 0m);
             if (totalUsableWeight <= 0)
                 return;
 
@@ -367,7 +367,7 @@ namespace AgriIDMS.Application.Services
         /// <summary>Định mức tối thiểu chỉ là cảnh báo. Nếu dưới định mức (kho hoặc sản phẩm) trả về thông báo để chuyển Manager xem xét; null = đạt định mức.</summary>
         private string? TryGetMinReceiptWeightWarning(GoodsReceipt receipt)
         {
-            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight);
+            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight ?? 0m);
             var warnings = new List<string>();
 
             // Theo kho: tổng phiếu nhỏ hơn định mức tối thiểu của kho
@@ -502,7 +502,7 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Không tìm thấy chi tiết phiếu nhập");
 
             var usable = detail.UsableWeight;
-            if (usable <= 0)
+            if (!usable.HasValue || usable.Value <= 0)
                 throw new InvalidBusinessRuleException("UsableWeight phải lớn hơn 0 để tạo Lot");
 
             var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
@@ -526,8 +526,8 @@ namespace AgriIDMS.Application.Services
             {
                 LotCode = $"LOT-{DateTime.UtcNow.Ticks}",
                 GoodsReceiptDetailId = goodsReceiptDetailId,
-                TotalQuantity = usable,
-                RemainingQuantity = usable,
+                TotalQuantity = usable.Value,
+                RemainingQuantity = usable.Value,
                 ReceivedDate = receivedAt,
                 ExpiryDate = expiryDate
             };
@@ -602,7 +602,7 @@ namespace AgriIDMS.Application.Services
 
             var details = receipt.Details.Select(d =>
             {
-                var lineTotal = d.UsableWeight * d.UnitPrice;
+                var lineTotal = (d.UsableWeight ?? 0m) * d.UnitPrice;
                 return new GoodsReceiptDetailLineForApprovalDto
                 {
                     Id = d.Id,

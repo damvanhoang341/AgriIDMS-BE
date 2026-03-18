@@ -137,7 +137,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public int ProductVariantId { get; set; }
         public string ProductName { get; set; } = null!;
         public decimal ReceivedWeight { get; set; }
-        public decimal UsableWeight { get; set; }
+        public decimal? UsableWeight { get; set; }
         public decimal RejectWeight { get; set; }
         public string QCResult { get; set; } = null!;
     }

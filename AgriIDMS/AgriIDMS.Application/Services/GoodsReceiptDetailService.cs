@@ -63,7 +63,7 @@ namespace AgriIDMS.Application.Services
                 PurchaseOrderDetailId = request.PurchaseOrderDetailId,
                 ProductVariantId = poDetail.ProductVariantId,
                 ReceivedWeight = request.ReceivedWeight,
-                UsableWeight = request.ReceivedWeight,
+                UsableWeight = null,
                 UnitPrice = poDetail.UnitPrice
             };
 
@@ -135,8 +135,8 @@ namespace AgriIDMS.Application.Services
                     $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ (không tính dòng này): {otherPending}, khối lượng mới: {request.ReceivedWeight}, đặt hàng: {poDetail.OrderedWeight}.");
 
             detail.ReceivedWeight = request.ReceivedWeight;
-            // Trước khi QC, UsableWeight luôn = ReceivedWeight
-            detail.UsableWeight = request.ReceivedWeight;
+            // Trước khi QC, UsableWeight = null
+            detail.UsableWeight = null;
 
             await _unitOfWork.SaveChangesAsync();
 
