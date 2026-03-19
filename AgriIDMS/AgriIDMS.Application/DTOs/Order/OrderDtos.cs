@@ -9,6 +9,10 @@ namespace AgriIDMS.Application.DTOs.Order
         public int ProductVariantId { get; set; }
         public string ProductName { get; set; } = null!;
         public string Grade { get; set; } = null!;
+        /// <summary>Trọng lượng mỗi box (kg).</summary>
+        public decimal BoxWeight { get; set; }
+        /// <summary>Box lẻ (partial) hay box đầy.</summary>
+        public bool IsPartial { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal LineAmount => Quantity * UnitPrice;
@@ -30,6 +34,8 @@ namespace AgriIDMS.Application.DTOs.Order
     public class CreateOrderFromCartByVariantIdsRequest
     {
         public int ProductVariantId { get; set; }
+        public decimal BoxWeight { get; set; }
+        public bool IsPartial { get; set; }
         public int Quantity { get; set; }
     }
 }

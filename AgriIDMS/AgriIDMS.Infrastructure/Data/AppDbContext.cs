@@ -955,6 +955,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasKey(x => x.Id);
 
+            entity.Property(x => x.BoxWeight)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.IsPartial)
+                  .IsRequired();
+
             entity.Property(x => x.Quantity)
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();

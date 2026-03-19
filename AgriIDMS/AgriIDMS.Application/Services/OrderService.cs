@@ -71,6 +71,8 @@ namespace AgriIDMS.Application.Services
                     var detail = new OrderDetail
                     {
                         ProductVariantId = item.ProductVariantId,
+                        BoxWeight = item.BoxWeight,
+                        IsPartial = item.IsPartial,
                         Quantity = (int)item.Quantity,
                         UnitPrice = item.UnitPrice,
                         FulfilledQuantity = 0,
@@ -87,6 +89,8 @@ namespace AgriIDMS.Application.Services
                     ProductVariantId = i.ProductVariantId,
                     ProductName = i.ProductVariant?.Product?.Name ?? string.Empty,
                     Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
+                    BoxWeight = i.BoxWeight,
+                    IsPartial = i.IsPartial,
                     Quantity = (int)i.Quantity,
                     UnitPrice = i.UnitPrice
                 }).ToList();
@@ -130,11 +134,16 @@ namespace AgriIDMS.Application.Services
             // (phân biệt IsPartial/BoxWeight). Do đó không được apply cùng Quantity cho tất cả CartItem.
             // Ta phân bổ tuần tự theo từng CartItem cho tới khi đủ tổng quantity theo request.
             var requestDict = requestItems
-                .GroupBy(x => x.ProductVariantId)
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+                .GroupBy(x => new { x.ProductVariantId, x.BoxWeight, x.IsPartial })
+                .ToDictionary(
+                    g => (g.Key.ProductVariantId, g.Key.BoxWeight, g.Key.IsPartial),
+                    g => g.Sum(x => x.Quantity));
 
             var selectedItems = cart.Items
-                .Where(i => requestDict.ContainsKey(i.ProductVariantId))
+                .Where(i => requestDict.Keys.Any(k =>
+                    k.ProductVariantId == i.ProductVariantId &&
+                    k.BoxWeight == i.BoxWeight &&
+                    k.IsPartial == i.IsPartial))
                 .ToList();
 
             if (!selectedItems.Any())
@@ -158,18 +167,26 @@ namespace AgriIDMS.Application.Services
 
                 foreach (var variantRequest in requestDict)
                 {
-                    var productVariantId = variantRequest.Key;
+                    var productVariantId = variantRequest.Key.ProductVariantId;
+                    var boxWeight = variantRequest.Key.BoxWeight;
+                    var isPartial = variantRequest.Key.IsPartial;
                     var requestedTotalQty = variantRequest.Value;
 
                     if (requestedTotalQty <= 0)
                         throw new InvalidBusinessRuleException("Số lượng phải lớn hơn 0");
 
                     var cartItemsForVariant = selectedItems
-                        .Where(i => i.ProductVariantId == productVariantId)
-                        // deterministic để dễ debug/test
-                        .OrderBy(i => i.Id)
+                        .Where(i =>
+                            i.ProductVariantId == productVariantId &&
+                            i.BoxWeight == boxWeight &&
+                            i.IsPartial == isPartial)
                         .ToList();
 
+                    if (!cartItemsForVariant.Any())
+                        throw new InvalidBusinessRuleException("Không tìm thấy sản phẩm trong giỏ");
+
+                    // CartService đang đảm bảo unique theo (VariantId, IsPartial, BoxWeight)
+                    // Nếu vì lý do nào đó có nhiều dòng, vẫn handle bằng cách cộng tổng.
                     var availableTotalQty = cartItemsForVariant.Sum(i => (int)i.Quantity);
                     if (requestedTotalQty > availableTotalQty)
                         throw new InvalidBusinessRuleException("Số lượng vượt quá trong giỏ hàng");
@@ -188,6 +205,8 @@ namespace AgriIDMS.Application.Services
                         var detail = new OrderDetail
                         {
                             ProductVariantId = item.ProductVariantId,
+                            BoxWeight = item.BoxWeight,
+                            IsPartial = item.IsPartial,
                             Quantity = qtyToTake,
                             UnitPrice = item.UnitPrice,
                             FulfilledQuantity = 0,
@@ -202,6 +221,8 @@ namespace AgriIDMS.Application.Services
                             ProductVariantId = item.ProductVariantId,
                             ProductName = item.ProductVariant?.Product?.Name ?? string.Empty,
                             Grade = item.ProductVariant?.Grade.ToString() ?? string.Empty,
+                            BoxWeight = item.BoxWeight,
+                            IsPartial = item.IsPartial,
                             Quantity = qtyToTake,
                             UnitPrice = item.UnitPrice
                         });
@@ -273,6 +294,10 @@ namespace AgriIDMS.Application.Services
                 {
                     var boxesNeeded = (int)detail.Quantity;
                     var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(detail.ProductVariantId);
+                    // Enforce đúng loại box theo order detail
+                    boxes = boxes
+                        .Where(b => b.IsPartial == detail.IsPartial && b.Weight == detail.BoxWeight)
+                        .ToList();
 
                     var allocated = 0;
                     foreach (var box in boxes)
