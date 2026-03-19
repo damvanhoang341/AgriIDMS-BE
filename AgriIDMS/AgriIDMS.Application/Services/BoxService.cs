@@ -16,15 +16,18 @@ namespace AgriIDMS.Application.Services
     {
         private readonly IBoxRepository _boxRepo;
         private readonly ISlotRepository _slotRepo;
+        private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IUnitOfWork _unitOfWork;
 
         public BoxService(
             IBoxRepository boxRepo,
             ISlotRepository slotRepo,
+            IInventoryTransactionRepository inventoryTranRepo,
             IUnitOfWork unitOfWork)
         {
             _boxRepo = boxRepo;
             _slotRepo = slotRepo;
+            _inventoryTranRepo = inventoryTranRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -49,6 +52,19 @@ namespace AgriIDMS.Application.Services
 
             if (boxWarehouseId.Value != slotWarehouseId)
                 throw new InvalidBusinessRuleException("Box và slot phải thuộc cùng một kho");
+
+            // Rule: 1 slot chỉ chứa 1 loại sản phẩm (ProductVariant) dựa theo Lot -> GoodsReceiptDetail -> ProductVariantId
+            var incomingVariantId = box.Lot?.GoodsReceiptDetail?.ProductVariantId;
+            if (!incomingVariantId.HasValue || incomingVariantId.Value <= 0)
+                throw new InvalidBusinessRuleException("Không xác định được loại sản phẩm của box");
+
+            var existingVariantId = slot.Boxes
+                .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
+                .FirstOrDefault(v => v.HasValue && v.Value > 0);
+
+            if (existingVariantId.HasValue && existingVariantId.Value != incomingVariantId.Value)
+                throw new InvalidBusinessRuleException(
+                    "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
 
             bool isNewSlot = box.SlotId != request.SlotId;
             if (isNewSlot && slot.CurrentCapacity + box.Weight > slot.Capacity)
@@ -109,6 +125,26 @@ namespace AgriIDMS.Application.Services
                     throw new InvalidBusinessRuleException($"Box Id={box.Id} và slot phải thuộc cùng một kho");
             }
 
+            // Rule: 1 slot chỉ chứa 1 loại sản phẩm (ProductVariant)
+            var incomingVariantId = boxes
+                .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
+                .FirstOrDefault(v => v > 0);
+            if (incomingVariantId <= 0)
+                throw new InvalidBusinessRuleException("Không xác định được loại sản phẩm của box");
+
+            // Tất cả box trong batch phải cùng loại
+            bool mixed = boxes.Any(b => (b.Lot?.GoodsReceiptDetail?.ProductVariantId ?? 0) != incomingVariantId);
+            if (mixed)
+                throw new InvalidBusinessRuleException("Batch box có nhiều loại sản phẩm khác nhau, không thể xếp chung 1 slot.");
+
+            var existingVariantId = slot.Boxes
+                .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
+                .FirstOrDefault(v => v.HasValue && v.Value > 0);
+
+            if (existingVariantId.HasValue && existingVariantId.Value != incomingVariantId)
+                throw new InvalidBusinessRuleException(
+                    "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
+
             // Chỉ tính box đang chuyển sang slot này (chưa ở slot này)
             var boxesToAssign = boxes.Where(b => b.SlotId != request.SlotId).ToList();
             decimal totalWeightToAdd = boxesToAssign.Sum(b => b.Weight);
@@ -142,6 +178,91 @@ namespace AgriIDMS.Application.Services
 
             slot.CurrentCapacity += totalWeightToAdd;
             await _slotRepo.UpdateAsync(slot);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Chuyển 1 box đã xếp từ slot hiện tại sang slot khác (cùng kho) và ghi InventoryTransactionType.Transfer.
+        /// </summary>
+        public async Task TransferBoxToSlotAsync(TransferBoxToSlotRequest request, string userId)
+        {
+            var box = await _boxRepo.GetByIdWithLotAndReceiptAsync(request.BoxId);
+            if (box == null)
+                throw new NotFoundException("Box không tồn tại");
+
+            if (!box.SlotId.HasValue || box.SlotId.Value <= 0)
+                throw new InvalidBusinessRuleException("Box chưa được xếp vào slot nào, không thể chuyển");
+
+            if (box.SlotId.Value == request.ToSlotId)
+                throw new InvalidBusinessRuleException("Box đang ở slot này, không cần chuyển");
+
+            var fromSlot = await _slotRepo.GetByIdAsync(box.SlotId.Value);
+            if (fromSlot == null)
+                throw new NotFoundException("Slot hiện tại của box không tồn tại");
+
+            var toSlot = await _slotRepo.GetByIdWithWarehouseAsync(request.ToSlotId);
+            if (toSlot == null)
+                throw new NotFoundException("Slot đích không tồn tại");
+
+            int? boxWarehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId;
+            if (!boxWarehouseId.HasValue)
+                throw new InvalidBusinessRuleException("Box không thuộc phiếu nhập hợp lệ, không xác định được kho");
+
+            int toSlotWarehouseId = toSlot.Rack?.Zone?.Warehouse?.Id ?? 0;
+            if (toSlotWarehouseId == 0)
+                throw new InvalidBusinessRuleException("Slot đích không thuộc kho hợp lệ");
+
+            if (boxWarehouseId.Value != toSlotWarehouseId)
+                throw new InvalidBusinessRuleException("Chỉ được chuyển box trong cùng một kho");
+
+            // Rule: 1 slot chỉ chứa 1 loại sản phẩm (ProductVariant)
+            var incomingVariantId = box.Lot?.GoodsReceiptDetail?.ProductVariantId;
+            if (!incomingVariantId.HasValue || incomingVariantId.Value <= 0)
+                throw new InvalidBusinessRuleException("Không xác định được loại sản phẩm của box");
+
+            var existingVariantId = toSlot.Boxes
+                .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
+                .FirstOrDefault(v => v.HasValue && v.Value > 0);
+
+            if (existingVariantId.HasValue && existingVariantId.Value != incomingVariantId.Value)
+                throw new InvalidBusinessRuleException(
+                    "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
+
+            if (toSlot.CurrentCapacity + box.Weight > toSlot.Capacity)
+                throw new InvalidBusinessRuleException(
+                    $"Slot không đủ dung lượng: còn trống {toSlot.Capacity - toSlot.CurrentCapacity:N2}, box nặng {box.Weight:N2}.");
+
+            // Update capacities
+            fromSlot.CurrentCapacity = Math.Max(0, fromSlot.CurrentCapacity - box.Weight);
+            toSlot.CurrentCapacity += box.Weight;
+            await _slotRepo.UpdateAsync(fromSlot);
+            await _slotRepo.UpdateAsync(toSlot);
+
+            // Move box
+            var fromSlotId = box.SlotId.Value;
+            box.SlotId = request.ToSlotId;
+
+            if (toSlot.Rack?.Zone?.Warehouse != null &&
+                toSlot.Rack.Zone.Warehouse.TitleWarehouse == TitleWarehouse.Cold &&
+                !box.PlacedInColdAt.HasValue)
+            {
+                box.PlacedInColdAt = DateTime.UtcNow;
+            }
+
+            await _boxRepo.UpdateAsync(box);
+
+            // Inventory transaction
+            await _inventoryTranRepo.CreateAsync(new InventoryTransaction
+            {
+                BoxId = box.Id,
+                TransactionType = InventoryTransactionType.Transfer,
+                FromSlotId = fromSlotId,
+                ToSlotId = request.ToSlotId,
+                Quantity = box.Weight,
+                CreatedBy = string.IsNullOrWhiteSpace(userId) ? "system" : userId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _unitOfWork.SaveChangesAsync();
         }
 

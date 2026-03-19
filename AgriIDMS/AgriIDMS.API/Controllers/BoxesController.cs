@@ -2,6 +2,7 @@ using AgriIDMS.Application.DTOs.Box;
 using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
 {
@@ -33,6 +34,16 @@ namespace AgriIDMS.API.Controllers
         {
             await _boxService.AssignBoxesToSlotAsync(request);
             return Ok(new { Message = "Đã gán box vào slot thành công", AssignedCount = request.BoxIds.Count });
+        }
+
+        /// <summary>Chuyển box đã xếp từ slot hiện tại sang slot khác (cùng kho) và ghi InventoryTransactionType.Transfer.</summary>
+        [HttpPost("transfer-slot")]
+        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> TransferBoxToSlot([FromBody] TransferBoxToSlotRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            await _boxService.TransferBoxToSlotAsync(request, userId);
+            return Ok(new { Message = "Đã chuyển box sang slot mới" });
         }
 
         /// <summary>Cập nhật hoặc xoá QR của box (nếu qrCode = null/empty).</summary>
