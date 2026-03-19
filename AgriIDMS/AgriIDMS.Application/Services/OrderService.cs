@@ -45,6 +45,65 @@ namespace AgriIDMS.Application.Services
             _logger = logger;
         }
 
+        public async Task<IList<OrderListItemDto>> GetMyOrdersAsync(string userId, GetOrdersQuery query)
+        {
+            var orders = await _orderRepo.GetByUserIdWithDetailsAndPaymentsAsync(userId);
+
+            if (!string.IsNullOrWhiteSpace(query?.Status)
+                && Enum.TryParse<OrderStatus>(query.Status, true, out var parsedStatus))
+            {
+                orders = orders.Where(o => o.Status == parsedStatus).ToList();
+            }
+
+            return orders.Select(o => new OrderListItemDto
+            {
+                OrderId = o.Id,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status.ToString(),
+                CreatedAt = o.CreatedAt,
+                ItemCount = o.Details?.Count ?? 0,
+                LatestPaymentStatus = o.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString()
+            }).ToList();
+        }
+
+        public async Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.UserId != userId)
+                throw new ForbiddenException("Bạn không có quyền xem đơn hàng này");
+
+            return new OrderDetailDto
+            {
+                OrderId = order.Id,
+                TotalAmount = order.TotalAmount,
+                Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt,
+                LatestPaymentStatus = order.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString(),
+                Items = order.Details.Select(d => new OrderDetailItemDto
+                {
+                    ProductVariantId = d.ProductVariantId,
+                    ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                    Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
+                    BoxWeight = d.BoxWeight,
+                    IsPartial = d.IsPartial,
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice,
+                    FulfilledQuantity = d.FulfilledQuantity,
+                    ShortageQuantity = d.ShortageQuantity
+                }).ToList()
+            };
+        }
+
         public async Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId)
         {
             _logger.LogInformation("Creating order from cart for user {UserId}", userId);

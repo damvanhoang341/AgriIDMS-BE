@@ -42,4 +42,42 @@ namespace AgriIDMS.Application.DTOs.Order
         public bool IsPartial { get; set; }
         public int Quantity { get; set; }
     }
+
+    public class GetOrdersQuery
+    {
+        public string? Status { get; set; }
+    }
+
+    public class OrderListItemDto
+    {
+        public int OrderId { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string Status { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public int ItemCount { get; set; }
+        public string? LatestPaymentStatus { get; set; }
+    }
+
+    public class OrderDetailDto
+    {
+        public int OrderId { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string Status { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public string? LatestPaymentStatus { get; set; }
+        public IList<OrderDetailItemDto> Items { get; set; } = new List<OrderDetailItemDto>();
+    }
+
+    public class OrderDetailItemDto
+    {
+        public int ProductVariantId { get; set; }
+        public string ProductName { get; set; } = null!;
+        public string Grade { get; set; } = null!;
+        public decimal BoxWeight { get; set; }
+        public bool IsPartial { get; set; }
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal FulfilledQuantity { get; set; }
+        public decimal ShortageQuantity { get; set; }
+    }
 }
