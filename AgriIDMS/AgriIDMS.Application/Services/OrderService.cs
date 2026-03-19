@@ -113,34 +113,40 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(
-            string userId,
-            IList<int> productVariantIds)
+        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId,IList<CreateOrderFromCartByVariantIdsRequest> requestItems)
         {
             _logger.LogInformation(
-                "Creating order from cart variants ({ProductVariantIdsCount} ids) for user {UserId}",
-                productVariantIds?.Count ?? 0, userId);
+                "Creating order from cart variants ({Count}) for user {UserId}",
+                requestItems?.Count ?? 0, userId);
 
-            if (productVariantIds == null || !productVariantIds.Any())
+            if (requestItems == null || !requestItems.Any())
                 throw new InvalidBusinessRuleException("Bạn phải chọn ít nhất 1 loại sản phẩm");
 
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
             if (cart == null || cart.Items == null || !cart.Items.Any())
                 throw new InvalidBusinessRuleException("Giỏ hàng trống");
 
-            var variantIdSet = productVariantIds.ToHashSet();
+            // Request chỉ truyền theo ProductVariantId, trong cart có thể có nhiều CartItem khác nhau
+            // (phân biệt IsPartial/BoxWeight). Do đó không được apply cùng Quantity cho tất cả CartItem.
+            // Ta phân bổ tuần tự theo từng CartItem cho tới khi đủ tổng quantity theo request.
+            var requestDict = requestItems
+                .GroupBy(x => x.ProductVariantId)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
             var selectedItems = cart.Items
-                .Where(i => variantIdSet.Contains(i.ProductVariantId))
+                .Where(i => requestDict.ContainsKey(i.ProductVariantId))
                 .ToList();
 
             if (!selectedItems.Any())
-                throw new InvalidBusinessRuleException("Trong giỏ hàng không có các loại sản phẩm được chọn");
+                throw new InvalidBusinessRuleException("Không tìm thấy sản phẩm trong giỏ");
 
             var now = DateTime.UtcNow;
             await _uow.BeginTransactionAsync();
+
             try
             {
                 decimal estimatedTotal = 0;
+
                 var order = new Order
                 {
                     UserId = userId,
@@ -148,46 +154,85 @@ namespace AgriIDMS.Application.Services
                     Status = OrderStatus.AwaitingPayment
                 };
 
-                foreach (var item in selectedItems)
-                {
-                    var detail = new OrderDetail
-                    {
-                        ProductVariantId = item.ProductVariantId,
-                        Quantity = (int)item.Quantity,
-                        UnitPrice = item.UnitPrice,
-                        FulfilledQuantity = 0,
-                        ShortageQuantity = 0
-                    };
+                var orderItems = new List<OrderItemDto>();
 
-                    order.Details.Add(detail);
-                    estimatedTotal += detail.Quantity * detail.UnitPrice;
+                foreach (var variantRequest in requestDict)
+                {
+                    var productVariantId = variantRequest.Key;
+                    var requestedTotalQty = variantRequest.Value;
+
+                    if (requestedTotalQty <= 0)
+                        throw new InvalidBusinessRuleException("Số lượng phải lớn hơn 0");
+
+                    var cartItemsForVariant = selectedItems
+                        .Where(i => i.ProductVariantId == productVariantId)
+                        // deterministic để dễ debug/test
+                        .OrderBy(i => i.Id)
+                        .ToList();
+
+                    var availableTotalQty = cartItemsForVariant.Sum(i => (int)i.Quantity);
+                    if (requestedTotalQty > availableTotalQty)
+                        throw new InvalidBusinessRuleException("Số lượng vượt quá trong giỏ hàng");
+
+                    var remainingQty = requestedTotalQty;
+
+                    foreach (var item in cartItemsForVariant)
+                    {
+                        if (remainingQty <= 0) break;
+
+                        var availableQty = (int)item.Quantity;
+                        if (availableQty <= 0) continue;
+
+                        var qtyToTake = Math.Min(availableQty, remainingQty);
+
+                        var detail = new OrderDetail
+                        {
+                            ProductVariantId = item.ProductVariantId,
+                            Quantity = qtyToTake,
+                            UnitPrice = item.UnitPrice,
+                            FulfilledQuantity = 0,
+                            ShortageQuantity = 0
+                        };
+
+                        order.Details.Add(detail);
+                        estimatedTotal += detail.Quantity * detail.UnitPrice;
+
+                        orderItems.Add(new OrderItemDto
+                        {
+                            ProductVariantId = item.ProductVariantId,
+                            ProductName = item.ProductVariant?.Product?.Name ?? string.Empty,
+                            Grade = item.ProductVariant?.Grade.ToString() ?? string.Empty,
+                            Quantity = qtyToTake,
+                            UnitPrice = item.UnitPrice
+                        });
+
+                        // Cập nhật lại cart (không apply cùng quantity cho tất cả CartItem)
+                        if (qtyToTake == availableQty)
+                        {
+                            _cartRepo.RemoveItem(item);
+                        }
+                        else
+                        {
+                            item.Quantity -= qtyToTake;
+                        }
+
+                        remainingQty -= qtyToTake;
+                    }
                 }
 
                 order.TotalAmount = estimatedTotal;
 
-                var items = selectedItems.Select(i => new OrderItemDto
-                {
-                    ProductVariantId = i.ProductVariantId,
-                    ProductName = i.ProductVariant?.Product?.Name ?? string.Empty,
-                    Grade = i.ProductVariant?.Grade.ToString() ?? string.Empty,
-                    Quantity = (int)i.Quantity,
-                    UnitPrice = i.UnitPrice
-                }).ToList();
-
                 await _orderRepo.AddAsync(order);
 
-                // Chỉ xóa các item thuộc các ProductVariantId đã chọn khỏi cart.
-                foreach (var item in selectedItems)
-                    _cartRepo.RemoveItem(item);
-
                 cart.UpdatedAt = DateTime.UtcNow;
+
                 await _uow.CommitAsync();
 
                 return new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
-                    Items = items
+                    Items = orderItems
                 };
             }
             catch

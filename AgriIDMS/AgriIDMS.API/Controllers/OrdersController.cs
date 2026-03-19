@@ -38,17 +38,11 @@ namespace AgriIDMS.API.Controllers
         /// Chỉ xóa các CartItem thuộc các ProductVariantId được chọn.
         /// </summary>
         [HttpPost("from-cart/variants")]
-        public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartByVariantIdsRequest request)
+        public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartRequest request)
         {
             var userId = GetCurrentUserId();
-            var result = await _orderService.CreateOrderFromCartByVariantIdsAsync(userId, request.ProductVariantIds);
-            return Ok(new
-            {
-                Message = "Tạo đơn hàng từ giỏ (danh sách loại) thành công",
-                OrderId = result.OrderId,
-                TotalAmount = result.TotalAmount,
-                Items = result.Items
-            });
+            var result = await _orderService.CreateOrderFromCartByVariantIdsAsync(userId, request.Items);
+            return Ok(result);
         }
 
         [HttpPost("{id:int:min(1)}/allocate")]

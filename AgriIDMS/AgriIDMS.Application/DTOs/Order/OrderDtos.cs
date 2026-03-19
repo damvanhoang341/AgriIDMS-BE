@@ -22,12 +22,14 @@ namespace AgriIDMS.Application.DTOs.Order
         public IList<OrderItemDto> Items { get; set; } = new List<OrderItemDto>();
     }
 
+    public class CreateOrderFromCartRequest
+    {
+        public List<CreateOrderFromCartByVariantIdsRequest> Items { get; set; } = new();
+    }
+
     public class CreateOrderFromCartByVariantIdsRequest
     {
-        /// <summary>
-        /// Danh sách ProductVariantId muốn tạo order từ giỏ.
-        /// Hệ thống sẽ lấy tất cả CartItem thuộc các ProductVariantId này.
-        /// </summary>
-        public IList<int> ProductVariantIds { get; set; } = new List<int>();
+        public int ProductVariantId { get; set; }
+        public int Quantity { get; set; }
     }
 }
