@@ -136,6 +136,11 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public DateTime ReceivedDate { get; set; }
         public decimal TotalReceivedWeight { get; set; }
         public decimal TotalUsableWeight { get; set; }
+
+        /// <summary>Người tạo phiếu nhập.</summary>
+        public string CreatedById { get; set; } = null!;
+        public string CreatedByName { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
     }
 
     public class GoodsReceiptDetailLineDto

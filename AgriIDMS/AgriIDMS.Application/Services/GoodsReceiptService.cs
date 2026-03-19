@@ -572,7 +572,11 @@ namespace AgriIDMS.Application.Services
                 WarehouseName = r.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = r.ReceivedDate,
                 TotalReceivedWeight = r.TotalReceivedWeight,
-                TotalUsableWeight = r.TotalUsableWeight
+                TotalUsableWeight = r.TotalUsableWeight,
+
+                CreatedById = r.CreatedBy,
+                CreatedByName = r.CreatedUser?.FullName ?? r.CreatedUser?.UserName ?? string.Empty,
+                CreatedAt = r.CreatedAt
             }).ToList();
         }
 
@@ -594,7 +598,11 @@ namespace AgriIDMS.Application.Services
                 WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = receipt.ReceivedDate,
                 TotalReceivedWeight = receipt.TotalReceivedWeight,
-                TotalUsableWeight = receipt.TotalUsableWeight
+                TotalUsableWeight = receipt.TotalUsableWeight,
+
+                CreatedById = receipt.CreatedBy,
+                CreatedByName = receipt.CreatedUser?.FullName ?? receipt.CreatedUser?.UserName ?? string.Empty,
+                CreatedAt = receipt.CreatedAt
             };
 
             dto.Details = receipt.Details.Select(d => new GoodsReceiptDetailLineDto
@@ -648,7 +656,11 @@ namespace AgriIDMS.Application.Services
                 TotalReceivedWeight = receipt.TotalReceivedWeight,
                 TotalUsableWeight = receipt.TotalUsableWeight,
                 TotalAmount = details.Sum(x => x.LineTotal),
-                Details = details
+                Details = details,
+
+                CreatedById = receipt.CreatedBy,
+                CreatedByName = receipt.CreatedUser?.FullName ?? receipt.CreatedUser?.UserName ?? string.Empty,
+                CreatedAt = receipt.CreatedAt
             };
         }
     }

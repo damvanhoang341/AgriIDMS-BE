@@ -35,6 +35,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.GoodsReceipts
                 .AsNoTracking()
+                .Include(r => r.CreatedUser)
                 .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
@@ -50,6 +51,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<GoodsReceipt?> GetGoodsReceiptWithDetailsAsync(int goodsReceiptId)
         {
             return await _context.GoodsReceipts
+                .Include(r => r.CreatedUser)
                 .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
@@ -64,6 +66,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId)
         {
             return await _context.GoodsReceipts
+                .Include(r => r.CreatedUser)
                 .Include(r => r.Warehouse)
                 .Include(r => r.Details)
                     .ThenInclude(d => d.PurchaseOrderDetail)
