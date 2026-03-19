@@ -41,6 +41,14 @@ namespace AgriIDMS.API.Controllers
             return Ok(slot);
         }
 
+        /// <summary>Lấy chi tiết slot đang chứa gì (product/variant + danh sách box). Slot chỉ được chứa 1 loại sản phẩm.</summary>
+        [HttpGet("~/api/slots/{slotId:int:min(1)}/contents")]
+        public async Task<IActionResult> GetContents(int slotId)
+        {
+            var result = await _slotService.GetContentsAsync(slotId);
+            return Ok(result);
+        }
+
         [HttpPut("{id:int}")]
         //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Update([FromRoute] int rackId, [FromRoute] int id, [FromBody] CreateSlotRequest request)
