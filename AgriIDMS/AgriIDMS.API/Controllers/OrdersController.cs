@@ -67,6 +67,18 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
+        [HttpPatch("{id:int:min(1)}/cancel")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var userId = GetCurrentUserId();
+            await _orderService.CancelOrderAsync(id, userId);
+            return Ok(new
+            {
+                Message = "Hủy đơn hàng thành công",
+                OrderId = id
+            });
+        }
+
         private string GetCurrentUserId()
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
