@@ -112,6 +112,13 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal BoxSize { get; set; }
     }
 
+    /// <summary>Chuyển đổi kho đích của phiếu nhập. Chỉ cho phép khi phiếu chưa Approved (chưa tạo Lot/Box).</summary>
+    public class UpdateGoodsReceiptWarehouseRequest
+    {
+        [Required(ErrorMessage = "WarehouseId không được để trống")]
+        public int WarehouseId { get; set; }
+    }
+
     // ===================== Response DTOs =====================
 
     public class GoodsReceiptSummaryDto
@@ -129,6 +136,11 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public DateTime ReceivedDate { get; set; }
         public decimal TotalReceivedWeight { get; set; }
         public decimal TotalUsableWeight { get; set; }
+
+        /// <summary>Người tạo phiếu nhập.</summary>
+        public string CreatedById { get; set; } = null!;
+        public string CreatedByName { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
     }
 
     public class GoodsReceiptDetailLineDto
@@ -137,7 +149,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public int ProductVariantId { get; set; }
         public string ProductName { get; set; } = null!;
         public decimal ReceivedWeight { get; set; }
-        public decimal UsableWeight { get; set; }
+        public decimal? UsableWeight { get; set; }
         public decimal RejectWeight { get; set; }
         public string QCResult { get; set; } = null!;
     }

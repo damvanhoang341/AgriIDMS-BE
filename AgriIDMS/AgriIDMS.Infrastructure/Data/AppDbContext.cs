@@ -319,7 +319,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.UsableWeight)
                   .HasPrecision(18, 3)
-                  .IsRequired();
+                  .IsRequired(false);
 
             entity.Ignore(x => x.RejectWeight);
 
@@ -954,6 +954,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.ToTable("OrderDetails");
 
             entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.BoxWeight)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
+            entity.Property(x => x.IsPartial)
+                  .IsRequired();
 
             entity.Property(x => x.Quantity)
                   .HasColumnType("decimal(18,2)")

@@ -63,7 +63,7 @@ namespace AgriIDMS.Application.Services
                 PurchaseOrderDetailId = request.PurchaseOrderDetailId,
                 ProductVariantId = poDetail.ProductVariantId,
                 ReceivedWeight = request.ReceivedWeight,
-                UsableWeight = request.ReceivedWeight,
+                UsableWeight = null,
                 UnitPrice = poDetail.UnitPrice
             };
 
@@ -109,8 +109,14 @@ namespace AgriIDMS.Application.Services
             var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(detail.GoodsReceiptId);
             if (receipt == null)
                 throw new NotFoundException("Phiếu nhập không tồn tại");
-            if (receipt.Status != GoodsReceiptStatus.Draft && receipt.Status != GoodsReceiptStatus.Received && receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
-                throw new InvalidBusinessRuleException("Chỉ được sửa chi tiết khi phiếu nhập ở trạng thái Nháp (Draft) hoặc Đã nhập số liệu (Received)");
+            if (receipt.Status != GoodsReceiptStatus.Draft
+                && receipt.Status != GoodsReceiptStatus.Received
+                && receipt.Status != GoodsReceiptStatus.PendingManagerApprovalQc
+                && receipt.Status != GoodsReceiptStatus.PendingManagerApproval)
+            {
+                throw new InvalidBusinessRuleException(
+                    "Chỉ được sửa chi tiết khi phiếu nhập ở trạng thái Nháp (Draft), Đã nhập số liệu (Received) hoặc Đang chờ duyệt (PendingManagerApprovalQc / PendingManagerApproval)");
+            }
 
             if (detail.QCResult != QCResult.Pending)
                 throw new InvalidBusinessRuleException("Chỉ được sửa chi tiết khi chưa QC (QCResult = Pending)");
@@ -135,8 +141,8 @@ namespace AgriIDMS.Application.Services
                     $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ (không tính dòng này): {otherPending}, khối lượng mới: {request.ReceivedWeight}, đặt hàng: {poDetail.OrderedWeight}.");
 
             detail.ReceivedWeight = request.ReceivedWeight;
-            // Trước khi QC, UsableWeight luôn = ReceivedWeight
-            detail.UsableWeight = request.ReceivedWeight;
+            // Trước khi QC, UsableWeight = null
+            detail.UsableWeight = null;
 
             await _unitOfWork.SaveChangesAsync();
 

@@ -226,14 +226,6 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
-        // MANAGER ALLOW QC (wrapper: luôn Approve ngoại lệ định mức tối thiểu, cho phép quay lại flow QC/Approve)
-        // ===============================
-        public async Task ManagerAllowQcAsync(int receiptId, string userId)
-        {
-            await ManagerReviewMinWeightAsync(receiptId, true, userId);
-        }
-
-        // ===============================
         // MANAGER REVIEW MIN WEIGHT (Approve / Reject khi status = PendingManagerApprovalQc - dưới định mức tối thiểu)
         // ===============================
         public async Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId)
@@ -246,9 +238,7 @@ namespace AgriIDMS.Application.Services
 
             if (isApproved)
             {
-                // Nếu còn dòng QCResult = Pending → đưa về Received để QC tiếp; nếu không còn dòng Pending → đưa về QCCompleted.
-                bool hasPendingQc = receipt.Details.Any(d => d.QCResult == QCResult.Pending);
-                receipt.Status = hasPendingQc ? GoodsReceiptStatus.Received : GoodsReceiptStatus.QCCompleted;
+                receipt.Status = GoodsReceiptStatus.Received;
                 receipt.PendingReason = null;
                 await _unitOfWork.SaveChangesAsync();
                 _logger.LogInformation("Receipt {ReceiptId} được Manager cho phép tiếp tục flow QC/Approve (ngoại lệ định mức tối thiểu) bởi {UserId}", receiptId, userId);
@@ -298,6 +288,32 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===============================
+        // UPDATE WAREHOUSE (chỉ khi phiếu chưa Approved – chưa tạo Lot/Box)
+        // ===============================
+        public async Task UpdateWarehouseAsync(int receiptId, UpdateGoodsReceiptWarehouseRequest request, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+
+            if (receipt.Status == GoodsReceiptStatus.Approved || receipt.Status == GoodsReceiptStatus.Rejected ||
+                receipt.Status == GoodsReceiptStatus.Cancelled)
+                throw new InvalidBusinessRuleException(
+                    "Chỉ được đổi kho khi phiếu nhập chưa duyệt (Draft, Received, QCCompleted, PendingManagerApprovalQc, PendingManagerApproval). Phiếu đã Approved/Rejected/Cancelled không thể đổi kho.");
+
+            if (receipt.WarehouseId == request.WarehouseId)
+                return;
+
+            var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
+            if (warehouse == null)
+                throw new NotFoundException("Kho đích không tồn tại");
+
+            receipt.WarehouseId = request.WarehouseId;
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation("Phiếu nhập {ReceiptId} đã chuyển sang kho {WarehouseId} bởi {UserId}", receiptId, request.WarehouseId, userId);
+        }
+
+        // ===============================
         // GENERATE LOTS (internal: at Approve / ManagerApprove)
         // ===============================
         private async Task CreateLotsAndSetApprovedAsync(GoodsReceipt receipt, string userId)
@@ -324,8 +340,8 @@ namespace AgriIDMS.Application.Services
                     {
                         LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}",
                         GoodsReceiptDetailId = detail.Id,
-                        TotalQuantity = detail.UsableWeight,
-                        RemainingQuantity = detail.UsableWeight,
+                        TotalQuantity = detail.UsableWeight ?? throw new InvalidBusinessRuleException("Có dòng chưa có khối lượng sử dụng được (UsableWeight). Vui lòng QC trước khi duyệt phiếu."),
+                        RemainingQuantity = detail.UsableWeight ?? throw new InvalidBusinessRuleException("Có dòng chưa có khối lượng sử dụng được (UsableWeight). Vui lòng QC trước khi duyệt phiếu."),
                         ReceivedDate = receivedAt,
                         ExpiryDate = expiryDate
                     };
@@ -351,7 +367,7 @@ namespace AgriIDMS.Application.Services
         /// <summary>Check Capacity: đảm bảo kho đích còn đủ dung lượng trống cho tổng UsableWeight của phiếu.</summary>
         private async Task EnsureWarehouseCapacityAsync(GoodsReceipt receipt)
         {
-            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight);
+            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight ?? 0m);
             if (totalUsableWeight <= 0)
                 return;
 
@@ -367,7 +383,7 @@ namespace AgriIDMS.Application.Services
         /// <summary>Định mức tối thiểu chỉ là cảnh báo. Nếu dưới định mức (kho hoặc sản phẩm) trả về thông báo để chuyển Manager xem xét; null = đạt định mức.</summary>
         private string? TryGetMinReceiptWeightWarning(GoodsReceipt receipt)
         {
-            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight);
+            decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight ?? 0m);
             var warnings = new List<string>();
 
             // Theo kho: tổng phiếu nhỏ hơn định mức tối thiểu của kho
@@ -412,8 +428,12 @@ namespace AgriIDMS.Application.Services
             if (lot.GoodsReceiptDetail.GoodsReceipt.Status != GoodsReceiptStatus.Approved)
                 throw new InvalidBusinessRuleException("Chỉ được tạo Box sau khi phiếu nhập đã được duyệt (Approved)");
 
-            // Chỉ cho phép đóng box trên phần còn lại của lot để tránh tạo box vô hạn.
-            decimal total = lot.RemainingQuantity;
+            // Chống tạo box vô hạn: tính trực tiếp theo DB (TotalQuantity - tổng Weight các box đã tạo).
+            // Đồng thời đồng bộ lại RemainingQuantity nếu trước đó bị lệch.
+            var alreadyBoxed = await _boxRepo.GetTotalBoxWeightByLotIdAsync(lot.Id);
+            decimal total = Math.Max(0, lot.TotalQuantity - alreadyBoxed);
+            if (lot.RemainingQuantity != total)
+                lot.RemainingQuantity = total;
             decimal boxSize = request.BoxSize;
             if (boxSize <= 0)
                 throw new InvalidBusinessRuleException("BoxSize phải lớn hơn 0");
@@ -467,16 +487,7 @@ namespace AgriIDMS.Application.Services
             {
                 await _boxRepo.CreateAsync(box);
             }
-            //await _unitOfWork.SaveChangesAsync();
-            try
-            {
-                await _unitOfWork.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.InnerException?.Message);
-                throw;
-            }
+            await _unitOfWork.SaveChangesAsync();
 
 
             foreach (var box in boxesToCreate)
@@ -507,7 +518,7 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Không tìm thấy chi tiết phiếu nhập");
 
             var usable = detail.UsableWeight;
-            if (usable <= 0)
+            if (!usable.HasValue || usable.Value <= 0)
                 throw new InvalidBusinessRuleException("UsableWeight phải lớn hơn 0 để tạo Lot");
 
             var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
@@ -531,8 +542,8 @@ namespace AgriIDMS.Application.Services
             {
                 LotCode = $"LOT-{DateTime.UtcNow.Ticks}",
                 GoodsReceiptDetailId = goodsReceiptDetailId,
-                TotalQuantity = usable,
-                RemainingQuantity = usable,
+                TotalQuantity = usable.Value,
+                RemainingQuantity = usable.Value,
                 ReceivedDate = receivedAt,
                 ExpiryDate = expiryDate
             };
@@ -561,7 +572,11 @@ namespace AgriIDMS.Application.Services
                 WarehouseName = r.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = r.ReceivedDate,
                 TotalReceivedWeight = r.TotalReceivedWeight,
-                TotalUsableWeight = r.TotalUsableWeight
+                TotalUsableWeight = r.TotalUsableWeight,
+
+                CreatedById = r.CreatedBy,
+                CreatedByName = r.CreatedUser?.FullName ?? r.CreatedUser?.UserName ?? string.Empty,
+                CreatedAt = r.CreatedAt
             }).ToList();
         }
 
@@ -583,7 +598,11 @@ namespace AgriIDMS.Application.Services
                 WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = receipt.ReceivedDate,
                 TotalReceivedWeight = receipt.TotalReceivedWeight,
-                TotalUsableWeight = receipt.TotalUsableWeight
+                TotalUsableWeight = receipt.TotalUsableWeight,
+
+                CreatedById = receipt.CreatedBy,
+                CreatedByName = receipt.CreatedUser?.FullName ?? receipt.CreatedUser?.UserName ?? string.Empty,
+                CreatedAt = receipt.CreatedAt
             };
 
             dto.Details = receipt.Details.Select(d => new GoodsReceiptDetailLineDto
@@ -607,7 +626,7 @@ namespace AgriIDMS.Application.Services
 
             var details = receipt.Details.Select(d =>
             {
-                var lineTotal = d.UsableWeight * d.UnitPrice;
+                var lineTotal = (d.UsableWeight ?? 0m) * d.UnitPrice;
                 return new GoodsReceiptDetailLineForApprovalDto
                 {
                     Id = d.Id,
@@ -637,7 +656,11 @@ namespace AgriIDMS.Application.Services
                 TotalReceivedWeight = receipt.TotalReceivedWeight,
                 TotalUsableWeight = receipt.TotalUsableWeight,
                 TotalAmount = details.Sum(x => x.LineTotal),
-                Details = details
+                Details = details,
+
+                CreatedById = receipt.CreatedBy,
+                CreatedByName = receipt.CreatedUser?.FullName ?? receipt.CreatedUser?.UserName ?? string.Empty,
+                CreatedAt = receipt.CreatedAt
             };
         }
     }
