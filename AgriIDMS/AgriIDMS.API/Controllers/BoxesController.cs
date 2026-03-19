@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.Box;
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Application.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -41,7 +42,16 @@ namespace AgriIDMS.API.Controllers
         //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> TransferBoxToSlot([FromBody] TransferBoxToSlotRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue("sub") ??
+                User.FindFirstValue("userId") ??
+                User.FindFirstValue("id");
+
+            // Nếu không có userId, tạo InventoryTransaction sẽ lỗi FK. Trả lỗi rõ ràng để FE biết cần đăng nhập.
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new UnauthorizedException("Bạn cần đăng nhập để chuyển slot.");
+
             await _boxService.TransferBoxToSlotAsync(request, userId);
             return Ok(new { Message = "Đã chuyển box sang slot mới" });
         }
