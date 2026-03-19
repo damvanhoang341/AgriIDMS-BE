@@ -1,6 +1,8 @@
-﻿using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Infrastructure.Repositories
@@ -12,6 +14,18 @@ namespace AgriIDMS.Infrastructure.Repositories
         public OrderRepository(AppDbContext context)
         {
             _context = context;
+        }
+
+        public async Task<IList<Order>> GetByUserIdWithDetailsAndPaymentsAsync(string userId)
+        {
+            return await _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(o => o.Payments)
+                .Where(o => o.UserId == userId)
+                .OrderByDescending(o => o.CreatedAt)
+                .ToListAsync();
         }
 
         public async Task AddAsync(Order order)
@@ -30,6 +44,16 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<Order?> GetByIdWithPaymentsAsync(int id)
         {
             return await _context.Orders
+                .Include(o => o.Payments)
+                .FirstOrDefaultAsync(o => o.Id == id);
+        }
+
+        public async Task<Order?> GetByIdWithDetailsAndPaymentsAsync(int id)
+        {
+            return await _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
                 .Include(o => o.Payments)
                 .FirstOrDefaultAsync(o => o.Id == id);
         }

@@ -19,6 +19,22 @@ namespace AgriIDMS.API.Controllers
             _orderService = orderService;
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetMyOrders([FromQuery] GetOrdersQuery query)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _orderService.GetMyOrdersAsync(userId, query);
+            return Ok(result);
+        }
+
+        [HttpGet("{id:int:min(1)}")]
+        public async Task<IActionResult> GetMyOrderById(int id)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _orderService.GetMyOrderByIdAsync(id, userId);
+            return Ok(result);
+        }
+
         [HttpPost("from-cart")]
         public async Task<IActionResult> CreateFromCart()
         {
