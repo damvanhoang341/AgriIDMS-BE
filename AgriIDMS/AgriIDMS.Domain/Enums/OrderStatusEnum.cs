@@ -14,8 +14,8 @@ namespace AgriIDMS.Domain.Enums
         //COD
         Confirmed = 2,
         Shipping = 4,
-        Completed = 5,
 
+        Completed = 5,
         InventoryFailed = 3,
         Cancelled = 6,
         Refunded = 7

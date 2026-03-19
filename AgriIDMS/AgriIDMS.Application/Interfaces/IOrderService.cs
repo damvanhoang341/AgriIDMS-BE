@@ -10,6 +10,9 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
 
+        /// <summary>Hủy đơn trước khi vào bước shipping (tức là chỉ cho phép khi đơn chưa được thanh toán).</summary>
+        Task CancelOrderAsync(int orderId, string userId);
+
         Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId);
 
 

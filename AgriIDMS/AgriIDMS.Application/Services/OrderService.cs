@@ -104,6 +104,74 @@ namespace AgriIDMS.Application.Services
             };
         }
 
+        public async Task CancelOrderAsync(int orderId, string userId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.UserId != userId)
+                throw new ForbiddenException("Bạn không có quyền hủy đơn hàng này");
+
+            // "trước khi vào allocate" nghĩa là chưa được giữ hàng.
+            // Trong model hiện tại, allocation chỉ xuất hiện khi Order đã chuyển khỏi AwaitingPayment.
+            if (order.Status != OrderStatus.AwaitingPayment && order.Status != OrderStatus.InventoryFailed)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ có thể hủy đơn khi đơn chưa được allocate/giữ hàng. Hiện tại: {order.Status}");
+
+            if (order.Payments != null && order.Payments.Any(p =>
+                    p.PaymentStatus == PaymentStatus.Success ||
+                    p.PaymentStatus == PaymentStatus.Refunded))
+            {
+                throw new InvalidBusinessRuleException("Không thể hủy đơn: đơn đã thanh toán thành công");
+            }
+
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                // Nếu có payment đang Pending/Processing thì chuyển sang Cancelled (tránh dữ liệu treo).
+                if (order.Payments != null)
+                {
+                    foreach (var p in order.Payments)
+                    {
+                        if (p.PaymentStatus == PaymentStatus.Pending ||
+                            p.PaymentStatus == PaymentStatus.Processing)
+                        {
+                            p.PaymentStatus = PaymentStatus.Cancelled;
+                        }
+                    }
+                }
+
+                // Revert các allocation/box nếu có (dự phòng).
+                var allocations = await _allocationRepo.GetByOrderIdAsync(orderId);
+                if (allocations != null && allocations.Any())
+                {
+                    foreach (var alloc in allocations)
+                    {
+                        if (alloc.Status == AllocationStatus.Reserved || alloc.Status == AllocationStatus.Picked)
+                        {
+                            alloc.Status = AllocationStatus.Cancelled;
+
+                            if (alloc.Box != null &&
+                                (alloc.Box.Status == BoxStatus.Reserved ||
+                                 alloc.Box.Status == BoxStatus.Picking))
+                            {
+                                alloc.Box.Status = BoxStatus.Stored;
+                            }
+                        }
+                    }
+                }
+
+                order.Status = OrderStatus.Cancelled;
+
+                await _uow.CommitAsync();
+            }
+            catch
+            {
+                await _uow.RollbackAsync();
+                throw;
+            }
+        }
+
         public async Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId)
         {
             _logger.LogInformation("Creating order from cart for user {UserId}", userId);

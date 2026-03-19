@@ -1,5 +1,6 @@
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.DTOs.Order;
+using AgriIDMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -35,6 +36,21 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        // Gợi ý FE call: GET /api/orders/history?statusOrder=complete
+        [HttpGet("history")]
+        public async Task<IActionResult> GetHistoryOrders([FromQuery] string? statusOrder)
+        {
+            var userId = GetCurrentUserId();
+
+            var query = new GetOrdersQuery
+            {
+                Status = OrderStatus.Completed.ToString()
+            };
+
+            var result = await _orderService.GetMyOrdersAsync(userId, query);
+            return Ok(result);
+        }
+
         [HttpPost("from-cart")]
         public async Task<IActionResult> CreateFromCart()
         {
@@ -63,6 +79,18 @@ namespace AgriIDMS.API.Controllers
             return Ok(new
             {
                 Message = "Đã kiểm tra và giữ hàng cho đơn hàng",
+                OrderId = id
+            });
+        }
+
+        [HttpPatch("{id:int:min(1)}/cancel")]
+        public async Task<IActionResult> Cancel(int id)
+        {
+            var userId = GetCurrentUserId();
+            await _orderService.CancelOrderAsync(id, userId);
+            return Ok(new
+            {
+                Message = "Hủy đơn hàng thành công",
                 OrderId = id
             });
         }
