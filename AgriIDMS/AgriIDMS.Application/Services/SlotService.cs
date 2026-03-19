@@ -109,6 +109,50 @@ namespace AgriIDMS.Application.Services
                 RackId = slot.RackId
             };
         }
+
+        public async Task<SlotContentsDto> GetContentsAsync(int slotId)
+        {
+            var slot = await _slotRepository.GetByIdWithContentsAsync(slotId);
+            if (slot == null)
+                throw new NotFoundException("Slot không tồn tại");
+
+            var boxes = slot.Boxes?.ToList() ?? new List<Box>();
+            var first = boxes.FirstOrDefault();
+            var detail = first?.Lot?.GoodsReceiptDetail;
+            var pv = detail?.ProductVariant;
+
+            var dto = new SlotContentsDto
+            {
+                SlotId = slot.Id,
+                SlotCode = slot.Code,
+                SlotQrCode = slot.QrCode,
+                Capacity = slot.Capacity,
+                CurrentCapacity = slot.CurrentCapacity,
+                RemainingCapacity = slot.Capacity - slot.CurrentCapacity,
+                ProductVariantId = detail?.ProductVariantId,
+                ProductName = pv?.Product?.Name,
+                VariantName = pv?.Name,
+                BoxCount = boxes.Count,
+                TotalBoxWeight = boxes.Sum(b => b.Weight),
+                Boxes = boxes
+                    .OrderByDescending(b => b.CreatedAt)
+                    .Select(b => new SlotBoxItemDto
+                    {
+                        Id = b.Id,
+                        BoxCode = b.BoxCode,
+                        QrCode = b.QRCode,
+                        Weight = b.Weight,
+                        Status = b.Status.ToString(),
+                        LotId = b.LotId,
+                        LotCode = b.Lot?.LotCode ?? string.Empty,
+                        ReceivedDate = b.Lot?.ReceivedDate ?? default,
+                        ExpiryDate = b.Lot?.ExpiryDate ?? default
+                    })
+                    .ToList()
+            };
+
+            return dto;
+        }
     }
 }
 

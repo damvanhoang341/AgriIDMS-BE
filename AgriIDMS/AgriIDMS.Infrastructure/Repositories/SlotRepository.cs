@@ -37,6 +37,23 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(s => s.Rack)
                     .ThenInclude(r => r.Zone)
                         .ThenInclude(z => z.Warehouse)
+                .Include(s => s.Boxes)
+                    .ThenInclude(b => b.Lot)
+                        .ThenInclude(l => l.GoodsReceiptDetail)
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
+
+        public Task<Slot?> GetByIdWithContentsAsync(int id)
+        {
+            return _context.Slots
+                .Include(s => s.Rack)
+                    .ThenInclude(r => r.Zone)
+                        .ThenInclude(z => z.Warehouse)
+                .Include(s => s.Boxes)
+                    .ThenInclude(b => b.Lot)
+                        .ThenInclude(l => l.GoodsReceiptDetail)
+                            .ThenInclude(d => d.ProductVariant)
+                                .ThenInclude(pv => pv.Product)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
