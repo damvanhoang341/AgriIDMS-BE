@@ -1,4 +1,5 @@
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Application.DTOs.Order;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -26,6 +27,24 @@ namespace AgriIDMS.API.Controllers
             return Ok(new
             {
                 Message = "Tạo đơn hàng từ giỏ thành công",
+                OrderId = result.OrderId,
+                TotalAmount = result.TotalAmount,
+                Items = result.Items
+            });
+        }
+
+        /// <summary>
+        /// Tạo đơn theo danh sách ProductVariantId trong giỏ hàng.
+        /// Chỉ xóa các CartItem thuộc các ProductVariantId được chọn.
+        /// </summary>
+        [HttpPost("from-cart/variants")]
+        public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartByVariantIdsRequest request)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _orderService.CreateOrderFromCartByVariantIdsAsync(userId, request.ProductVariantIds);
+            return Ok(new
+            {
+                Message = "Tạo đơn hàng từ giỏ (danh sách loại) thành công",
                 OrderId = result.OrderId,
                 TotalAmount = result.TotalAmount,
                 Items = result.Items

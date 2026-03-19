@@ -36,7 +36,7 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.GoodsReceipts
                 .AsNoTracking()
                 .Include(r => r.CreatedUser)
-                .Include(r => r.Supplier)
+dd                .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
                 .ToListAsync();

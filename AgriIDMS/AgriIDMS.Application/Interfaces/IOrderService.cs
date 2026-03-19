@@ -7,6 +7,9 @@ namespace AgriIDMS.Application.Interfaces
     {
         Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId);
 
+
+        Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId, System.Collections.Generic.IList<int> productVariantIds);
+
         Task AllocateInventoryAsync(int orderId, string userId);
     }
 }
