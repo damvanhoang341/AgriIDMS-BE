@@ -8,21 +8,24 @@ namespace AgriIDMS.Domain.Enums
 {
     public enum OrderStatus
     {
+        //Pos
         AwaitingPayment = 0,
         Paid = 1,
+        //COD
         Confirmed = 2,
-        InventoryFailed = 3,
         Shipping = 4,
         Completed = 5,
+
+        InventoryFailed = 3,
         Cancelled = 6,
         Refunded = 7
     }
 
     public enum PaymentStatus
     {
-        Pending = 0,      // vừa tạo, chưa thanh toán
-        Processing = 1,   // đang chờ gateway xử lý
-        Success = 2,      // thanh toán thành công
+        Pending = 0,      // vừa tạo, chưa thanh toán COD POS
+        Processing = 1,   // đang chờ gateway xử lý POS
+        Success = 2,      // thanh toán thành công COD POS
         Failed = 3,       // thanh toán thất bại
         Cancelled = 4,    // user huỷ
         Refunded = 5      // hoàn tiền
