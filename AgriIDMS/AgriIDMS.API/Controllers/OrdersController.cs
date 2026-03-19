@@ -24,13 +24,7 @@ namespace AgriIDMS.API.Controllers
         {
             var userId = GetCurrentUserId();
             var result = await _orderService.CreateOrderFromCartAsync(userId);
-            return Ok(new
-            {
-                Message = "Tạo đơn hàng từ giỏ thành công",
-                OrderId = result.OrderId,
-                TotalAmount = result.TotalAmount,
-                Items = result.Items
-            });
+            return Ok(result);
         }
 
         /// <summary>

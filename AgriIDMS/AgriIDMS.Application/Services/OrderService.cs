@@ -103,12 +103,14 @@ namespace AgriIDMS.Application.Services
                     "Order {OrderId} created from cart for user {UserId}, estimated total {Total}",
                     order.Id, userId, estimatedTotal);
 
-                return new CreateOrderFromCartResponse
+                var response = new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
                     Items = items
                 };
+                await TryAutoAllocateAsync(order.Id, userId, response);
+                return response;
             }
             catch
             {
@@ -249,17 +251,36 @@ namespace AgriIDMS.Application.Services
 
                 await _uow.CommitAsync();
 
-                return new CreateOrderFromCartResponse
+                var response = new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
                     Items = orderItems
                 };
+                await TryAutoAllocateAsync(order.Id, userId, response);
+                return response;
             }
             catch
             {
                 await _uow.RollbackAsync();
                 throw;
+            }
+        }
+
+        /// <summary>Gọi allocate ngay sau khi tạo order. Nếu thất bại (thiếu hàng) vẫn trả về response, không ném lỗi.</summary>
+        private async Task TryAutoAllocateAsync(int orderId, string userId, CreateOrderFromCartResponse response)
+        {
+            try
+            {
+                await AllocateInventoryAsync(orderId, userId);
+                response.AllocationSucceeded = true;
+                _logger.LogInformation("Auto-allocate succeeded for order {OrderId}", orderId);
+            }
+            catch (Exception ex)
+            {
+                response.AllocationSucceeded = false;
+                response.AllocationMessage = ex.Message;
+                _logger.LogWarning(ex, "Auto-allocate failed for order {OrderId}", orderId);
             }
         }
 
