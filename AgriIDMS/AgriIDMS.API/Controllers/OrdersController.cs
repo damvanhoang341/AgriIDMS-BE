@@ -1,5 +1,6 @@
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.DTOs.Order;
+using AgriIDMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -32,6 +33,21 @@ namespace AgriIDMS.API.Controllers
         {
             var userId = GetCurrentUserId();
             var result = await _orderService.GetMyOrderByIdAsync(id, userId);
+            return Ok(result);
+        }
+
+        // Gợi ý FE call: GET /api/orders/history?statusOrder=complete
+        [HttpGet("history")]
+        public async Task<IActionResult> GetHistoryOrders([FromQuery] string? statusOrder)
+        {
+            var userId = GetCurrentUserId();
+
+            var query = new GetOrdersQuery
+            {
+                Status = OrderStatus.Completed.ToString()
+            };
+
+            var result = await _orderService.GetMyOrdersAsync(userId, query);
             return Ok(result);
         }
 
