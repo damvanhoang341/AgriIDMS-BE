@@ -1,4 +1,4 @@
-﻿namespace AgriIDMS.API.Middleware
+namespace AgriIDMS.API.Middleware
 {
     public class GlobalExceptionMiddleware
     {
@@ -39,12 +39,26 @@
             };
 
             context.Response.StatusCode = statusCode;
+            var isDev = string.Equals(
+                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                "Development",
+                StringComparison.OrdinalIgnoreCase);
+
             var message = statusCode == StatusCodes.Status500InternalServerError
-        ? "Đã xảy ra lỗi hệ thống"
-        : exception.Message;
+                ? "Đã xảy ra lỗi hệ thống"
+                : exception.Message;
+
+            // Nếu là lỗi EF, ưu tiên hiển thị inner exception để biết rõ nguyên nhân (FK/unique/constraint...)
+            var inner = exception.InnerException?.Message;
+            if (isDev && !string.IsNullOrWhiteSpace(inner))
+            {
+                message = $"{exception.Message} | Inner: {inner}";
+            }
+
             return context.Response.WriteAsJsonAsync(new
             {
-                error = exception.Message
+                error = message,
+                detail = isDev ? exception.ToString() : null
             });
         }
     }
