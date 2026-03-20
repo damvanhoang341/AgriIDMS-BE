@@ -106,6 +106,23 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: recipients);
         }
 
+        public async Task NotifyBackorderExpiredForSalesAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var message = $"Đơn hàng #{orderId} đã quá hạn backorder. Vui lòng liên hệ khách để chọn CancelShortage hoặc CancelOrder.";
+
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("Sale", "Admin", "Manager", "WarehouseStaff");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "BackorderExpired",
+                referenceId: orderId,
+                recipientUserIds: recipients);
+        }
+
         public async Task<PagedNotificationResponse> GetMyNotificationsAsync(string userId, bool unreadOnly, int page, int pageSize)
         {
             if (page <= 0) page = 1;

@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -61,6 +62,21 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<Order?> GetByIdAsync(int id)
         {
             return await _context.Orders.FirstOrDefaultAsync(o => o.Id == id);
+        }
+
+        public async Task<IList<Order>> GetOverdueBackordersAsync(System.DateTime nowUtc)
+        {
+            return await _context.Orders
+                .Include(o => o.Details)
+                .Include(o => o.Allocations)
+                .Where(o =>
+                    o.Status == OrderStatus.BackorderWaiting
+                    && o.Allocations.Any(a =>
+                        a.Status == AllocationStatus.Reserved
+                        && a.ExpiredAt.HasValue
+                        && a.ExpiredAt.Value <= nowUtc))
+                .OrderBy(o => o.CreatedAt)
+                .ToListAsync();
         }
     }
 }

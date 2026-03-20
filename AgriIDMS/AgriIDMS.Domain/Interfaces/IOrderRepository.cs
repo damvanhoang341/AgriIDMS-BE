@@ -17,6 +17,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task<Order?> GetByIdWithPaymentsAsync(int id);
 
         Task<Order?> GetByIdAsync(int id);
+
+        Task<IList<Order>> GetOverdueBackordersAsync(DateTime nowUtc);
     }
 }
 
