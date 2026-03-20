@@ -112,6 +112,48 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
+        /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
+        [HttpPatch("{id:int:min(1)}/backorder/wait")]
+        public async Task<IActionResult> WaitBackorder(int id)
+        {
+            var userId = GetCurrentUserId();
+            await _orderService.WaitBackorderAsync(id, userId);
+            return Ok(new
+            {
+                Message = "Đã chuyển trạng thái chờ backorder",
+                OrderId = id
+            });
+        }
+
+        /// <summary>Khách chọn hủy phần còn thiếu để chỉ ship phần đã allocate/giữ được.</summary>
+        [HttpPatch("{id:int:min(1)}/backorder/cancel-shortage")]
+        public async Task<IActionResult> CancelShortage(int id)
+        {
+            var userId = GetCurrentUserId();
+            await _orderService.CancelShortageAsync(id, userId);
+            return Ok(new
+            {
+                Message = "Đã hủy phần thiếu: chỉ ship phần còn lại",
+                OrderId = id
+            });
+        }
+
+        /// <summary>
+        /// Staff allocate nốt phần thiếu cho backorder.
+        /// Nếu quá thời gian chờ thì xử lý theo <see cref="BackorderAllocateRequestDto.ExpiredAction"/>.
+        /// </summary>
+        [HttpPatch("{id:int:min(1)}/backorder/allocate")]
+        public async Task<IActionResult> AllocateBackorderAsStaff(int id, [FromBody] BackorderAllocateRequestDto request)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.BackorderAllocateAsync(id, operatorUserId, request?.ExpiredAction ?? BackorderExpiredAction.CancelShortage);
+            return Ok(new
+            {
+                Message = "Đã xử lý backorder theo thời gian chờ",
+                OrderId = id
+            });
+        }
+
         [HttpPatch("{id:int:min(1)}/cancel")]
         public async Task<IActionResult> Cancel(int id)
         {

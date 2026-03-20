@@ -22,7 +22,13 @@ namespace AgriIDMS.Domain.Enums
         PendingSaleConfirmation = 8,
 
         /// <summary>Sale đã xác nhận — chờ bước allocate (giữ tồn).</summary>
-        AwaitingAllocation = 9
+        AwaitingAllocation = 9,
+
+        /// <summary>Đã allocate/giữ được một phần, còn thiếu hàng.</summary>
+        PartiallyAllocated = 10,
+
+        /// <summary>Khách chọn chờ backorder phần còn thiếu (đến hạn thì xử lý theo policy).</summary>
+        BackorderWaiting = 11
     }
 
     public enum PaymentStatus

@@ -80,4 +80,17 @@ namespace AgriIDMS.Application.DTOs.Order
         public decimal FulfilledQuantity { get; set; }
         public decimal ShortageQuantity { get; set; }
     }
+
+    /// <summary>Hành động cần làm khi hết thời gian backorder.</summary>
+    public enum BackorderExpiredAction
+    {
+        CancelShortage = 0,
+        CancelOrder = 1
+    }
+
+    public class BackorderAllocateRequestDto
+    {
+        public BackorderExpiredAction ExpiredAction { get; set; }
+            = BackorderExpiredAction.CancelShortage;
+    }
 }
