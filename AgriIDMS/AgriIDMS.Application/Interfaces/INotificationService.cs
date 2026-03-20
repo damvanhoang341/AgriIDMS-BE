@@ -9,6 +9,7 @@ namespace AgriIDMS.Application.Interfaces
         Task NotifyOrderPaidAsync(int orderId);
         Task NotifyExportApprovedAsync(int exportReceiptId);
         Task NotifyStockCheckApprovedAsync(int stockCheckId);
+        Task NotifyBackorderExpiredForSalesAsync(int orderId);
 
         // User inbox
         Task<PagedNotificationResponse> GetMyNotificationsAsync(string userId, bool unreadOnly, int page, int pageSize);

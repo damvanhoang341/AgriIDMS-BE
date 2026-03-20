@@ -133,6 +133,9 @@ public static class ServiceRegistration
         services.AddScoped<IHomePageService, HomePageService>();
         services.AddScoped<ILotService, LotService>();
 
+        // Background workers
+        services.AddHostedService<BackorderExpiryScannerService>();
+
         // Cross-cutting services
         services.AddScoped<IQrCodeGenerator, QrCodeGenerator>();
 
