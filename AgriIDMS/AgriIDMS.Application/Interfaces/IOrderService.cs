@@ -18,7 +18,10 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId, IList<CreateOrderFromCartByVariantIdsRequest> requestItems);
 
-        /// <summary>Kiểm tra tồn, giữ hàng (reserve box) và chuyển đơn sang Confirmed nếu đủ hàng.</summary>
-        Task ConfirmOrderAsync(int orderId, string userId);
+        /// <summary>Sale xác nhận đơn hợp lệ → chuyển sang chờ giữ hàng (AwaitingAllocation).</summary>
+        Task SaleConfirmOrderAsync(int orderId, string confirmedByUserId);
+
+        /// <summary>Giữ hàng (allocate): chỉ khi đơn đã AwaitingAllocation (hoặc AwaitingPayment — đơn cũ). Nên bật phân quyền staff khi <paramref name="skipCustomerOwnershipCheck"/> = true.</summary>
+        Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
     }
 }

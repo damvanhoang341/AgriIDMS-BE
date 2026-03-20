@@ -71,14 +71,43 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Sale xác nhận đơn (sau bước này đơn mới được phép giữ hàng / allocate).</summary>
+        [HttpPatch("{id:int:min(1)}/sale-confirm")]
+        //[Authorize(Roles = "Sale,Admin,Manager")]
+        public async Task<IActionResult> SaleConfirm(int id)
+        {
+            var staffUserId = GetCurrentUserId();
+            await _orderService.SaleConfirmOrderAsync(id, staffUserId);
+            return Ok(new
+            {
+                Message = "Sale đã xác nhận đơn — có thể thực hiện giữ hàng (allocate)",
+                OrderId = id
+            });
+        }
+
+        /// <summary>Giữ hàng: chỉ chủ đơn (khách), sau khi sale đã xác nhận.</summary>
         [HttpPatch("{id:int:min(1)}/ConfirmOrder")]
         public async Task<IActionResult> ConfirmOrder(int id)
         {
             var userId = GetCurrentUserId();
-            await _orderService.ConfirmOrderAsync(id, userId);
+            await _orderService.ConfirmOrderAsync(id, userId, skipCustomerOwnershipCheck: false);
             return Ok(new
             {
                 Message = "Đã kiểm tra và giữ hàng cho đơn hàng",
+                OrderId = id
+            });
+        }
+
+        /// <summary>Giữ hàng thay mặt kho/sale (operator không phải chủ đơn). Nên bật Authorize role khi deploy.</summary>
+        [HttpPatch("{id:int:min(1)}/allocate/staff")]
+        //[Authorize(Roles = "WarehouseStaff,Admin,Manager,Sale")]
+        public async Task<IActionResult> AllocateAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmOrderAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
+            return Ok(new
+            {
+                Message = "Đã kiểm tra và giữ hàng cho đơn hàng (thao tác nhân sự)",
                 OrderId = id
             });
         }

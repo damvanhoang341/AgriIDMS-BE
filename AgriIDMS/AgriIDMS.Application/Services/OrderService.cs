@@ -112,11 +112,16 @@ namespace AgriIDMS.Application.Services
             if (order.UserId != userId)
                 throw new ForbiddenException("Bạn không có quyền hủy đơn hàng này");
 
-            // "trước khi vào allocate" nghĩa là chưa được giữ hàng.
-            // Trong model hiện tại, allocation chỉ xuất hiện khi Order đã chuyển khỏi AwaitingPayment.
-            if (order.Status != OrderStatus.AwaitingPayment && order.Status != OrderStatus.InventoryFailed)
+            // Chưa giữ hàng: chờ sale, chờ allocate, hoặc allocate thất bại (chưa thanh toán).
+            var canCancelBeforeAllocation =
+                order.Status == OrderStatus.PendingSaleConfirmation
+                || order.Status == OrderStatus.AwaitingAllocation
+                || order.Status == OrderStatus.AwaitingPayment
+                || order.Status == OrderStatus.InventoryFailed;
+
+            if (!canCancelBeforeAllocation)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể hủy đơn khi đơn chưa được allocate/giữ hàng. Hiện tại: {order.Status}");
+                    $"Chỉ có thể hủy đơn khi chưa giữ hàng / chưa thanh toán thành công. Hiện tại: {order.Status}");
 
             if (order.Payments != null && order.Payments.Any(p =>
                     p.PaymentStatus == PaymentStatus.Success ||
@@ -190,7 +195,7 @@ namespace AgriIDMS.Application.Services
                 {
                     UserId = userId,
                     CreatedAt = now,
-                    Status = OrderStatus.AwaitingPayment
+                    Status = OrderStatus.PendingSaleConfirmation
                 };
 
                 foreach (var item in cart.Items)
@@ -230,14 +235,14 @@ namespace AgriIDMS.Application.Services
                     "Order {OrderId} created from cart for user {UserId}, estimated total {Total}",
                     order.Id, userId, estimatedTotal);
 
-                var response = new CreateOrderFromCartResponse
+                return new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
-                    Items = items
+                    Items = items,
+                    AllocationSucceeded = false,
+                    AllocationMessage = null
                 };
-                await TryAutoAllocateAsync(order.Id, userId, response);
-                return response;
             }
             catch
             {
@@ -289,7 +294,7 @@ namespace AgriIDMS.Application.Services
                 {
                     UserId = userId,
                     CreatedAt = now,
-                    Status = OrderStatus.AwaitingPayment
+                    Status = OrderStatus.PendingSaleConfirmation
                 };
 
                 var orderItems = new List<OrderItemDto>();
@@ -378,14 +383,14 @@ namespace AgriIDMS.Application.Services
 
                 await _uow.CommitAsync();
 
-                var response = new CreateOrderFromCartResponse
+                return new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
-                    Items = orderItems
+                    Items = orderItems,
+                    AllocationSucceeded = false,
+                    AllocationMessage = null
                 };
-                await TryAutoAllocateAsync(order.Id, userId, response);
-                return response;
             }
             catch
             {
@@ -394,41 +399,51 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        /// <summary>Gọi allocate ngay sau khi tạo order. Nếu thất bại (thiếu hàng) vẫn trả về response, không ném lỗi.</summary>
-        private async Task TryAutoAllocateAsync(int orderId, string userId, CreateOrderFromCartResponse response)
+        /// <summary>Sale xác nhận đơn → đơn chuyển sang chờ giữ hàng (allocate).</summary>
+        public async Task SaleConfirmOrderAsync(int orderId, string confirmedByUserId)
         {
-            try
-            {
-                await ConfirmOrderAsync(orderId, userId);
-                response.AllocationSucceeded = true;
-                _logger.LogInformation("Auto-allocate succeeded for order {OrderId}", orderId);
-            }
-            catch (Exception ex)
-            {
-                response.AllocationSucceeded = false;
-                response.AllocationMessage = ex.Message;
-                _logger.LogWarning(ex, "Auto-allocate failed for order {OrderId}", orderId);
-            }
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Status != OrderStatus.PendingSaleConfirmation)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ sale được xác nhận khi đơn đang chờ sale (PendingSaleConfirmation). Hiện tại: {order.Status}");
+
+            if (order.Details == null || !order.Details.Any())
+                throw new InvalidBusinessRuleException("Order không có chi tiết");
+
+            order.Status = OrderStatus.AwaitingAllocation;
+            await _uow.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Order {OrderId} sale-confirmed by {UserId} → AwaitingAllocation",
+                orderId, confirmedByUserId);
         }
 
         /// <summary>
-        /// Xác nhận đơn: reserve đủ box theo từng dòng chi tiết, ghi allocation + inventory transaction,
+        /// Giữ hàng (allocate): reserve đủ box, ghi allocation + inventory transaction,
         /// cập nhật <see cref="Order.TotalAmount"/> và <see cref="Order.Status"/> → Confirmed.
-        /// Nếu thiếu hàng: hoàn trạng thái box đã reserve, đơn → InventoryFailed rồi ném <see cref="InvalidBusinessRuleException"/>.
+        /// Chỉ gọi sau khi sale đã xác nhận (AwaitingAllocation), trừ đơn cũ còn ở AwaitingPayment.
         /// </summary>
-        public async Task ConfirmOrderAsync(int orderId, string userId)
+        public async Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
         {
-            _logger.LogInformation("Confirm order {OrderId}: allocate inventory for user {UserId}", orderId, userId);
+            _logger.LogInformation(
+                "Allocate inventory for order {OrderId} by operator {UserId} (staffMode={StaffMode})",
+                orderId, operatorUserId, skipCustomerOwnershipCheck);
 
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!skipCustomerOwnershipCheck && order.UserId != operatorUserId)
                 throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
 
-            if (order.Status != OrderStatus.AwaitingPayment)
+            var canAllocate =
+                order.Status == OrderStatus.AwaitingAllocation
+                || order.Status == OrderStatus.AwaitingPayment;
+
+            if (!canAllocate)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể xác nhận đơn (giữ hàng) khi đơn ở trạng thái AwaitingPayment. Hiện tại: {order.Status}");
+                    $"Chỉ có thể giữ hàng khi đơn đã được sale xác nhận (AwaitingAllocation) hoặc đơn cũ (AwaitingPayment). Hiện tại: {order.Status}");
 
             if (order.Details == null || !order.Details.Any())
                 throw new InvalidBusinessRuleException("Order không có chi tiết");
@@ -438,7 +453,7 @@ namespace AgriIDMS.Application.Services
             {
                 var coldStorageWarnings = new List<string>();
                 var (allocations, transactions, totalAmount) =
-                    await ReserveBoxesForOrderAsync(order, userId, coldStorageWarnings);
+                    await ReserveBoxesForOrderAsync(order, operatorUserId, coldStorageWarnings);
 
                 if (!IsOrderFullyReserved(order))
                 {
