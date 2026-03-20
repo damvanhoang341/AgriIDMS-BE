@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,17 +8,21 @@ namespace AgriIDMS.Domain.Enums
 {
     public enum OrderStatus
     {
-        //Pos
+        /// <summary>Đơn cũ: chờ thanh toán / giữ hàng trực tiếp. Đơn mới không còn dùng làm bước đầu.</summary>
         AwaitingPayment = 0,
         Paid = 1,
-        //COD
         Confirmed = 2,
-        Shipping = 4,
-
-        Completed = 5,
         InventoryFailed = 3,
+        Shipping = 4,
+        Completed = 5,
         Cancelled = 6,
-        Refunded = 7
+        Refunded = 7,
+
+        /// <summary>Vừa tạo từ giỏ — chờ sale xác nhận trước khi được giữ hàng.</summary>
+        PendingSaleConfirmation = 8,
+
+        /// <summary>Sale đã xác nhận — chờ bước allocate (giữ tồn).</summary>
+        AwaitingAllocation = 9
     }
 
     public enum PaymentStatus

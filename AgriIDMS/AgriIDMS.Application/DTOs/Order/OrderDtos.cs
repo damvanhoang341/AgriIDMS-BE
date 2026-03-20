@@ -24,9 +24,9 @@ namespace AgriIDMS.Application.DTOs.Order
         public int OrderId { get; set; }
         public decimal TotalAmount { get; set; }
         public IList<OrderItemDto> Items { get; set; } = new List<OrderItemDto>();
-        /// <summary>True nếu auto-allocate thành công (order đã Confirmed).</summary>
+        /// <summary>True chỉ sau khi gọi allocate thành công (đơn → Confirmed). Sau khi tạo đơn luôn false.</summary>
         public bool AllocationSucceeded { get; set; }
-        /// <summary>Thông báo khi allocate thất bại (thiếu hàng, v.v.).</summary>
+        /// <summary>Thông báo lỗi khi allocate (thiếu hàng, v.v.).</summary>
         public string? AllocationMessage { get; set; }
     }
 
