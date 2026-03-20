@@ -1,7 +1,6 @@
 using AgriIDMS.Application.DTOs.Order;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
-using AgriIDMS.Domain;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
@@ -24,7 +23,6 @@ namespace AgriIDMS.Application.Services
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
 
-        private const decimal DefaultColdStorageHours = 48m;
         private const int AllocationExpirationHours = 24;
 
         public OrderService(
@@ -548,9 +546,8 @@ namespace AgriIDMS.Application.Services
                     originalStatus == OrderStatus.AwaitingAllocation
                     || originalStatus == OrderStatus.AwaitingPayment;
 
-                var coldStorageWarnings = new List<string>();
                 var (allocations, transactions, totalAmount) =
-                    await ReserveBoxesForOrderAsync(order, operatorUserId, coldStorageWarnings);
+                    await ReserveBoxesForOrderAsync(order);
 
                 if (allocations.Count == 0)
                 {
@@ -739,7 +736,7 @@ namespace AgriIDMS.Application.Services
         }
 
         private async Task<(List<OrderAllocation> allocations, List<InventoryTransaction> transactions, decimal totalAmount)>
-            ReserveBoxesForOrderAsync(Order order, string userId, List<string> coldStorageWarnings)
+            ReserveBoxesForOrderAsync(Order order)
         {
             var now = DateTime.UtcNow;
             var expiredAt = now.AddHours(AllocationExpirationHours);
@@ -771,8 +768,6 @@ namespace AgriIDMS.Application.Services
                 foreach (var box in boxes)
                 {
                     if (allocated >= boxesNeeded) break;
-                    if (!IsColdStorageEligible(box, coldStorageWarnings))
-                        continue;
 
                     allocations.Add(new OrderAllocation
                     {
@@ -807,24 +802,5 @@ namespace AgriIDMS.Application.Services
             return (allocations, transactions, totalAmount);
         }
 
-        /// <summary>
-        /// Kiểm tra box có đủ điều kiện xuất kho lạnh không.
-        /// Box ở kho thường luôn được phép. Box ở kho lạnh phải đủ MinColdStorageHours.
-        /// </summary>
-        private bool IsColdStorageEligible(Box box, List<string> warnings)
-        {
-            var warehouse = box.Slot?.Rack?.Zone?.Warehouse;
-            if (warehouse == null || warehouse.TitleWarehouse != TitleWarehouse.Cold)
-                return true;
-
-            var minHours = warehouse.MinColdStorageHours ?? DefaultColdStorageHours;
-            if (ColdStorageExportRule.CanExportFromCold(box.PlacedInColdAt, minHours))
-                return true;
-
-            var message = ColdStorageExportRule.GetNotEligibleMessage(box.BoxCode, minHours, box.PlacedInColdAt);
-            warnings.Add(message);
-            _logger.LogInformation("Cold storage skip: {Message}", message);
-            return false;
-        }
     }
 }
