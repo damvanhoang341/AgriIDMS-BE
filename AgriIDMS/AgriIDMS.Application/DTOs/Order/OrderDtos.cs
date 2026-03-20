@@ -43,6 +43,23 @@ namespace AgriIDMS.Application.DTOs.Order
         public int Quantity { get; set; }
     }
 
+    public class CreatePosOrderRequest
+    {
+        /// <summary>Khách hàng gắn với đơn POS (optional). Nếu null sẽ dùng chính staff tạo đơn.</summary>
+        public string? CustomerUserId { get; set; }
+        public List<CreatePosOrderItemRequest> Items { get; set; } = new();
+    }
+
+    public class CreatePosOrderItemRequest
+    {
+        public int ProductVariantId { get; set; }
+        public decimal BoxWeight { get; set; }
+        public bool IsPartial { get; set; }
+        public int Quantity { get; set; }
+        /// <summary>Đơn giá bán tại quầy. Nếu null hệ thống lấy theo giá variant hiện tại.</summary>
+        public decimal? UnitPrice { get; set; }
+    }
+
     public class GetOrdersQuery
     {
         public string? Status { get; set; }
@@ -53,6 +70,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public int OrderId { get; set; }
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = null!;
+        public string Source { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public int ItemCount { get; set; }
         public string? LatestPaymentStatus { get; set; }
@@ -63,6 +81,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public int OrderId { get; set; }
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = null!;
+        public string Source { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public string? LatestPaymentStatus { get; set; }
         public IList<OrderDetailItemDto> Items { get; set; } = new List<OrderDetailItemDto>();

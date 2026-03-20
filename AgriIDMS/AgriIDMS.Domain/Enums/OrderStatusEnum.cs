@@ -6,6 +6,12 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Enums
 {
+    public enum OrderSource
+    {
+        Online = 0,
+        POS = 1
+    }
+
     public enum OrderStatus
     {
         /// <summary>Đơn cũ: chờ thanh toán / giữ hàng trực tiếp. Đơn mới không còn dùng làm bước đầu.</summary>

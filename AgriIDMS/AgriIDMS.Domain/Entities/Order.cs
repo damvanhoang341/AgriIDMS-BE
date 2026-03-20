@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +16,8 @@ namespace AgriIDMS.Domain.Entities
         public DateTime CreatedAt { get; set; }
 
         public decimal TotalAmount { get; set; }
+
+        public OrderSource Source { get; set; } = OrderSource.Online;
 
         public OrderStatus Status { get; set; }
 

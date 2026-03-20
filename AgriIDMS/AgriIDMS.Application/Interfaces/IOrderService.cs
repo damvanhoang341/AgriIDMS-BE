@@ -17,6 +17,7 @@ namespace AgriIDMS.Application.Interfaces
 
 
         Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId, IList<CreateOrderFromCartByVariantIdsRequest> requestItems);
+        Task<CreateOrderFromCartResponse> CreatePosOrderAsync(string operatorUserId, CreatePosOrderRequest request);
 
         /// <summary>Sale xác nhận đơn hợp lệ → chuyển sang chờ giữ hàng (AwaitingAllocation).</summary>
         Task SaleConfirmOrderAsync(int orderId, string confirmedByUserId);

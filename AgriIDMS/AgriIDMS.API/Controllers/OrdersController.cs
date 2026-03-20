@@ -80,6 +80,16 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Tạo đơn bán trực tiếp (POS) và đi thẳng trạng thái AwaitingAllocation.</summary>
+        [HttpPost("pos")]
+        //[Authorize(Roles = "Sale,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> CreatePosOrder([FromBody] CreatePosOrderRequest request)
+        {
+            var operatorUserId = GetCurrentUserId();
+            var result = await _orderService.CreatePosOrderAsync(operatorUserId, request);
+            return Ok(result);
+        }
+
         /// <summary>Sale xác nhận đơn (sau bước này đơn mới được phép giữ hàng / allocate).</summary>
         [HttpPatch("{id:int:min(1)}/sale-confirm")]
         //[Authorize(Roles = "Sale,Admin,Manager")]
