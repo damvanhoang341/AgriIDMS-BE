@@ -1,6 +1,7 @@
 using AgriIDMS.Application.DTOs.Export;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Domain;
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
@@ -15,6 +16,7 @@ namespace AgriIDMS.Application.Services
 {
     public class ExportService : IExportService
     {
+        private const decimal DefaultColdStorageHours = 48m;
         private readonly IExportReceiptRepository _exportRepo;
         private readonly IOrderRepository _orderRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
@@ -113,6 +115,9 @@ namespace AgriIDMS.Application.Services
                 {
                     if (detail.Box != null)
                     {
+                        if (!IsColdStorageEligibleForExport(detail.Box, out var notEligibleMessage))
+                            throw new InvalidBusinessRuleException(notEligibleMessage!);
+
                         detail.Box.Status = BoxStatus.Picking;
                         await _boxRepo.UpdateAsync(detail.Box);
                     }
@@ -284,6 +289,30 @@ namespace AgriIDMS.Application.Services
                     BoxStatus = d.Box?.Status.ToString() ?? "N/A"
                 }).ToList()
             };
+        }
+
+        /// <summary>
+        /// Chặn pick/export cho box kho lạnh khi chưa đủ thời gian lưu lạnh.
+        /// Reserve vẫn cho phép để giữ hàng.
+        /// </summary>
+        private static bool IsColdStorageEligibleForExport(Box box, out string? message)
+        {
+            var warehouse = box.Slot?.Rack?.Zone?.Warehouse;
+            if (warehouse == null || warehouse.TitleWarehouse != TitleWarehouse.Cold)
+            {
+                message = null;
+                return true;
+            }
+
+            var minHours = warehouse.MinColdStorageHours ?? DefaultColdStorageHours;
+            if (ColdStorageExportRule.CanExportFromCold(box.PlacedInColdAt, minHours))
+            {
+                message = null;
+                return true;
+            }
+
+            message = ColdStorageExportRule.GetNotEligibleMessage(box.BoxCode, minHours, box.PlacedInColdAt);
+            return false;
         }
     }
 }

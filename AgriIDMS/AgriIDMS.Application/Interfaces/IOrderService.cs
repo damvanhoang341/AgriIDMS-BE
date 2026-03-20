@@ -23,5 +23,17 @@ namespace AgriIDMS.Application.Interfaces
 
         /// <summary>Giữ hàng (allocate): chỉ khi đơn đã AwaitingAllocation (hoặc AwaitingPayment — đơn cũ). Nên bật phân quyền staff khi <paramref name="skipCustomerOwnershipCheck"/> = true.</summary>
         Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
+
+        /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
+        Task WaitBackorderAsync(int orderId, string userId);
+
+        /// <summary>Khách chấp nhận bỏ phần còn thiếu: chỉ ship phần đã allocate/giữ được.</summary>
+        Task CancelShortageAsync(int orderId, string userId);
+
+        /// <summary>
+        /// Staff allocate nốt phần còn thiếu cho backorder.
+        /// Nếu vượt quá thời gian chờ thì hệ thống xử lý theo <paramref name="expiredAction"/>.
+        /// </summary>
+        Task BackorderAllocateAsync(int orderId, string operatorUserId, BackorderExpiredAction expiredAction);
     }
 }
