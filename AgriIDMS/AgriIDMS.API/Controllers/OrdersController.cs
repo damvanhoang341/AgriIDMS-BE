@@ -71,11 +71,11 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("{id:int:min(1)}/allocate")]
-        public async Task<IActionResult> Allocate(int id)
+        [HttpPatch("{id:int:min(1)}/ConfirmOrder")]
+        public async Task<IActionResult> ConfirmOrder(int id)
         {
             var userId = GetCurrentUserId();
-            await _orderService.AllocateInventoryAsync(id, userId);
+            await _orderService.ConfirmOrderAsync(id, userId);
             return Ok(new
             {
                 Message = "Đã kiểm tra và giữ hàng cho đơn hàng",

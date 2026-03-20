@@ -18,6 +18,7 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId, IList<CreateOrderFromCartByVariantIdsRequest> requestItems);
 
-        Task AllocateInventoryAsync(int orderId, string userId);
+        /// <summary>Kiểm tra tồn, giữ hàng (reserve box) và chuyển đơn sang Confirmed nếu đủ hàng.</summary>
+        Task ConfirmOrderAsync(int orderId, string userId);
     }
 }

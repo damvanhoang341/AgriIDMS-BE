@@ -399,7 +399,7 @@ namespace AgriIDMS.Application.Services
         {
             try
             {
-                await AllocateInventoryAsync(orderId, userId);
+                await ConfirmOrderAsync(orderId, userId);
                 response.AllocationSucceeded = true;
                 _logger.LogInformation("Auto-allocate succeeded for order {OrderId}", orderId);
             }
@@ -411,9 +411,14 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        public async Task AllocateInventoryAsync(int orderId, string userId)
+        /// <summary>
+        /// Xác nhận đơn: reserve đủ box theo từng dòng chi tiết, ghi allocation + inventory transaction,
+        /// cập nhật <see cref="Order.TotalAmount"/> và <see cref="Order.Status"/> → Confirmed.
+        /// Nếu thiếu hàng: hoàn trạng thái box đã reserve, đơn → InventoryFailed rồi ném <see cref="InvalidBusinessRuleException"/>.
+        /// </summary>
+        public async Task ConfirmOrderAsync(int orderId, string userId)
         {
-            _logger.LogInformation("Allocating inventory for order {OrderId} by user {UserId}", orderId, userId);
+            _logger.LogInformation("Confirm order {OrderId}: allocate inventory for user {UserId}", orderId, userId);
 
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
@@ -423,7 +428,7 @@ namespace AgriIDMS.Application.Services
 
             if (order.Status != OrderStatus.AwaitingPayment)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể allocate đơn hàng ở trạng thái AwaitingPayment. Hiện tại: {order.Status}");
+                    $"Chỉ có thể xác nhận đơn (giữ hàng) khi đơn ở trạng thái AwaitingPayment. Hiện tại: {order.Status}");
 
             if (order.Details == null || !order.Details.Any())
                 throw new InvalidBusinessRuleException("Order không có chi tiết");
@@ -431,95 +436,27 @@ namespace AgriIDMS.Application.Services
             await _uow.BeginTransactionAsync();
             try
             {
-                var now = DateTime.UtcNow;
-                var expiredAt = now.AddHours(AllocationExpirationHours);
-                var allAllocations = new List<OrderAllocation>();
-                var allTransactions = new List<InventoryTransaction>();
-                decimal totalAmount = 0;
                 var coldStorageWarnings = new List<string>();
+                var (allocations, transactions, totalAmount) =
+                    await ReserveBoxesForOrderAsync(order, userId, coldStorageWarnings);
 
-                foreach (var detail in order.Details)
+                if (!IsOrderFullyReserved(order))
                 {
-                    var boxesNeeded = (int)detail.Quantity;
-                    var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(detail.ProductVariantId);
-                    // Enforce đúng loại box theo order detail
-                    boxes = boxes
-                        .Where(b => b.IsPartial == detail.IsPartial && b.Weight == detail.BoxWeight)
-                        .ToList();
-
-                    var allocated = 0;
-                    foreach (var box in boxes)
-                    {
-                        if (allocated >= boxesNeeded) break;
-
-                        if (!IsColdStorageEligible(box, coldStorageWarnings))
-                            continue;
-
-                        allAllocations.Add(new OrderAllocation
-                        {
-                            OrderId = order.Id,
-                            OrderDetailId = detail.Id,
-                            BoxId = box.Id,
-                            ReservedQuantity = box.Weight,
-                            Status = AllocationStatus.Reserved,
-                            ReservedAt = now,
-                            ExpiredAt = expiredAt
-                        });
-
-                        allTransactions.Add(new InventoryTransaction
-                        {
-                            BoxId = box.Id,
-                            TransactionType = InventoryTransactionType.Export,
-                            FromSlotId = box.SlotId,
-                            ToSlotId = null,
-                            Quantity = box.Weight,
-                            ReferenceType = ReferenceType.GoodsIssue,
-                            CreatedBy = userId,
-                            CreatedAt = now
-                        });
-
-                        box.Status = BoxStatus.Reserved;
-                        await _boxRepo.UpdateAsync(box);
-
-                        totalAmount += box.Weight * detail.UnitPrice;
-                        allocated++;
-                    }
-
-                    detail.FulfilledQuantity = allocated;
-                    detail.ShortageQuantity = boxesNeeded - allocated;
-                }
-
-                var allFulfilled = order.Details.All(d => d.ShortageQuantity == 0);
-
-                if (!allFulfilled)
-                {
-                    foreach (var alloc in allAllocations)
-                    {
-                        var box = await _boxRepo.GetByIdAsync(alloc.BoxId);
-                        if (box != null)
-                        {
-                            box.Status = BoxStatus.Stored;
-                            await _boxRepo.UpdateAsync(box);
-                        }
-                    }
-
+                    await ReleaseReservedBoxesAsync(allocations);
                     order.Status = OrderStatus.InventoryFailed;
                     await _uow.CommitAsync();
 
-                    var shortageDetails = order.Details
-                        .Where(d => d.ShortageQuantity > 0)
-                        .Select(d => $"Variant #{d.ProductVariantId}: thiếu {d.ShortageQuantity} box");
-
+                    var shortageText = FormatShortageDetails(order);
                     _logger.LogWarning(
-                        "Inventory allocation failed for order {OrderId}. Shortage: {Details}",
-                        orderId, string.Join(", ", shortageDetails));
+                        "Confirm order {OrderId} failed — insufficient stock: {Details}",
+                        orderId, shortageText);
 
                     throw new InvalidBusinessRuleException(
-                        $"Không đủ hàng tồn kho để giữ cho đơn hàng. {string.Join("; ", shortageDetails)}");
+                        $"Không đủ hàng tồn kho để giữ cho đơn hàng. {shortageText}");
                 }
 
-                await _allocationRepo.AddRangeAsync(allAllocations);
-                await _inventoryTranRepo.AddRangeAsync(allTransactions);
+                await _allocationRepo.AddRangeAsync(allocations);
+                await _inventoryTranRepo.AddRangeAsync(transactions);
 
                 order.TotalAmount = totalAmount;
                 order.Status = OrderStatus.Confirmed;
@@ -527,8 +464,8 @@ namespace AgriIDMS.Application.Services
                 await _uow.CommitAsync();
 
                 _logger.LogInformation(
-                    "Inventory allocated for order {OrderId}: {BoxCount} boxes, total {Total}, status → Confirmed",
-                    orderId, allAllocations.Count, totalAmount);
+                    "Order {OrderId} confirmed: {BoxCount} boxes reserved, total {Total}",
+                    orderId, allocations.Count, totalAmount);
             }
             catch (InvalidBusinessRuleException)
             {
@@ -539,6 +476,87 @@ namespace AgriIDMS.Application.Services
                 await _uow.RollbackAsync();
                 throw;
             }
+        }
+
+        private static bool IsOrderFullyReserved(Order order) =>
+            order.Details.All(d => d.ShortageQuantity == 0);
+
+        private static string FormatShortageDetails(Order order) =>
+            string.Join("; ",
+                order.Details
+                    .Where(d => d.ShortageQuantity > 0)
+                    .Select(d => $"Variant #{d.ProductVariantId}: thiếu {d.ShortageQuantity} box"));
+
+        private async Task ReleaseReservedBoxesAsync(IReadOnlyList<OrderAllocation> allocations)
+        {
+            foreach (var alloc in allocations)
+            {
+                var box = await _boxRepo.GetByIdAsync(alloc.BoxId);
+                if (box == null) continue;
+                box.Status = BoxStatus.Stored;
+                await _boxRepo.UpdateAsync(box);
+            }
+        }
+
+        private async Task<(List<OrderAllocation> allocations, List<InventoryTransaction> transactions, decimal totalAmount)>
+            ReserveBoxesForOrderAsync(Order order, string userId, List<string> coldStorageWarnings)
+        {
+            var now = DateTime.UtcNow;
+            var expiredAt = now.AddHours(AllocationExpirationHours);
+            var allocations = new List<OrderAllocation>();
+            var transactions = new List<InventoryTransaction>();
+            decimal totalAmount = 0;
+
+            foreach (var detail in order.Details)
+            {
+                var boxesNeeded = (int)detail.Quantity;
+                var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(detail.ProductVariantId);
+                boxes = boxes
+                    .Where(b => b.IsPartial == detail.IsPartial && b.Weight == detail.BoxWeight)
+                    .ToList();
+
+                var allocated = 0;
+                foreach (var box in boxes)
+                {
+                    if (allocated >= boxesNeeded) break;
+                    if (!IsColdStorageEligible(box, coldStorageWarnings))
+                        continue;
+
+                    allocations.Add(new OrderAllocation
+                    {
+                        OrderId = order.Id,
+                        OrderDetailId = detail.Id,
+                        BoxId = box.Id,
+                        ReservedQuantity = box.Weight,
+                        Status = AllocationStatus.Reserved,
+                        ReservedAt = now,
+                        ExpiredAt = expiredAt
+                    });
+
+                    transactions.Add(new InventoryTransaction
+                    {
+                        BoxId = box.Id,
+                        TransactionType = InventoryTransactionType.Export,
+                        FromSlotId = box.SlotId,
+                        ToSlotId = null,
+                        Quantity = box.Weight,
+                        ReferenceType = ReferenceType.GoodsIssue,
+                        CreatedBy = userId,
+                        CreatedAt = now
+                    });
+
+                    box.Status = BoxStatus.Reserved;
+                    await _boxRepo.UpdateAsync(box);
+
+                    totalAmount += box.Weight * detail.UnitPrice;
+                    allocated++;
+                }
+
+                detail.FulfilledQuantity = allocated;
+                detail.ShortageQuantity = boxesNeeded - allocated;
+            }
+
+            return (allocations, transactions, totalAmount);
         }
 
         /// <summary>
