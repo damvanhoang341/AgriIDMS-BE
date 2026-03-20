@@ -18,6 +18,7 @@ namespace AgriIDMS.Application.Services
         private readonly ICartRepository _cartRepo;
         private readonly IOrderRepository _orderRepo;
         private readonly IBoxRepository _boxRepo;
+        private readonly IProductVariantRepository _variantRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IUnitOfWork _uow;
@@ -29,6 +30,7 @@ namespace AgriIDMS.Application.Services
             ICartRepository cartRepo,
             IOrderRepository orderRepo,
             IBoxRepository boxRepo,
+            IProductVariantRepository variantRepo,
             IOrderAllocationRepository allocationRepo,
             IInventoryTransactionRepository inventoryTranRepo,
             IUnitOfWork uow,
@@ -37,6 +39,7 @@ namespace AgriIDMS.Application.Services
             _cartRepo = cartRepo;
             _orderRepo = orderRepo;
             _boxRepo = boxRepo;
+            _variantRepo = variantRepo;
             _allocationRepo = allocationRepo;
             _inventoryTranRepo = inventoryTranRepo;
             _uow = uow;
@@ -58,6 +61,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = o.Payments?
@@ -81,6 +85,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = order.Id,
                 TotalAmount = order.TotalAmount,
                 Status = order.Status.ToString(),
+                Source = order.Source.ToString(),
                 CreatedAt = order.CreatedAt,
                 LatestPaymentStatus = order.Payments?
                     .OrderByDescending(p => p.CreatedAt)
@@ -226,6 +231,7 @@ namespace AgriIDMS.Application.Services
                 {
                     UserId = userId,
                     CreatedAt = now,
+                    Source = OrderSource.Online,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
 
@@ -325,6 +331,7 @@ namespace AgriIDMS.Application.Services
                 {
                     UserId = userId,
                     CreatedAt = now,
+                    Source = OrderSource.Online,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
 
@@ -430,11 +437,99 @@ namespace AgriIDMS.Application.Services
             }
         }
 
+        public async Task<CreateOrderFromCartResponse> CreatePosOrderAsync(string operatorUserId, CreatePosOrderRequest request)
+        {
+            _logger.LogInformation("Creating POS order by operator {UserId}", operatorUserId);
+
+            if (request == null || request.Items == null || !request.Items.Any())
+                throw new InvalidBusinessRuleException("Đơn POS phải có ít nhất 1 dòng sản phẩm");
+
+            var orderUserId = string.IsNullOrWhiteSpace(request.CustomerUserId)
+                ? operatorUserId
+                : request.CustomerUserId.Trim();
+
+            var now = DateTime.UtcNow;
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                decimal total = 0m;
+                var order = new Order
+                {
+                    UserId = orderUserId,
+                    CreatedAt = now,
+                    Source = OrderSource.POS,
+                    Status = OrderStatus.AwaitingAllocation
+                };
+
+                var responseItems = new List<OrderItemDto>();
+                foreach (var item in request.Items)
+                {
+                    if (item.Quantity <= 0)
+                        throw new InvalidBusinessRuleException("Số lượng phải lớn hơn 0");
+                    if (item.BoxWeight <= 0)
+                        throw new InvalidBusinessRuleException("BoxWeight phải lớn hơn 0");
+
+                    var variant = await _variantRepo.GetProductVariantByIdAsync(item.ProductVariantId)
+                        ?? throw new NotFoundException($"ProductVariant #{item.ProductVariantId} không tồn tại");
+
+                    var unitPrice = item.UnitPrice ?? variant.Price;
+                    if (unitPrice <= 0)
+                        throw new InvalidBusinessRuleException("Đơn giá phải lớn hơn 0");
+
+                    var detail = new OrderDetail
+                    {
+                        ProductVariantId = item.ProductVariantId,
+                        BoxWeight = item.BoxWeight,
+                        IsPartial = item.IsPartial,
+                        Quantity = item.Quantity,
+                        UnitPrice = unitPrice,
+                        FulfilledQuantity = 0,
+                        ShortageQuantity = 0
+                    };
+
+                    order.Details.Add(detail);
+                    total += detail.Quantity * detail.UnitPrice;
+
+                    responseItems.Add(new OrderItemDto
+                    {
+                        ProductVariantId = detail.ProductVariantId,
+                        ProductName = variant.Product?.Name ?? string.Empty,
+                        Grade = variant.Grade.ToString(),
+                        BoxWeight = detail.BoxWeight,
+                        IsPartial = detail.IsPartial,
+                        Quantity = (int)detail.Quantity,
+                        UnitPrice = detail.UnitPrice
+                    });
+                }
+
+                order.TotalAmount = total;
+                await _orderRepo.AddAsync(order);
+                await _uow.CommitAsync();
+
+                return new CreateOrderFromCartResponse
+                {
+                    OrderId = order.Id,
+                    TotalAmount = total,
+                    Items = responseItems,
+                    AllocationSucceeded = false,
+                    AllocationMessage = null
+                };
+            }
+            catch
+            {
+                await _uow.RollbackAsync();
+                throw;
+            }
+        }
+
         /// <summary>Sale xác nhận đơn → đơn chuyển sang chờ giữ hàng (allocate).</summary>
         public async Task SaleConfirmOrderAsync(int orderId, string confirmedByUserId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source == OrderSource.POS)
+                throw new InvalidBusinessRuleException("Đơn POS không cần bước sale-confirm, có thể allocate ngay.");
 
             if (order.Status != OrderStatus.PendingSaleConfirmation)
                 throw new InvalidBusinessRuleException(

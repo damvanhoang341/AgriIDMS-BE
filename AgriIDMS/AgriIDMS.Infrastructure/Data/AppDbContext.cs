@@ -931,6 +931,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(30)
                   .IsRequired();
 
+            entity.Property(x => x.Source)
+                  .HasConversion<string>()
+                  .HasMaxLength(20)
+                  .HasDefaultValue(OrderSource.Online)
+                  .IsRequired();
+
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
 
@@ -946,6 +952,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(x => x.UserId);
             entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.Source);
         });
 
         // ===================== OrderDetail =====================
