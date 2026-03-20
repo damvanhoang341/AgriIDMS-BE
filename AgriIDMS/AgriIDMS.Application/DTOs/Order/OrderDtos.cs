@@ -93,4 +93,16 @@ namespace AgriIDMS.Application.DTOs.Order
         public BackorderExpiredAction ExpiredAction { get; set; }
             = BackorderExpiredAction.CancelShortage;
     }
+
+    public class OverdueBackorderItemDto
+    {
+        public int OrderId { get; set; }
+        public string CustomerUserId { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public DateTime BackorderDeadlineAt { get; set; }
+        public decimal TotalShortageQuantity { get; set; }
+        public decimal TotalReservedQuantity { get; set; }
+        public decimal CurrentTotalAmount { get; set; }
+        public string Status { get; set; } = null!;
+    }
 }

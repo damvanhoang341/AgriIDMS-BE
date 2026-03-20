@@ -51,6 +51,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn backorder đã quá hạn cho sale/staff xử lý.</summary>
+        [HttpGet("backorder/overdue")]
+        //[Authorize(Roles = "Sale,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetOverdueBackorders()
+        {
+            var result = await _orderService.GetOverdueBackordersAsync();
+            return Ok(result);
+        }
+
         [HttpPost("from-cart")]
         public async Task<IActionResult> CreateFromCart()
         {

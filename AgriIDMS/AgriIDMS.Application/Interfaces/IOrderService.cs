@@ -35,5 +35,8 @@ namespace AgriIDMS.Application.Interfaces
         /// Nếu vượt quá thời gian chờ thì hệ thống xử lý theo <paramref name="expiredAction"/>.
         /// </summary>
         Task BackorderAllocateAsync(int orderId, string operatorUserId, BackorderExpiredAction expiredAction);
+
+        /// <summary>Danh sách đơn backorder đã quá hạn để sale/staff liên hệ khách và xử lý decision.</summary>
+        Task<IList<OverdueBackorderItemDto>> GetOverdueBackordersAsync();
     }
 }

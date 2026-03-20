@@ -102,6 +102,37 @@ namespace AgriIDMS.Application.Services
             };
         }
 
+        public async Task<IList<OverdueBackorderItemDto>> GetOverdueBackordersAsync()
+        {
+            var now = DateTime.UtcNow;
+            var orders = await _orderRepo.GetOverdueBackordersAsync(now);
+
+            return orders.Select(o =>
+            {
+                var reservedAllocations = o.Allocations
+                    .Where(a => a.Status == AllocationStatus.Reserved)
+                    .ToList();
+
+                var deadline = reservedAllocations
+                    .Where(a => a.ExpiredAt.HasValue)
+                    .Select(a => a.ExpiredAt!.Value)
+                    .DefaultIfEmpty(now)
+                    .Min();
+
+                return new OverdueBackorderItemDto
+                {
+                    OrderId = o.Id,
+                    CustomerUserId = o.UserId,
+                    CreatedAt = o.CreatedAt,
+                    BackorderDeadlineAt = deadline,
+                    TotalShortageQuantity = o.Details.Sum(d => d.ShortageQuantity),
+                    TotalReservedQuantity = reservedAllocations.Sum(a => a.ReservedQuantity),
+                    CurrentTotalAmount = o.TotalAmount,
+                    Status = o.Status.ToString()
+                };
+            }).ToList();
+        }
+
         public async Task CancelOrderAsync(int orderId, string userId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
