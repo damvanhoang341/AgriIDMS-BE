@@ -34,6 +34,13 @@ namespace AgriIDMS.Infrastructure.Repositories
 
             return await query.ToListAsync();
         }
+
+        public async Task<OrderAllocation?> GetByOrderIdAndBoxIdAsync(int orderId, int boxId)
+        {
+            return await _context.OrderAllocations
+                .Include(a => a.Box)
+                .FirstOrDefaultAsync(a => a.OrderId == orderId && a.BoxId == boxId);
+        }
     }
 }
 
