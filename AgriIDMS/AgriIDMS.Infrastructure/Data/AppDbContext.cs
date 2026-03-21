@@ -18,6 +18,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     //add
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     public DbSet<GoodsReceiptDetail> GoodsReceiptDetails => Set<GoodsReceiptDetail>();
+    public DbSet<Qc> Qcs => Set<Qc>();
     public DbSet<Lot> Lots => Set<Lot>();
     public DbSet<Box> Boxes => Set<Box>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
@@ -311,34 +312,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasKey(x => x.Id);
 
-            entity.Ignore(x => x.ExpectedWeight);
-
             entity.Property(x => x.ReceivedWeight)
                   .HasPrecision(18, 3)
                   .IsRequired();
 
-            entity.Property(x => x.UsableWeight)
-                  .HasPrecision(18, 3)
-                  .IsRequired(false);
-
-            entity.Ignore(x => x.RejectWeight);
-
             entity.Property(x => x.UnitPrice)
                   .HasPrecision(18, 2)
                   .IsRequired();
-
-            entity.Property(x => x.QCResult)
-                  .HasConversion<int>()
-                  .HasDefaultValue(QCResult.Pending)
-                  .IsRequired();
-
-            entity.Property(x => x.QCNote)
-                  .HasMaxLength(500);
-
-            entity.Property(x => x.InspectedBy)
-                  .HasMaxLength(450);
-
-            entity.Property(x => x.InspectedAt);
 
             entity.HasOne(x => x.GoodsReceipt)
                   .WithMany(gr => gr.Details)
@@ -363,6 +343,38 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             // 1 phiếu không nên có trùng cùng 1 Variant
             entity.HasIndex(x => new { x.GoodsReceiptId, x.ProductVariantId })
+                  .IsUnique();
+        });
+
+        // ===================== Qc (1–1 GoodsReceiptDetail) =====================
+        builder.Entity<Qc>(entity =>
+        {
+            entity.ToTable("Qcs");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.UsableWeight)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+
+            entity.Property(x => x.QCResult)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.QCNote)
+                  .HasMaxLength(500);
+
+            entity.Property(x => x.InspectedBy)
+                  .HasMaxLength(450);
+
+            entity.Property(x => x.InspectedAt);
+
+            entity.HasOne(x => x.GoodsReceiptDetail)
+                  .WithOne(d => d.Qc)
+                  .HasForeignKey<Qc>(x => x.GoodsReceiptDetailId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(x => x.GoodsReceiptDetailId)
                   .IsUnique();
         });
 

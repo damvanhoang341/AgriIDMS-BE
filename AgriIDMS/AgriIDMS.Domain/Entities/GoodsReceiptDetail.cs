@@ -1,5 +1,6 @@
 using AgriIDMS.Domain.Enums;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AgriIDMS.Domain.Entities
 {
@@ -16,18 +17,34 @@ namespace AgriIDMS.Domain.Entities
         public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
 
         public decimal ReceivedWeight { get; set; }
+
+        /// <summary>Kết quả QC (bảng riêng). Nếu null = chưa QC.</summary>
+        public Qc? Qc { get; set; }
+
         /// <summary>Khối lượng sử dụng được sau QC. Trước QC = null.</summary>
-        public decimal? UsableWeight { get; set; }
+        [NotMapped]
+        public decimal? UsableWeight => Qc?.UsableWeight;
+
         /// <summary>Khối lượng loại (không âm). Trước QC trả về 0.</summary>
-        public decimal RejectWeight => UsableWeight.HasValue ? Math.Max(0, ReceivedWeight - UsableWeight.Value) : 0;
+        [NotMapped]
+        public decimal RejectWeight => Qc != null ? Math.Max(0, ReceivedWeight - Qc.UsableWeight) : 0;
 
         /// <summary>Khối lượng kỳ vọng từ PO (không lưu DB, lấy từ PurchaseOrderDetail.OrderedWeight).</summary>
+        [NotMapped]
         public decimal ExpectedWeight => PurchaseOrderDetail?.OrderedWeight ?? 0;
 
-        public QCResult QCResult { get; set; } = QCResult.Pending;
-        public string? QCNote { get; set; }
-        public string? InspectedBy { get; set; }
-        public DateTime? InspectedAt { get; set; }
+        [NotMapped]
+        public QCResult QCResult => Qc?.QCResult ?? QCResult.Pending;
+
+        [NotMapped]
+        public string? QCNote => Qc?.QCNote;
+
+        [NotMapped]
+        public string? InspectedBy => Qc?.InspectedBy;
+
+        [NotMapped]
+        public DateTime? InspectedAt => Qc?.InspectedAt;
+
         public decimal UnitPrice { get; set; }
 
         public ICollection<Lot> Lots { get; set; } = new List<Lot>();

@@ -25,7 +25,9 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<GoodsReceiptDetail?> GetByIdAsync(int id)
         {
-            return await _context.GoodsReceiptDetails.FindAsync(id);
+            return await _context.GoodsReceiptDetails
+                .Include(d => d.Qc)
+                .FirstOrDefaultAsync(d => d.Id == id);
         }
 
         public async Task<decimal> GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(int purchaseOrderDetailId)

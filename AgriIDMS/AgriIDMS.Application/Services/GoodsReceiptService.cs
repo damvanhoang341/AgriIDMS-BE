@@ -146,13 +146,13 @@ namespace AgriIDMS.Application.Services
             decimal allowedLoss = poDetail.OrderedWeight * poDetail.TolerancePercent / 100m;
             var qcResult = expectedReject > allowedLoss ? QCResult.Failed : QCResult.Passed;
 
-            detail.UsableWeight = request.UsableWeight;
-            detail.QCResult = qcResult;
-
-            // Ghi QCNote tự động theo khối lượng reject
-            detail.QCNote = $"Reject {expectedReject:N2} kg (Received {detail.ReceivedWeight:N2} - Usable {request.UsableWeight:N2}).";
-            detail.InspectedBy = userId;
-            detail.InspectedAt = DateTime.UtcNow;
+            if (detail.Qc == null)
+                detail.Qc = new Qc { GoodsReceiptDetail = detail };
+            detail.Qc.UsableWeight = request.UsableWeight;
+            detail.Qc.QCResult = qcResult;
+            detail.Qc.QCNote = $"Reject {expectedReject:N2} kg (Received {detail.ReceivedWeight:N2} - Usable {request.UsableWeight:N2}).";
+            detail.Qc.InspectedBy = userId;
+            detail.Qc.InspectedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync();
 

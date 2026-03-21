@@ -56,6 +56,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
                 .Include(r => r.Details)
+                    .ThenInclude(d => d.Qc)
+                .Include(r => r.Details)
                     .ThenInclude(d => d.ProductVariant)
                         .ThenInclude(pv => pv.Product)
                 .Include(r => r.Details)
@@ -68,6 +70,8 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.GoodsReceipts
                 .Include(r => r.CreatedUser)
                 .Include(r => r.Warehouse)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.Qc)
                 .Include(r => r.Details)
                     .ThenInclude(d => d.PurchaseOrderDetail)
                 .Include(r => r.Details)
