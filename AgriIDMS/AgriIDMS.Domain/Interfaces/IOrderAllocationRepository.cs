@@ -9,6 +9,7 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task AddRangeAsync(IEnumerable<OrderAllocation> allocations);
         Task<List<OrderAllocation>> GetByOrderIdAsync(int orderId, AllocationStatus? status = null);
+        Task<OrderAllocation?> GetByOrderIdAndBoxIdAsync(int orderId, int boxId);
     }
 }
 
