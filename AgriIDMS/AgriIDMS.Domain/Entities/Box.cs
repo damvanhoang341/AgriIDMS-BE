@@ -16,6 +16,9 @@ namespace AgriIDMS.Domain.Entities
         public Lot Lot { get; set; } = null!;
 
         public decimal Weight { get; set; }
+        /// <summary>Loại bao bì (thùng xốp, carton, bao lưới, sọt...). Khác với <see cref="IsPartial"/>.</summary>
+        public BoxType BoxType { get; set; } = BoxType.Unknown;
+        /// <summary>Box đầy hay lẻ (khối lượng theo quy cách).</summary>
         public bool IsPartial { get; set; }
 
         public int? SlotId { get; set; }
