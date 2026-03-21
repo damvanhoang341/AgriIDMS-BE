@@ -464,6 +464,7 @@ namespace AgriIDMS.Application.Services
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
                     QRCode = qr,
+                    BoxType = BoxType.Unknown,
                     IsPartial = false
                 });
             }
@@ -479,6 +480,7 @@ namespace AgriIDMS.Application.Services
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
                     QRCode = qr,
+                    BoxType = BoxType.Unknown,
                     IsPartial = true
                 });
             }

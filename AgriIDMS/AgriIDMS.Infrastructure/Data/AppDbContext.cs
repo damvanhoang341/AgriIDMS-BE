@@ -467,6 +467,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
 
+            entity.Property(x => x.BoxType)
+                  .HasConversion<int>()
+                  .IsRequired();
+
             entity.Property(x => x.QRCode)
                   .HasMaxLength(300);
 

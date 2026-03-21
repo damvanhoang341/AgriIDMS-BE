@@ -1,8 +1,6 @@
-using System;
-
 namespace AgriIDMS.Domain.Interfaces
 {
-    /// <summary>Tổng hợp số lượng box theo loại (full/partial) và trọng lượng.</summary>
+    /// <summary>Tổng hợp số lượng box theo đầy/lẻ và trọng lượng (không phải loại bao bì).</summary>
     public class BoxTypeSummary
     {
         public bool IsPartial { get; set; }
