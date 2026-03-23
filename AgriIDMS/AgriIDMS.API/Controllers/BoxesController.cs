@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.Box;
+using AgriIDMS.Application.DTOs.Common;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Exceptions;
 using Microsoft.AspNetCore.Authorization;
@@ -65,6 +66,14 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { Message = "Cập nhật QR cho box thành công" });
         }
 
+        /// <summary>FE upload ảnh QR lên Cloudinary rồi gửi URL lưu DB.</summary>
+        [HttpPut("{boxId:int}/qr-image")]
+        public async Task<IActionResult> SetQrImage(int boxId, [FromBody] SetQrImageUrlRequest request)
+        {
+            await _boxService.UpdateQrImageUrlAsync(boxId, request.QrImageUrl);
+            return Ok(new { message = "Đã cập nhật ảnh QR cho box." });
+        }
+
         /// <summary>Lấy thông tin box theo QR (scan QR trên thùng).</summary>
         [HttpGet("by-qr/{qrCode}")]
         public async Task<IActionResult> GetByQrCode(string qrCode)
@@ -74,6 +83,14 @@ namespace AgriIDMS.API.Controllers
                 return NotFound(new { Message = "Box không tồn tại hoặc QR không hợp lệ" });
 
             return Ok(box);
+        }
+
+        /// <summary>Lấy danh sách box thuộc warehouse nhưng chưa được gán vào slot (SlotId = null).</summary>
+        [HttpGet("unassigned")]
+        public async Task<IActionResult> GetUnassignedBoxesByWarehouse([FromQuery] int warehouseId)
+        {
+            var boxes = await _boxService.GetUnassignedBoxesByWarehouseAsync(warehouseId);
+            return Ok(boxes);
         }
     }
 }

@@ -26,6 +26,8 @@ namespace AgriIDMS.Domain.Entities
         /// <summary>Thời điểm box được đặt vào slot thuộc kho lạnh (lần đầu). Dùng để kiểm tra đủ thời gian lưu lạnh trước khi xuất.</summary>
         public DateTime? PlacedInColdAt { get; set; }
         public string? QRCode { get; set; }
+        /// <summary>URL ảnh QR (Cloudinary) — do frontend tạo và gửi lên.</summary>
+        public string? QrImageUrl { get; set; }
         public BoxStatus Status { get; set; } = BoxStatus.Stored;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

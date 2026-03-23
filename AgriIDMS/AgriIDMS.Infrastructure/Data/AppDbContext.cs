@@ -392,6 +392,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.LotCode)
                   .IsUnique();
 
+            entity.Property(x => x.QrImageUrl)
+                  .HasMaxLength(500);
+
             entity.Property(x => x.TotalQuantity)
                   .HasPrecision(18, 2)
                   .IsRequired();
@@ -473,6 +476,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.QRCode)
                   .HasMaxLength(300);
+
+            entity.Property(x => x.QrImageUrl)
+                  .HasMaxLength(500);
 
             entity.Property(x => x.PlacedInColdAt)
                   .HasColumnType("datetime2");
@@ -773,6 +779,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.QrCode)
                   .HasMaxLength(200);
+
+            entity.Property(x => x.QrImageUrl)
+                  .HasMaxLength(500);
 
             entity.Property(x => x.Capacity)
                   .HasColumnType("decimal(18,2)");

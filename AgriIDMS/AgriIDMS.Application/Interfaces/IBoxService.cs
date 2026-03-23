@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.Box;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace AgriIDMS.Application.Interfaces
 {
@@ -12,5 +13,10 @@ namespace AgriIDMS.Application.Interfaces
         Task TransferBoxToSlotAsync(TransferBoxToSlotRequest request, string userId);
         Task<object?> GetByQrCodeAsync(string qrCode);
         Task UpdateQrCodeAsync(int boxId, string? qrCode);
+        /// <summary>Lưu URL ảnh QR (đã upload Cloudinary từ FE).</summary>
+        Task UpdateQrImageUrlAsync(int boxId, string qrImageUrl);
+
+        /// <summary>Danh sách box thuộc kho nhưng chưa được gán vào slot.</summary>
+        Task<List<UnassignedBoxDto>> GetUnassignedBoxesByWarehouseAsync(int warehouseId);
     }
 }

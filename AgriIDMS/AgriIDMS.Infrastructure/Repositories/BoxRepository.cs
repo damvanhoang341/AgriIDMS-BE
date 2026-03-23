@@ -70,9 +70,34 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                         .ThenInclude(d => d.GoodsReceipt)
+                            .ThenInclude(gr => gr.Warehouse)
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d.ProductVariant)
+                            .ThenInclude(v => v.Product)
                 .Include(b => b.Slot)
+                    .ThenInclude(s => s!.Rack)
+                        .ThenInclude(r => r.Zone)
+                            .ThenInclude(z => z.Warehouse)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(b => b.QRCode == qrCode);
+        }
+
+        public async Task<List<Box>> GetUnassignedBoxesByWarehouseIdAsync(int warehouseId)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.GoodsReceipt)
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.ProductVariant)
+                            .ThenInclude(v => v.Product)
+                .AsNoTracking()
+                .Where(b =>
+                    b.SlotId == null &&
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId)
+                .ToListAsync();
         }
 
         public async Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId)

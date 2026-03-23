@@ -276,13 +276,44 @@ namespace AgriIDMS.Application.Services
                 box.Id,
                 box.BoxCode,
                 box.QRCode,
+                box.QrImageUrl,
                 box.Weight,
                 box.Status,
                 box.SlotId,
                 WarehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                WarehouseName =
+                    box.Slot?.Rack?.Zone?.Warehouse?.Name ??
+                    box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name,
+                SlotCode = box.Slot?.Code,
+                LotCode = box.Lot?.LotCode,
                 LotId = box.LotId,
+                ProductVariantId = box.Lot?.GoodsReceiptDetail?.ProductVariantId,
+                ProductVariantName = box.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
+                ProductName = box.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
                 box.PlacedInColdAt
             };
+        }
+
+        public async Task<List<UnassignedBoxDto>> GetUnassignedBoxesByWarehouseAsync(int warehouseId)
+        {
+            var boxes = await _boxRepo.GetUnassignedBoxesByWarehouseIdAsync(warehouseId);
+
+            return boxes.Select(b => new UnassignedBoxDto
+            {
+                Id = b.Id,
+                BoxCode = b.BoxCode,
+                QrCode = b.QRCode,
+                QrImageUrl = b.QrImageUrl,
+                Weight = b.Weight,
+                Status = b.Status.ToString(),
+                SlotId = b.SlotId,
+                WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                LotId = b.LotId,
+                ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
+                ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
+                ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                PlacedInColdAt = b.PlacedInColdAt
+            }).ToList();
         }
 
         public async Task UpdateQrCodeAsync(int boxId, string? qrCode)
@@ -296,5 +327,17 @@ namespace AgriIDMS.Application.Services
             await _boxRepo.UpdateAsync(box);
             await _unitOfWork.SaveChangesAsync();
         }
+
+        public async Task UpdateQrImageUrlAsync(int boxId, string qrImageUrl)
+        {
+            var box = await _boxRepo.GetByIdAsync(boxId);
+            if (box == null)
+                throw new NotFoundException("Box không tồn tại");
+
+            box.QrImageUrl = qrImageUrl.Trim();
+            await _boxRepo.UpdateAsync(box);
+            await _unitOfWork.SaveChangesAsync();
+        }
     }
 }
+

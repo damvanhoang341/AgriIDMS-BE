@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.GoodsReceipt;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Interfaces
@@ -7,7 +8,7 @@ namespace AgriIDMS.Application.Interfaces
     {
         Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string userId);
         Task QCInspectionAsync(QCInspectionRequest request, string userId);
-        Task GenerateBoxesAsync(CreateBoxesRequest request, string userId);
+        Task<IReadOnlyList<BoxCreatedItemDto>> GenerateBoxesAsync(CreateBoxesRequest request, string userId);
         Task ApproveGoodsReceiptAsync(int receiptId, string userId);
         Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId);
         Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId);

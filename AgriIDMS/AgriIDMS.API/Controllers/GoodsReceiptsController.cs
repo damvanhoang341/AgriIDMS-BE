@@ -116,9 +116,9 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> GenerateBoxes([FromBody] CreateBoxesRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-            await _goodsReceiptService.GenerateBoxesAsync(request, userId);
+            var created = await _goodsReceiptService.GenerateBoxesAsync(request, userId);
 
-            return Ok(new { Message = "Tạo box thành công" });
+            return Ok(new { message = "Tạo box thành công", boxes = created });
         }
 
         // ===============================

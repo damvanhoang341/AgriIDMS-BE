@@ -13,5 +13,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task<Lot?> GetByIdAsync(int id);
         Task<Lot?> GetByIdWithDetailAndReceiptAsync(int id);
         Task<List<Lot>> GetByGoodsReceiptIdAsync(int goodsReceiptId);
+        Task<Lot?> GetByLotCodeAsync(string lotCode);
     }
 }
