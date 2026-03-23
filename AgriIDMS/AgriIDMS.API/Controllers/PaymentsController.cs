@@ -36,6 +36,14 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("staff/pending-cod")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
+        public async Task<IActionResult> GetPendingCodPayments([FromQuery] GetPendingCodPaymentsQuery query)
+        {
+            var result = await _paymentService.GetPendingCodPaymentsAsync(query);
+            return Ok(result);
+        }
+
         [HttpPatch("{paymentId:int:min(1)}/confirm-cod")]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
         public async Task<IActionResult> ConfirmCODPaid(int paymentId)

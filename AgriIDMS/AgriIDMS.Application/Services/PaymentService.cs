@@ -11,6 +11,8 @@ using PayOS;
 using PayOS.Models.V2.PaymentRequests;
 using PayOS.Models.Webhooks;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -216,6 +218,33 @@ namespace AgriIDMS.Application.Services
                 ?? throw new NotFoundException("Không tìm thấy thanh toán cho đơn hàng này");
 
             return MapToDto(payment);
+        }
+
+        public async Task<IList<PendingCodPaymentItemDto>> GetPendingCodPaymentsAsync(GetPendingCodPaymentsQuery query)
+        {
+            query ??= new GetPendingCodPaymentsQuery();
+            var skip = Math.Max(0, query.Skip);
+            var take = Math.Clamp(query.Take, 1, 200);
+
+            var payments = await _paymentRepo.GetPaymentsByMethodAndStatusAsync(
+                PaymentMethod.COD,
+                PaymentStatus.Pending,
+                query.OrderId,
+                query.CustomerUserId,
+                skip,
+                take);
+
+            return payments.Select(p => new PendingCodPaymentItemDto
+            {
+                PaymentId = p.Id,
+                OrderId = p.OrderId,
+                CustomerUserId = p.Order?.UserId ?? string.Empty,
+                Amount = p.Amount,
+                PaymentStatus = p.PaymentStatus.ToString(),
+                PaymentMethod = p.PaymentMethod.ToString(),
+                OrderStatus = p.Order?.Status.ToString() ?? string.Empty,
+                CreatedAt = p.CreatedAt
+            }).ToList();
         }
 
         // ===================== Webhook (PayOS) =====================
