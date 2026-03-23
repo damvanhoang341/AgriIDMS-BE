@@ -185,6 +185,7 @@ namespace AgriIDMS.Application.Services
                 _logger.LogError(ex, "PayOS CreatePaymentLink failed for order {OrderId}", order.Id);
                 payment.PaymentStatus = PaymentStatus.Failed;
                 await _uow.SaveChangesAsync();
+                await _notificationService.NotifyOrderPaymentFailedAsync(order.Id);
                 throw new InvalidBusinessRuleException(
                     $"Không thể tạo link thanh toán PayOS: {ex.Message}");
             }
@@ -318,6 +319,8 @@ namespace AgriIDMS.Application.Services
 
             if (payment.PaymentStatus == PaymentStatus.Success)
                 await _notificationService.NotifyOrderPaidAsync(payment.OrderId);
+            else if (payment.PaymentStatus == PaymentStatus.Failed)
+                await _notificationService.NotifyOrderPaymentFailedAsync(payment.OrderId);
         }
 
         // ===================== Cancel Banking =====================
@@ -358,6 +361,7 @@ namespace AgriIDMS.Application.Services
             await _uow.SaveChangesAsync();
 
             _logger.LogInformation("Banking payment {PaymentId} cancelled by user", paymentId);
+            await _notificationService.NotifyOrderPaymentCancelledAsync(payment.OrderId);
 
             return MapToDto(payment);
         }

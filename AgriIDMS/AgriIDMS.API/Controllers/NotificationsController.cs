@@ -35,6 +35,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost("{userNotificationId:int:min(1)}/read")]
+        [HttpPatch("{userNotificationId:int:min(1)}/read")]
         public async Task<IActionResult> MarkAsRead(int userNotificationId)
         {
             var userId = GetCurrentUserId();
@@ -43,6 +44,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost("read-all")]
+        [HttpPatch("read-all")]
         public async Task<IActionResult> MarkAllAsRead()
         {
             var userId = GetCurrentUserId();

@@ -60,6 +60,34 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: new[] { order.UserId });
         }
 
+        public async Task NotifyOrderPaymentFailedAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var message = $"Thanh toán cho đơn hàng #{orderId} không thành công. Vui lòng thử lại.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "Order",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.UserId });
+        }
+
+        public async Task NotifyOrderPaymentCancelledAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var message = $"Thanh toán cho đơn hàng #{orderId} đã bị hủy.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "Order",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.UserId });
+        }
+
         public async Task NotifyExportApprovedAsync(int exportReceiptId)
         {
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)
