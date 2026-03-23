@@ -1,5 +1,6 @@
-﻿using AgriIDMS.Application.DTOs.ProductVariant;
+using AgriIDMS.Application.DTOs.ProductVariant;
 using AgriIDMS.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +8,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ProductVariantController : ControllerBase
     {
         private readonly IProductVariantService _service;
@@ -17,6 +19,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll()
         {
             var data = await _service.GetAllAsync();
@@ -24,6 +27,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var data = await _service.GetByIdAsync(id);
@@ -31,6 +35,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Create(CreateProductVariantDto dto)
         {
             var id = await _service.CreateAsync(dto);
@@ -38,6 +43,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Update(int id, UpdateProductVariantDto dto)
         {
             await _service.UpdateAsync(id, dto);
@@ -45,6 +51,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> UpdateStatus(int id, UpdateProductVariantStatusDto dto)
         {
             await _service.UpdateStatusAsync(id, dto);
@@ -52,6 +59,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Delete(int id)
         {
             await _service.DeleteAsync(id);

@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
     /// Logout -> revoke refresh token (cần Bearer token)
     /// </summary>
     [HttpPost]
-    //[Authorize]
+    [Authorize]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -77,7 +77,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged out." });
     }
 
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     [HttpPost("admin/create-employee")]
     //[HttpPost]
     public async Task<IActionResult> CreateEmployee([FromBody] RegisterEmployeeDto request)
@@ -93,13 +93,13 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
     {
-        var x = 1;
         await _authService.ConfirmEmailAsync(userId, token);
 
         return Ok(new { message = "Xác nhận email thành công" });
     }
 
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<IActionResult> RegisterCustomer(
         [FromBody] RegisterCustomerRequest request)
     {
@@ -115,6 +115,7 @@ public class AuthController : ControllerBase
     /// User quên mật khẩu → hệ thống reset và gửi mật khẩu mới qua email
     /// </summary>
     [HttpPost("forgot-password")]
+    [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordRequest request)
     {
@@ -129,7 +130,7 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Đổi mật khẩu khi đã đăng nhập
     /// </summary>
-    //[Authorize]
+    [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
         [FromBody] ChangePasswordRequest request)

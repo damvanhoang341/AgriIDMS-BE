@@ -10,7 +10,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class OrdersController : ControllerBase
     {
         private readonly IOrderService _orderService;
@@ -53,7 +53,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Danh sách đơn backorder đã quá hạn cho sale/staff xử lý.</summary>
         [HttpGet("backorder/overdue")]
-        //[Authorize(Roles = "Sale,Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GetOverdueBackorders()
         {
             var result = await _orderService.GetOverdueBackordersAsync();
@@ -61,6 +61,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost("from-cart")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreateFromCart()
         {
             var userId = GetCurrentUserId();
@@ -73,6 +74,7 @@ namespace AgriIDMS.API.Controllers
         /// Chỉ xóa các CartItem thuộc các ProductVariantId được chọn.
         /// </summary>
         [HttpPost("from-cart/variants")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartRequest request)
         {
             var userId = GetCurrentUserId();
@@ -82,7 +84,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Tạo đơn bán trực tiếp (POS) và đi thẳng trạng thái AwaitingAllocation.</summary>
         [HttpPost("pos")]
-        //[Authorize(Roles = "Sale,Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreatePosOrder([FromBody] CreatePosOrderRequest request)
         {
             var operatorUserId = GetCurrentUserId();
@@ -92,7 +94,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Sale xác nhận đơn (sau bước này đơn mới được phép giữ hàng / allocate).</summary>
         [HttpPatch("{id:int:min(1)}/sale-confirm")]
-        //[Authorize(Roles = "Sale,Admin,Manager")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
         public async Task<IActionResult> SaleConfirm(int id)
         {
             var staffUserId = GetCurrentUserId();
@@ -106,6 +108,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Giữ hàng: chỉ chủ đơn (khách), sau khi sale đã xác nhận.</summary>
         [HttpPatch("{id:int:min(1)}/ConfirmOrder")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> ConfirmOrder(int id)
         {
             var userId = GetCurrentUserId();
@@ -119,7 +122,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Giữ hàng thay mặt kho/sale (operator không phải chủ đơn). Nên bật Authorize role khi deploy.</summary>
         [HttpPatch("{id:int:min(1)}/allocate/staff")]
-        //[Authorize(Roles = "WarehouseStaff,Admin,Manager,Sale")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
         public async Task<IActionResult> AllocateAsStaff(int id)
         {
             var operatorUserId = GetCurrentUserId();
@@ -133,6 +136,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
         [HttpPatch("{id:int:min(1)}/backorder/wait")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> WaitBackorder(int id)
         {
             var userId = GetCurrentUserId();
@@ -146,6 +150,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Khách chọn hủy phần còn thiếu để chỉ ship phần đã allocate/giữ được.</summary>
         [HttpPatch("{id:int:min(1)}/backorder/cancel-shortage")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CancelShortage(int id)
         {
             var userId = GetCurrentUserId();
@@ -162,6 +167,7 @@ namespace AgriIDMS.API.Controllers
         /// Nếu quá thời gian chờ thì xử lý theo <see cref="BackorderAllocateRequestDto.ExpiredAction"/>.
         /// </summary>
         [HttpPatch("{id:int:min(1)}/backorder/allocate")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
         public async Task<IActionResult> AllocateBackorderAsStaff(int id, [FromBody] BackorderAllocateRequestDto request)
         {
             var operatorUserId = GetCurrentUserId();
@@ -174,6 +180,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{id:int:min(1)}/cancel")]
+        [Authorize(Roles = "Customer")]
         public async Task<IActionResult> Cancel(int id)
         {
             var userId = GetCurrentUserId();
