@@ -47,6 +47,7 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public int AvailableBoxCount { get; set; }
     }
 
+
     public class ProductVariantResponseCustomerDto
     {
         public int Id { get; set; }

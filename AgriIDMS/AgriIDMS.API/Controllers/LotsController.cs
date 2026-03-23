@@ -1,4 +1,5 @@
-﻿using AgriIDMS.Application.Interfaces;
+﻿using AgriIDMS.Application.DTOs.Lot;
+using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,6 +21,13 @@ namespace AgriIDMS.API.Controllers
         {
             var lots = await _lotService.GetLotsByGoodsReceiptIdAsync(goodsReceiptId);
 
+            return Ok(lots);
+        }
+
+        [HttpGet("near-expiry-lots")]
+        public async Task<IActionResult> GetNearExpiryLotsAsync()
+        {
+            var lots = await _lotService.GetNearExpiryLotsAsync();
             return Ok(lots);
         }
     }
