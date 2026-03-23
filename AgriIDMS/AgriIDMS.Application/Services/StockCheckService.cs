@@ -138,6 +138,7 @@ namespace AgriIDMS.Application.Services
             detail.CountedAt = DateTime.UtcNow;
             detail.DifferenceWeight = request.CountedWeight - detail.SnapshotWeight;
             detail.VarianceType = ComputeVarianceType(detail.DifferenceWeight.Value);
+            detail.VarianceReason = NormalizeVarianceReason(detail.VarianceType.Value, request.VarianceReason);
 
             await _detailRepo.UpdateAsync(detail);
             await _unitOfWork.SaveChangesAsync();
@@ -215,6 +216,8 @@ namespace AgriIDMS.Application.Services
                     });
 
                     box.Weight = d.CountedWeight.Value;
+                    if (d.VarianceType == VarianceType.Shortage && d.VarianceReason == VarianceReason.Damaged)
+                        box.Status = BoxStatus.Damaged;
                     await _boxRepo.UpdateAsync(box);
                 }
 
@@ -250,6 +253,21 @@ namespace AgriIDMS.Application.Services
         {
             if (Math.Abs(differenceWeight) <= VarianceTolerance) return VarianceType.Match;
             return differenceWeight < 0 ? VarianceType.Shortage : VarianceType.Excess;
+        }
+
+        private static VarianceReason? NormalizeVarianceReason(VarianceType varianceType, VarianceReason? requestedReason)
+        {
+            if (varianceType == VarianceType.Match || varianceType == VarianceType.Excess)
+                return null;
+
+            if (!requestedReason.HasValue || requestedReason.Value == VarianceReason.None)
+                throw new InvalidBusinessRuleException(
+                    "Thiếu hàng (Shortage) bắt buộc chọn nguyên nhân (Damaged/Loss/MeasurementError).");
+
+            if (requestedReason is VarianceReason.Damaged or VarianceReason.Loss or VarianceReason.MeasurementError)
+                return requestedReason.Value;
+
+            throw new InvalidBusinessRuleException("Nguyên nhân chênh lệch không hợp lệ.");
         }
     }
 }
