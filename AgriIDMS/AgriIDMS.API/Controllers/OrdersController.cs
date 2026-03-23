@@ -116,12 +116,8 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> SaleConfirm(int id)
         {
             var staffUserId = GetCurrentUserId();
-            await _orderService.SaleConfirmOrderAsync(id, staffUserId);
-            return Ok(new
-            {
-                Message = "Sale đã xác nhận đơn — có thể thực hiện giữ hàng (allocate)",
-                OrderId = id
-            });
+            var result = await _orderService.SaleConfirmOrderAsync(id, staffUserId);
+            return Ok(result);
         }
 
         /// <summary>Giữ hàng: chỉ chủ đơn (khách), sau khi sale đã xác nhận.</summary>
