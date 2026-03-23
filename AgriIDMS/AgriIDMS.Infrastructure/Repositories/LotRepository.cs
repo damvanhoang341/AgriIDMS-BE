@@ -60,5 +60,25 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Lot>> GetNearExpiryLotsAsync(int days)
+        {
+            var now = DateTime.UtcNow;
+            var deadline = now.AddDays(days);
+
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(l => l.Boxes)
+                    .ThenInclude(b => b.Slot)
+                .Where(l =>
+                    l.ExpiryDate >= now &&
+                    l.ExpiryDate <= deadline &&
+                    l.RemainingQuantity > 0 &&
+                    l.Status == LotStatus.Active)
+                .OrderBy(l => l.ExpiryDate)
+                .ToListAsync();
+        }
+
     }
 }

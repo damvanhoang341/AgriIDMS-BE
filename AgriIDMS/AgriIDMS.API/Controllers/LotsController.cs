@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.Lot;
+using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -29,6 +29,13 @@ namespace AgriIDMS.API.Controllers
         {
             var lots = await _lotService.GetNearExpiryLotsAsync();
             return Ok(lots);
+        }
+
+        [HttpGet("near-expiry-dashboard")]
+        public async Task<IActionResult> GetNearExpiryDashboardAsync([FromQuery] int days = 3)
+        {
+            var dashboard = await _lotService.GetNearExpiryDashboardAsync(days);
+            return Ok(dashboard);
         }
     }
 }
