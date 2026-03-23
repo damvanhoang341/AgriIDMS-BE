@@ -1,4 +1,3 @@
-using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.DTOs.Warehouse;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,7 +12,7 @@ namespace AgriIDMS.Application.Interfaces
         Task DeleteAsync(int id);
         Task<SlotDto?> GetByQrCodeAsync(string qrCode);
         Task<SlotContentsDto> GetContentsAsync(int slotId);
-        
-
+        /// <summary>Lưu URL ảnh QR (đã upload Cloudinary từ FE).</summary>
+        Task UpdateQrImageUrlAsync(int slotId, string qrImageUrl);
     }
 }

@@ -19,6 +19,11 @@ namespace AgriIDMS.Infrastructure.Repositories
         public Task<List<Slot>> GetByRackAsync(int rackId)
         {
             return _context.Slots
+                .Include(s => s.Boxes)
+                    .ThenInclude(b => b.Lot)
+                        .ThenInclude(l => l.GoodsReceiptDetail)
+                            .ThenInclude(d => d.ProductVariant)
+                                .ThenInclude(pv => pv.Product)
                 .AsNoTracking()
                 .Where(s => s.RackId == rackId)
                 .OrderBy(s => s.Code)
@@ -65,6 +70,13 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(z => z.Warehouse)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.QrCode == qrCode);
+        }
+
+        public Task<Slot?> GetByCodeAsync(string code)
+        {
+            return _context.Slots
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Code == code);
         }
 
         public async Task AddAsync(Slot slot)

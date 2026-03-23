@@ -27,7 +27,6 @@ namespace AgriIDMS.Application.Services
         private readonly IPurchaseOrderRepository _purchaseOrderRepo;
         private readonly IBoxRepository _boxRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
-        private readonly IQrCodeGenerator _qrCodeGenerator;
 
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
@@ -41,8 +40,7 @@ namespace AgriIDMS.Application.Services
             ILogger<GoodsReceiptService> logger,
             IPurchaseOrderRepository purchaseOrderRepo,
             IBoxRepository boxRepo,
-            IInventoryTransactionRepository inventoryTranRepo,
-            IQrCodeGenerator qrCodeGenerator)
+            IInventoryTransactionRepository inventoryTranRepo)
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
@@ -56,7 +54,6 @@ namespace AgriIDMS.Application.Services
             _purchaseOrderRepo = purchaseOrderRepo;
             _boxRepo = boxRepo;
             _inventoryTranRepo = inventoryTranRepo;
-            _qrCodeGenerator = qrCodeGenerator;
         }
 
         // ===============================
@@ -416,7 +413,7 @@ namespace AgriIDMS.Application.Services
         // ===============================
         // GENERATE BOXES (only after receipt Approved; remainder box; create Import transactions)
         // ===============================
-        public async Task GenerateBoxesAsync(CreateBoxesRequest request, string userId)
+        public async Task<IReadOnlyList<BoxCreatedItemDto>> GenerateBoxesAsync(CreateBoxesRequest request, string userId)
         {
             const int maxBoxesPerRequest = 5000;
 
@@ -455,15 +452,13 @@ namespace AgriIDMS.Application.Services
             for (int i = 0; i < fullCount; i++)
             {
                 var boxCode = $"{baseCode}-{i + 1}";
-                var qr = await _qrCodeGenerator.GenerateAsync(boxCode);
-
                 boxesToCreate.Add(new Box
                 {
                     LotId = lot.Id,
                     Weight = boxSize,
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
-                    QRCode = qr,
+                    QRCode = boxCode,
                     BoxType = BoxType.Unknown,
                     IsPartial = false
                 });
@@ -471,15 +466,13 @@ namespace AgriIDMS.Application.Services
             if (remainder > 0)
             {
                 var boxCode = $"{baseCode}-{fullCount + 1}";
-                var qr = await _qrCodeGenerator.GenerateAsync(boxCode);
-
                 boxesToCreate.Add(new Box
                 {
                     LotId = lot.Id,
                     Weight = remainder,
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
-                    QRCode = qr,
+                    QRCode = boxCode,
                     BoxType = BoxType.Unknown,
                     IsPartial = true
                 });
@@ -508,6 +501,15 @@ namespace AgriIDMS.Application.Services
             var createdWeight = boxesToCreate.Sum(b => b.Weight);
             lot.RemainingQuantity = Math.Max(0, lot.RemainingQuantity - createdWeight);
             await _unitOfWork.SaveChangesAsync();
+
+            return boxesToCreate
+                .Select(b => new BoxCreatedItemDto
+                {
+                    Id = b.Id,
+                    BoxCode = b.BoxCode,
+                    QrPayload = b.QRCode ?? b.BoxCode
+                })
+                .ToList();
         }
 
         /// <summary>

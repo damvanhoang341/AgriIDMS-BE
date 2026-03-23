@@ -1,3 +1,4 @@
+using AgriIDMS.Application.DTOs.Common;
 using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -39,6 +40,14 @@ namespace AgriIDMS.API.Controllers
             if (slot == null)
                 return NotFound(new { message = "Slot không tồn tại hoặc QR không hợp lệ" });
             return Ok(slot);
+        }
+
+        /// <summary>FE upload ảnh QR lên Cloudinary rồi gửi URL lưu DB.</summary>
+        [HttpPut("~/api/slots/{id:int}/qr-image")]
+        public async Task<IActionResult> SetQrImage(int id, [FromBody] SetQrImageUrlRequest request)
+        {
+            await _slotService.UpdateQrImageUrlAsync(id, request.QrImageUrl);
+            return Ok(new { message = "Đã cập nhật ảnh QR cho slot." });
         }
 
         /// <summary>Lấy chi tiết slot đang chứa gì (product/variant + danh sách box). Slot chỉ được chứa 1 loại sản phẩm.</summary>

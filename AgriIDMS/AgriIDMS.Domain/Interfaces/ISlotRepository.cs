@@ -11,6 +11,7 @@ namespace AgriIDMS.Domain.Interfaces
         Task<Slot?> GetByIdWithWarehouseAsync(int id);
         Task<Slot?> GetByIdWithContentsAsync(int id);
         Task<Slot?> GetByQrCodeAsync(string qrCode);
+        Task<Slot?> GetByCodeAsync(string code);
         Task AddAsync(Slot slot);
         Task UpdateAsync(Slot slot);
         Task DeleteAsync(Slot slot);

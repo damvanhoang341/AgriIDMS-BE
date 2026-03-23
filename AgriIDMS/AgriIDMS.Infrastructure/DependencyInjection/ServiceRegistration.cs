@@ -140,9 +140,6 @@ public static class ServiceRegistration
         services.AddHostedService<NearExpiryLotScannerService>();
 
         // Cross-cutting services
-        services.AddScoped<IQrCodeGenerator, QrCodeGenerator>();
-
-
         // PayOS client (singleton vì nội bộ dùng HttpClient)
         var payOsSection = config.GetSection("PayOS");
         services.AddSingleton(new PayOSClient(new PayOSOptions

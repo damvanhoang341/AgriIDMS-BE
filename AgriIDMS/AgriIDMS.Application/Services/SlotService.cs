@@ -33,12 +33,23 @@ namespace AgriIDMS.Application.Services
             return slots
                 .Select(s => new SlotDto
                 {
+                    ProductVariantId = s.Boxes
+                        .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
+                        .FirstOrDefault(v => v.HasValue && v.Value > 0),
+                    ProductVariantName = s.Boxes
+                        .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name)
+                        .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
+                    ProductName = s.Boxes
+                        .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name)
+                        .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
                     Id = s.Id,
                     Code = s.Code,
                     QrCode = s.QrCode,
+                    QrImageUrl = s.QrImageUrl,
                     Capacity = s.Capacity,
                     CurrentCapacity = s.CurrentCapacity,
-                    RackId = s.RackId
+                    RackId = s.RackId,
+                    RackName = null // GetByRackAsync không include navigation Rack
                 })
                 .ToList();
         }
@@ -63,6 +74,14 @@ namespace AgriIDMS.Application.Services
             await _slotRepository.AddAsync(slot);
             await _unitOfWork.SaveChangesAsync();
 
+            // QR payload mặc định để quét slot (đồng bộ với FE tạo ảnh QR)
+            if (string.IsNullOrWhiteSpace(slot.QrCode))
+            {
+                slot.QrCode = $"SLOT-{slot.Id}";
+                await _slotRepository.UpdateAsync(slot);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
             return slot.Id;
         }
 
@@ -76,7 +95,10 @@ namespace AgriIDMS.Application.Services
 
             slot.Code = request.Code.Trim();
             slot.Capacity = request.Capacity;
-            slot.QrCode = request.QrCode?.Trim();
+            if (string.IsNullOrWhiteSpace(request.QrCode))
+                slot.QrCode = $"SLOT-{slot.Id}";
+            else
+                slot.QrCode = request.QrCode.Trim();
 
             await _slotRepository.UpdateAsync(slot);
             await _unitOfWork.SaveChangesAsync();
@@ -96,7 +118,30 @@ namespace AgriIDMS.Application.Services
 
         public async Task<SlotDto?> GetByQrCodeAsync(string qrCode)
         {
-            var slot = await _slotRepository.GetByQrCodeAsync(qrCode);
+            var normalized = qrCode?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized))
+                return null;
+
+            // Lookup theo QrCode (chuẩn nhất nếu DB đã backfill)
+            var slot = await _slotRepository.GetByQrCodeAsync(normalized);
+
+            // Fallback: nhiều trường hợp đã có QR ảnh nhưng QrCode trong DB NULL/empty.
+            // Payload FE/BE dùng mặc định: "SLOT-{id}" => parse để lấy Slot theo Id.
+            if (slot == null &&
+                normalized.StartsWith("SLOT-", StringComparison.OrdinalIgnoreCase))
+            {
+                var idPart = normalized.Substring("SLOT-".Length);
+                if (int.TryParse(idPart, out var slotId))
+                {
+                    slot = await _slotRepository.GetByIdAsync(slotId);
+                }
+            }
+
+            // Fallback theo slot.Code (trường hợp payload QR cũ là Code thay vì QrCode)
+            if (slot == null)
+            {
+                slot = await _slotRepository.GetByCodeAsync(normalized);
+            }
             if (slot == null) return null;
 
             return new SlotDto
@@ -104,10 +149,23 @@ namespace AgriIDMS.Application.Services
                 Id = slot.Id,
                 Code = slot.Code,
                 QrCode = slot.QrCode,
+                QrImageUrl = slot.QrImageUrl,
                 Capacity = slot.Capacity,
                 CurrentCapacity = slot.CurrentCapacity,
-                RackId = slot.RackId
+                RackId = slot.RackId,
+                RackName = slot.Rack?.Name
             };
+        }
+
+        public async Task UpdateQrImageUrlAsync(int slotId, string qrImageUrl)
+        {
+            var slot = await _slotRepository.GetByIdAsync(slotId);
+            if (slot == null)
+                throw new NotFoundException("Slot không tồn tại");
+
+            slot.QrImageUrl = qrImageUrl.Trim();
+            await _slotRepository.UpdateAsync(slot);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<SlotContentsDto> GetContentsAsync(int slotId)
@@ -126,6 +184,7 @@ namespace AgriIDMS.Application.Services
                 SlotId = slot.Id,
                 SlotCode = slot.Code,
                 SlotQrCode = slot.QrCode,
+                SlotQrImageUrl = slot.QrImageUrl,
                 Capacity = slot.Capacity,
                 CurrentCapacity = slot.CurrentCapacity,
                 RemainingCapacity = slot.Capacity - slot.CurrentCapacity,
@@ -141,6 +200,7 @@ namespace AgriIDMS.Application.Services
                         Id = b.Id,
                         BoxCode = b.BoxCode,
                         QrCode = b.QRCode,
+                        QrImageUrl = b.QrImageUrl,
                         Weight = b.Weight,
                         Status = b.Status.ToString(),
                         LotId = b.LotId,

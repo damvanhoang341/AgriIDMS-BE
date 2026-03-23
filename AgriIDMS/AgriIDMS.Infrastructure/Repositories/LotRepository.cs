@@ -47,6 +47,18 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<Lot?> GetByLotCodeAsync(string lotCode)
+        {
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.GoodsReceipt)
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(pv => pv.Product)
+                .FirstOrDefaultAsync(l => l.LotCode == lotCode);
+
+        }
+
         public async Task<IEnumerable<Lot>> GetAllExpiryDateAsync()
         {
             var now = DateTime.UtcNow;

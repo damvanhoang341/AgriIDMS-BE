@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +11,8 @@ namespace AgriIDMS.Domain.Entities
     {
         public int Id { get; set; }
         public string LotCode { get; set; } = null!;
+        /// <summary>URL ảnh QR (Cloudinary) — do frontend tạo và gửi lên.</summary>
+        public string? QrImageUrl { get; set; }
 
         public int GoodsReceiptDetailId { get; set; }
         public GoodsReceiptDetail GoodsReceiptDetail { get; set; } = null!;

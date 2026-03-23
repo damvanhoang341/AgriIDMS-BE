@@ -8,6 +8,7 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public int Id { get; set; }
         public string BoxCode { get; set; } = null!;
         public string? QrCode { get; set; }
+        public string? QrImageUrl { get; set; }
         public decimal Weight { get; set; }
         public string Status { get; set; } = null!;
 
@@ -22,6 +23,7 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public int SlotId { get; set; }
         public string SlotCode { get; set; } = null!;
         public string? SlotQrCode { get; set; }
+        public string? SlotQrImageUrl { get; set; }
         public decimal Capacity { get; set; }
         public decimal CurrentCapacity { get; set; }
         public decimal RemainingCapacity { get; set; }

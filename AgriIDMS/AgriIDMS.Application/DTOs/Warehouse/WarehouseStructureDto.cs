@@ -48,8 +48,14 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public int Id { get; set; }
         public string Code { get; set; } = null!;
         public string? QrCode { get; set; }
+        public string? QrImageUrl { get; set; }
+        public int? ProductVariantId { get; set; }
+        public string? ProductVariantName { get; set; }
+        public string? ProductName { get; set; }
         public decimal Capacity { get; set; }
         public decimal CurrentCapacity { get; set; }
+        /// <summary>Name của rack chứa slot (phục vụ màn scan nhanh).</summary>
+        public string? RackName { get; set; }
         public int RackId { get; set; }
     }
 }
