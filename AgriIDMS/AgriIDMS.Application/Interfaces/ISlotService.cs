@@ -1,3 +1,4 @@
+using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.DTOs.Warehouse;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -12,5 +13,7 @@ namespace AgriIDMS.Application.Interfaces
         Task DeleteAsync(int id);
         Task<SlotDto?> GetByQrCodeAsync(string qrCode);
         Task<SlotContentsDto> GetContentsAsync(int slotId);
+        
+
     }
 }

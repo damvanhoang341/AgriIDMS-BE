@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -40,6 +41,22 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Lots
                 .Where(l => l.GoodsReceiptDetail.GoodsReceiptId == goodsReceiptId)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<Lot>> GetAllExpiryDateAsync()
+        {
+            var now = DateTime.UtcNow;
+
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Where(l => l.ExpiryDate <= now.AddDays(3)
+                         && l.ExpiryDate >= now
+                         && l.RemainingQuantity > 0
+                         && l.Status == LotStatus.Active)
+                .OrderBy(l => l.ExpiryDate) // 
                 .ToListAsync();
         }
 

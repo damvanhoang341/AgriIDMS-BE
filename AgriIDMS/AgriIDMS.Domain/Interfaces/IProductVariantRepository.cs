@@ -20,5 +20,6 @@ namespace AgriIDMS.Domain.Interfaces
 
         void Delete(ProductVariant variant);
         Task<bool> ExistsAsync(int productId, ProductGrade grade);
+
     }
 }

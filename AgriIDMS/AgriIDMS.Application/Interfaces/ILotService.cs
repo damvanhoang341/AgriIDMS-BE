@@ -1,4 +1,5 @@
-﻿using AgriIDMS.Domain.Entities;
+﻿using AgriIDMS.Application.DTOs.Lot;
+using AgriIDMS.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,5 +11,6 @@ namespace AgriIDMS.Application.Interfaces
     public interface ILotService
     {
         Task<List<Lot>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId);
+        Task<IEnumerable<NearExpiryLotDto>> GetNearExpiryLotsAsync();
     }
 }
