@@ -9,7 +9,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class ExportsController : ControllerBase
     {
         private readonly IExportService _exportService;
@@ -20,7 +20,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreateExportReceipt([FromBody] CreateExportReceiptRequest request)
         {
             var userId = GetCurrentUserId();
@@ -29,7 +29,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{exportId:int:min(1)}/confirm-pick")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> ConfirmPick(int exportId)
         {
             var userId = GetCurrentUserId();
@@ -38,7 +38,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{exportId:int:min(1)}/approve")]
-        //[Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApproveExport(int exportId)
         {
             var userId = GetCurrentUserId();
@@ -47,7 +47,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{exportId:int:min(1)}/cancel")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CancelExport(int exportId)
         {
             var userId = GetCurrentUserId();

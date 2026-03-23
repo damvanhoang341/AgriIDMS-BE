@@ -1,5 +1,6 @@
 using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,6 +8,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class LotsController : ControllerBase
     {
         private readonly ILotService _lotService;

@@ -22,6 +22,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUsers(
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10)
@@ -37,7 +38,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("{userId:guid}")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser([FromRoute] string userId)
         {
             await _userService.DeleteAsync(userId);
@@ -45,6 +46,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUserById(string id)
         {
             var result = await _userService.GetUserByIdAsync(id);
@@ -56,7 +58,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet("my-profile")]
-        //[Authorize]
+        [Authorize]
         public async Task<IActionResult> GetMyProfile()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -69,7 +71,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPut("profile/{id}")]
-        //[Authorize]
+        [Authorize]
         public async Task<IActionResult> UpdateProfile(string id,[FromBody] UpdateUserProfileDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -80,7 +82,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("status/{id}")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStatus(string id, ChangeStatusDto dto)
         {
             await _userService.ChangeStatus(id, dto);
@@ -89,7 +91,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{id}/role")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeRole(string id, ChangeUserRoleDto request)
         {
             await _userService.ChangeUserRoleAsync(id, request.RoleName);
@@ -98,7 +100,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{id}/restore")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RetoreUser(string id)
         {
             await _userService.RestoreUser(id);
@@ -108,7 +110,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Tìm kiếm danh sách user theo trạng thái (Active/Inactive/Locked/Deleted).</summary>
         [HttpGet("by-status")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetStatusUser(string status)
         {
             var users = await _userService.GetByStatusAsync(status);
@@ -116,7 +118,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet("by-status-deleted")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetStatusDeletedUser()
         {
             var users = await _userService.GetByStatusDeleteAsync();
