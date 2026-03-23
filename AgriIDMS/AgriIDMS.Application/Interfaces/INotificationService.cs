@@ -7,6 +7,8 @@ namespace AgriIDMS.Application.Interfaces
     {
         // Event producers
         Task NotifyOrderPaidAsync(int orderId);
+        Task NotifyOrderPaymentFailedAsync(int orderId);
+        Task NotifyOrderPaymentCancelledAsync(int orderId);
         Task NotifyExportApprovedAsync(int exportReceiptId);
         Task NotifyStockCheckApprovedAsync(int stockCheckId);
         Task NotifyBackorderExpiredForSalesAsync(int orderId);
