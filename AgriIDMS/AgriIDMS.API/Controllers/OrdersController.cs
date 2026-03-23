@@ -28,6 +28,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn đang chờ sale xác nhận (PendingSaleConfirmation) cho Sale/Admin/Manager.</summary>
+        [HttpGet("staff/pending-sale-confirm")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> GetPendingSaleConfirmOrders([FromQuery] GetPendingSaleConfirmOrdersQuery query)
+        {
+            var result = await _orderService.GetPendingSaleConfirmOrdersAsync(query);
+            return Ok(result);
+        }
+
         [HttpGet("{id:int:min(1)}")]
         public async Task<IActionResult> GetMyOrderById(int id)
         {

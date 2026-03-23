@@ -78,6 +78,25 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .OrderBy(o => o.CreatedAt)
                 .ToListAsync();
         }
+
+        public async Task<IList<Order>> GetPendingSaleConfirmationOrdersAsync(string? customerUserId, int skip, int take)
+        {
+            var query = _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(o => o.Payments)
+                .Where(o => o.Status == OrderStatus.PendingSaleConfirmation);
+
+            if (!string.IsNullOrWhiteSpace(customerUserId))
+                query = query.Where(o => o.UserId == customerUserId.Trim());
+
+            return await query
+                .OrderBy(o => o.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
     }
 }
 
