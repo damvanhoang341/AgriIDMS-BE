@@ -37,6 +37,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn đang chờ giữ hàng (AwaitingAllocation) cho Sale/Kho/Admin/Manager.</summary>
+        [HttpGet("staff/pending-allocation")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetPendingAllocationOrders([FromQuery] GetPendingAllocationOrdersQuery query)
+        {
+            var result = await _orderService.GetPendingAllocationOrdersAsync(query);
+            return Ok(result);
+        }
+
         [HttpGet("{id:int:min(1)}")]
         public async Task<IActionResult> GetMyOrderById(int id)
         {
