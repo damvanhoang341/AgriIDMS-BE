@@ -333,7 +333,7 @@ namespace AgriIDMS.Application.Services
                         ShortageQuantity = 0
                     };
                     order.Details.Add(detail);
-                    estimatedTotal += detail.Quantity * detail.UnitPrice;
+                    estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
                     unitPriceByType[(item.ProductVariantId, item.BoxWeight, item.IsPartial)] = detail.UnitPrice;
                 }
 
@@ -476,7 +476,7 @@ namespace AgriIDMS.Application.Services
                         };
 
                         order.Details.Add(detail);
-                        estimatedTotal += detail.Quantity * detail.UnitPrice;
+                        estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
 
                         orderItems.Add(new OrderItemDto
                         {
@@ -585,7 +585,7 @@ namespace AgriIDMS.Application.Services
                     };
 
                     order.Details.Add(detail);
-                    total += detail.Quantity * detail.UnitPrice;
+                    total += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
 
                     responseItems.Add(new OrderItemDto
                     {

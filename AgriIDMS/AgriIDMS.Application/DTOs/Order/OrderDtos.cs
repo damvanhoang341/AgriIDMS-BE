@@ -15,7 +15,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public bool IsPartial { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
-        public decimal LineAmount => Quantity * UnitPrice;
+        public decimal LineAmount => Quantity * BoxWeight * UnitPrice;
     }
 
     /// <summary>Response khi tạo đơn hàng từ giỏ: OrderId + danh sách items.</summary>

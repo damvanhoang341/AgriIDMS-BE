@@ -107,7 +107,7 @@ namespace AgriIDMS.Application.Services
                         Quantity = request.Quantity,
                         BoxWeight = request.BoxWeight,
                         IsPartial = request.IsPartial,
-                        UnitPrice = variant.Price * request.BoxWeight
+                        UnitPrice = variant.Price
                     });
                 }
                 else
