@@ -1,3 +1,4 @@
+using AgriIDMS.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace AgriIDMS.Application.DTOs.GoodsReceipt
@@ -110,6 +111,10 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Range(0.01, double.MaxValue, ErrorMessage = "BoxSize phải lớn hơn 0")]
         public decimal BoxSize { get; set; }
+
+        [Required(ErrorMessage = "BoxType không được để trống")]
+        [EnumDataType(typeof(BoxType), ErrorMessage = "BoxType không hợp lệ")]
+        public BoxType BoxType { get; set; } = BoxType.Unknown;
     }
 
     /// <summary>Chuyển đổi kho đích của phiếu nhập. Chỉ cho phép khi phiếu chưa Approved (chưa tạo Lot/Box).</summary>

@@ -72,6 +72,14 @@ namespace AgriIDMS.Application.DTOs.Order
         public int Take { get; set; } = 50;
     }
 
+    public class GetPendingAllocationOrdersQuery
+    {
+        public string? CustomerUserId { get; set; }
+        public string? Source { get; set; } // Online | POS
+        public int Skip { get; set; } = 0;
+        public int Take { get; set; } = 50;
+    }
+
     public class OrderListItemDto
     {
         public int OrderId { get; set; }

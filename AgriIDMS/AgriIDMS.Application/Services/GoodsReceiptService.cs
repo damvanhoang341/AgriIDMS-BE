@@ -434,6 +434,8 @@ namespace AgriIDMS.Application.Services
             decimal boxSize = request.BoxSize;
             if (boxSize <= 0)
                 throw new InvalidBusinessRuleException("BoxSize phải lớn hơn 0");
+            if (request.BoxType == BoxType.Unknown)
+                throw new InvalidBusinessRuleException("Vui lòng chọn BoxType khác Unknown khi tạo box");
             if (total <= 0)
                 throw new InvalidBusinessRuleException("Lot đã hết khối lượng khả dụng để tạo box");
 
@@ -459,7 +461,7 @@ namespace AgriIDMS.Application.Services
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
                     QRCode = boxCode,
-                    BoxType = BoxType.Unknown,
+                    BoxType = request.BoxType,
                     IsPartial = false
                 });
             }
@@ -473,7 +475,7 @@ namespace AgriIDMS.Application.Services
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
                     QRCode = boxCode,
-                    BoxType = BoxType.Unknown,
+                    BoxType = request.BoxType,
                     IsPartial = true
                 });
             }
