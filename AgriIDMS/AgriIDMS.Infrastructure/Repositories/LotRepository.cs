@@ -33,6 +33,9 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d!.GoodsReceipt)
                 .FirstOrDefaultAsync(l => l.Id == id);
         }

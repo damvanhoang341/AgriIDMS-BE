@@ -18,6 +18,7 @@ namespace AgriIDMS.Application.Services
         private readonly IUserNotificationRepository _userNotificationRepo;
         private readonly IUserRepository _userRepo;
         private readonly IOrderRepository _orderRepo;
+        private readonly ILotRepository _lotRepo;
         private readonly IExportReceiptRepository _exportRepo;
         private readonly IStockCheckRepository _stockCheckRepo;
         private readonly IUnitOfWork _uow;
@@ -28,6 +29,7 @@ namespace AgriIDMS.Application.Services
             IUserNotificationRepository userNotificationRepo,
             IUserRepository userRepo,
             IOrderRepository orderRepo,
+            ILotRepository lotRepo,
             IExportReceiptRepository exportRepo,
             IStockCheckRepository stockCheckRepo,
             IUnitOfWork uow,
@@ -37,6 +39,7 @@ namespace AgriIDMS.Application.Services
             _userNotificationRepo = userNotificationRepo;
             _userRepo = userRepo;
             _orderRepo = orderRepo;
+            _lotRepo = lotRepo;
             _exportRepo = exportRepo;
             _stockCheckRepo = stockCheckRepo;
             _uow = uow;
@@ -120,6 +123,32 @@ namespace AgriIDMS.Application.Services
                 message,
                 referenceType: "BackorderExpired",
                 referenceId: orderId,
+                recipientUserIds: recipients);
+        }
+
+        public async Task NotifyNearExpiryLotAsync(int lotId)
+        {
+            var lot = await _lotRepo.GetByIdWithDetailAndReceiptAsync(lotId)
+                ?? throw new NotFoundException($"Lot #{lotId} không tồn tại");
+
+            var now = DateTime.UtcNow;
+            var daysLeft = (int)Math.Ceiling((lot.ExpiryDate - now).TotalDays);
+            if (daysLeft < 0)
+                daysLeft = 0;
+
+            var variant = lot.GoodsReceiptDetail?.ProductVariant;
+            var productName = variant?.Product?.Name ?? "N/A";
+            var grade = variant?.Grade.ToString() ?? "N/A";
+            var message =
+                $"Lô {lot.LotCode} ({productName} - {grade}) sắp hết hạn HSD sau {daysLeft} ngày. Vui lòng ưu tiên xử lý/xuất kho.";
+
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("WarehouseStaff", "Sale", "Manager");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "NearExpiryLot",
+                referenceId: lot.Id,
                 recipientUserIds: recipients);
         }
 

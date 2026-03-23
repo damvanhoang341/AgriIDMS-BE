@@ -137,6 +137,7 @@ public static class ServiceRegistration
 
         // Background workers
         services.AddHostedService<BackorderExpiryScannerService>();
+        services.AddHostedService<NearExpiryLotScannerService>();
 
         // Cross-cutting services
         services.AddScoped<IQrCodeGenerator, QrCodeGenerator>();
