@@ -27,6 +27,7 @@ namespace AgriIDMS.Application.Services
         private readonly ILogger<OrderService> _logger;
         private readonly int _nearExpiryDiscountDays;
         private readonly decimal _nearExpiryDiscountPercent;
+        private const decimal PriceComparisonTolerance = 0.0001m;
 
         private const int AllocationExpirationHours = 24;
 
@@ -317,9 +318,10 @@ namespace AgriIDMS.Application.Services
 
                 foreach (var item in cart.Items)
                 {
+                    var cartUnitPricePerKg = NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price);
                     var unitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
                         item.ProductVariantId,
-                        item.UnitPrice,
+                        cartUnitPricePerKg,
                         nearExpiryEligibilityCache);
 
                     var detail = new OrderDetail
@@ -333,7 +335,7 @@ namespace AgriIDMS.Application.Services
                         ShortageQuantity = 0
                     };
                     order.Details.Add(detail);
-                    estimatedTotal += detail.Quantity * detail.UnitPrice;
+                    estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
                     unitPriceByType[(item.ProductVariantId, item.BoxWeight, item.IsPartial)] = detail.UnitPrice;
                 }
 
@@ -469,14 +471,14 @@ namespace AgriIDMS.Application.Services
                             Quantity = qtyToTake,
                             UnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
                                 item.ProductVariantId,
-                                item.UnitPrice,
+                                NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price),
                                 nearExpiryEligibilityCache),
                             FulfilledQuantity = 0,
                             ShortageQuantity = 0
                         };
 
                         order.Details.Add(detail);
-                        estimatedTotal += detail.Quantity * detail.UnitPrice;
+                        estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
 
                         orderItems.Add(new OrderItemDto
                         {
@@ -585,7 +587,7 @@ namespace AgriIDMS.Application.Services
                     };
 
                     order.Details.Add(detail);
-                    total += detail.Quantity * detail.UnitPrice;
+                    total += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
 
                     responseItems.Add(new OrderItemDto
                     {
@@ -648,6 +650,19 @@ namespace AgriIDMS.Application.Services
             var discountedPrice = baseUnitPrice * (1 - (_nearExpiryDiscountPercent / 100m));
             var safePrice = Math.Round(Math.Max(discountedPrice, 0.01m), 2, MidpointRounding.AwayFromZero);
             return safePrice;
+        }
+
+        private static decimal NormalizeCartUnitPricePerKg(decimal storedUnitPrice, decimal boxWeight, decimal? variantPricePerKg)
+        {
+            // Backward compatibility for old cart rows persisted as "price per box".
+            if (variantPricePerKg.HasValue && boxWeight > 0)
+            {
+                var expectedPricePerBox = variantPricePerKg.Value * boxWeight;
+                if (Math.Abs(storedUnitPrice - expectedPricePerBox) <= PriceComparisonTolerance)
+                    return variantPricePerKg.Value;
+            }
+
+            return storedUnitPrice;
         }
 
         /// <summary>Sale xác nhận đơn → đơn chuyển sang chờ giữ hàng (allocate).</summary>

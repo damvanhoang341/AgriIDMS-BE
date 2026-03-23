@@ -9,6 +9,8 @@ namespace AgriIDMS.Application.Services
     /// <summary>Service hiển thị sản phẩm mua của khách hàng trong giỏ (cart items).</summary>
     public class CartItemService : ICartItemService
     {
+        private const decimal PriceComparisonTolerance = 0.0001m;
+
         public IReadOnlyList<CartItemDto> GetCartItemDtos(Cart? cart)
         {
             if (cart?.Items == null || !cart.Items.Any())
@@ -24,8 +26,22 @@ namespace AgriIDMS.Application.Services
                 Quantity = (int)i.Quantity,
                 BoxWeight = i.BoxWeight,
                 IsPartial = i.IsPartial,
-                UnitPrice = i.UnitPrice
+                UnitPrice = NormalizeUnitPricePerKg(i.UnitPrice, i.BoxWeight, i.ProductVariant?.Price)
             }).ToList();
+        }
+
+        private static decimal NormalizeUnitPricePerKg(decimal storedUnitPrice, decimal boxWeight, decimal? variantPricePerKg)
+        {
+            // Backward compatibility: old data may store UnitPrice as "price per box" (= price/kg * boxWeight).
+            // Normalize to "price per kg" so LineAmount formula stays consistent.
+            if (variantPricePerKg.HasValue && boxWeight > 0)
+            {
+                var expectedPricePerBox = variantPricePerKg.Value * boxWeight;
+                if (Math.Abs(storedUnitPrice - expectedPricePerBox) <= PriceComparisonTolerance)
+                    return variantPricePerKg.Value;
+            }
+
+            return storedUnitPrice;
         }
     }
 }
