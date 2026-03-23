@@ -927,6 +927,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
 
+            entity.Property(x => x.BoxWeight)
+                  .HasColumnType("decimal(18,2)")
+                  .IsRequired();
+
             // Một cart có thể có nhiều dòng cùng ProductVariantId nếu khác loại box (BoxWeight / IsPartial)
             entity.HasIndex(x => new { x.CartId, x.ProductVariantId, x.BoxWeight, x.IsPartial })
                   .IsUnique();
