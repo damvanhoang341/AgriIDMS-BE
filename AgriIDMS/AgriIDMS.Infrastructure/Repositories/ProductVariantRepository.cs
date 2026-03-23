@@ -51,6 +51,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        
+
         public async Task AddAsync(ProductVariant variant)
         {
             await _context.ProductVariants.AddAsync(variant);

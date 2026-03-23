@@ -8,7 +8,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class StockChecksController : ControllerBase
     {
         private readonly IStockCheckService _stockCheckService;
@@ -20,7 +20,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Tạo phiếu kiểm kê (Draft). Full = toàn bộ box trong kho; Spot = danh sách BoxIds.</summary>
         [HttpPost]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Create([FromBody] CreateStockCheckRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -30,7 +30,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Bắt đầu kiểm kê (Draft → InProgress), khóa snapshot.</summary>
         [HttpPost("{id}/start")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Start(int id)
         {
             await _stockCheckService.StartCheckAsync(id);
@@ -39,7 +39,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Nhập số đếm thực tế cho một dòng.</summary>
         [HttpPut("detail/counted")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateCountedWeight([FromBody] UpdateCountedWeightRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -49,7 +49,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Chốt đếm (InProgress → Counted). Tất cả dòng phải đã nhập CountedWeight.</summary>
         [HttpPost("{id}/complete")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CompleteCount(int id)
         {
             await _stockCheckService.CompleteCountAsync(id);
@@ -58,7 +58,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Duyệt phiếu kiểm kê: tạo điều chỉnh tồn kho (Shortage/Excess) và cập nhật Box.Weight.</summary>
         [HttpPost("{id}/approve")]
-        //[Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Approve(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
@@ -68,7 +68,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Từ chối phiếu kiểm kê (Counted → Rejected).</summary>
         [HttpPost("{id}/reject")]
-        //[Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Reject(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";

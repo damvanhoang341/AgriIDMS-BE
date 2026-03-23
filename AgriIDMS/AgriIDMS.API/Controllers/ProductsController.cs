@@ -1,6 +1,7 @@
-﻿using AgriIDMS.Application.DTOs.Product;
+using AgriIDMS.Application.DTOs.Product;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +9,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _service;
@@ -23,6 +25,7 @@ namespace AgriIDMS.API.Controllers
         //}
 
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Create(CreateProductRequest request)
         {
             var id = await _service.CreateAsync(request);
@@ -35,6 +38,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetProducts()
         {
             var products = await _service.GetAllProducts();
@@ -42,6 +46,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var data = await _service.GetByIdAsync(id);
@@ -50,6 +55,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Update(int id, UpdateProductRequest request)
         {
             await _service.UpdateAsync(id, request);
@@ -58,6 +64,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPatch("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> UpdateStatus(int id, UpdateProductStatusRequest request)
         {
             await _service.UpdateStatusAsync(id, request);
@@ -66,6 +73,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Delete(int id)
         {
             await _service.DeleteAsync(id);

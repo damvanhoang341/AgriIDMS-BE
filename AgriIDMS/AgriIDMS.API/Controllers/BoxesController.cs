@@ -10,7 +10,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class BoxesController : ControllerBase
     {
         private readonly IBoxService _boxService;
@@ -22,7 +22,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Gán box vào vị trí slot. Box và slot phải cùng kho; slot phải đủ dung lượng. Nếu kho lạnh sẽ ghi nhận PlacedInColdAt.</summary>
         [HttpPost("assign-slot")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> AssignBoxToSlot([FromBody] AssignBoxToSlotRequest request)
         {
             await _boxService.AssignBoxToSlotAsync(request);
@@ -31,7 +31,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Gán nhiều box vào cùng một slot trong một lần (nhanh hơn gọi assign-slot từng box).</summary>
         [HttpPost("assign-slot-batch")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> AssignBoxesToSlot([FromBody] AssignBoxesToSlotRequest request)
         {
             await _boxService.AssignBoxesToSlotAsync(request);
@@ -40,7 +40,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Chuyển box đã xếp từ slot hiện tại sang slot khác (cùng kho) và ghi InventoryTransactionType.Transfer.</summary>
         [HttpPost("transfer-slot")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> TransferBoxToSlot([FromBody] TransferBoxToSlotRequest request)
         {
             var userId =
@@ -59,7 +59,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Cập nhật hoặc xoá QR của box (nếu qrCode = null/empty).</summary>
         [HttpPut("{boxId:int}/qr")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateQrCode(int boxId, [FromBody] string? qrCode)
         {
             await _boxService.UpdateQrCodeAsync(boxId, qrCode);
@@ -76,6 +76,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Lấy thông tin box theo QR (scan QR trên thùng).</summary>
         [HttpGet("by-qr/{qrCode}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GetByQrCode(string qrCode)
         {
             var box = await _boxService.GetByQrCodeAsync(qrCode);

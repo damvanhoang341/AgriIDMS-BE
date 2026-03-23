@@ -7,6 +7,7 @@ namespace AgriIDMS.Application.Interfaces
     public interface IOrderService
     {
         Task<IList<OrderListItemDto>> GetMyOrdersAsync(string userId, GetOrdersQuery query);
+        Task<IList<OrderListItemDto>> GetPendingSaleConfirmOrdersAsync(GetPendingSaleConfirmOrdersQuery query);
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
 

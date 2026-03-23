@@ -7,7 +7,7 @@ namespace AgriIDMS.API.Controllers
 {
     [Route("api/goods-receipt-details")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class GoodsReceiptDetailsController : ControllerBase
     {
         private readonly IGoodsReceiptDetailService _detailService;
@@ -19,7 +19,7 @@ namespace AgriIDMS.API.Controllers
 
         // ADD RECEIPT DETAIL
         [HttpPost]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> AddDetail([FromBody] AddGoodsReceiptDetailRequest request)
         {
             await _detailService.AddGoodsReceiptDetailAsync(request);
@@ -32,7 +32,7 @@ namespace AgriIDMS.API.Controllers
 
         // UPDATE RECEIPT DETAIL
         [HttpPut]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateDetail([FromBody] UpdateGoodsReceiptDetailRequest request)
         {
             await _detailService.UpdateGoodsReceiptDetailAsync(request);
@@ -45,7 +45,7 @@ namespace AgriIDMS.API.Controllers
 
         // DELETE RECEIPT DETAIL
         [HttpDelete("{detailId:int:min(1)}")]
-        //[Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> DeleteDetail(int detailId)
         {
             await _detailService.DeleteGoodsReceiptDetailAsync(detailId);

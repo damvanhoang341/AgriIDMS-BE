@@ -867,6 +867,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.VarianceType)
                   .HasConversion<int>();
 
+            entity.Property(x => x.VarianceReason)
+                  .HasConversion<int>();
+
             entity.HasOne(x => x.Box)
                   .WithMany()
                   .HasForeignKey(x => x.BoxId)

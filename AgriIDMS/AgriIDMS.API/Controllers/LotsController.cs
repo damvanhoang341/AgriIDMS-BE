@@ -1,11 +1,15 @@
 using AgriIDMS.Application.DTOs.Common;
+using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AgriIDMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class LotsController : ControllerBase
     {
         private readonly ILotService _lotService;
@@ -40,6 +44,20 @@ namespace AgriIDMS.API.Controllers
         {
             await _lotService.UpdateQrImageUrlAsync(id, request.QrImageUrl);
             return Ok(new { message = "Đã cập nhật ảnh QR cho lot." });
+        }
+
+        [HttpGet("near-expiry-lots")]
+        public async Task<IActionResult> GetNearExpiryLotsAsync()
+        {
+            var lots = await _lotService.GetNearExpiryLotsAsync();
+            return Ok(lots);
+        }
+
+        [HttpGet("near-expiry-dashboard")]
+        public async Task<IActionResult> GetNearExpiryDashboardAsync([FromQuery] int days = 3)
+        {
+            var dashboard = await _lotService.GetNearExpiryDashboardAsync(days);
+            return Ok(dashboard);
         }
     }
 }

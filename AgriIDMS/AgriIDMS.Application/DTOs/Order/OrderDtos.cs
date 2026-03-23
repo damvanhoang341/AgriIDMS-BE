@@ -65,6 +65,13 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? Status { get; set; }
     }
 
+    public class GetPendingSaleConfirmOrdersQuery
+    {
+        public string? CustomerUserId { get; set; }
+        public int Skip { get; set; } = 0;
+        public int Take { get; set; } = 50;
+    }
+
     public class OrderListItemDto
     {
         public int OrderId { get; set; }

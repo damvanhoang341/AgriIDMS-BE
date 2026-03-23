@@ -1,4 +1,6 @@
+using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,5 +12,7 @@ namespace AgriIDMS.Application.Interfaces
         Task<object?> GetByLotCodeAsync(string lotCode);
         /// <summary>Lưu URL ảnh QR (đã upload Cloudinary từ FE).</summary>
         Task UpdateQrImageUrlAsync(int lotId, string qrImageUrl);
+        Task<IEnumerable<NearExpiryLotDto>> GetNearExpiryLotsAsync();
+        Task<NearExpiryDashboardDto> GetNearExpiryDashboardAsync(int days);
     }
 }

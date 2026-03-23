@@ -28,7 +28,7 @@ namespace AgriIDMS.API.Controllers
         /// Tạo Purchase Order (PurchasingStaff tạo đơn, Manager duyệt)
         /// </summary>
         [HttpPost]
-        //[Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
         public async Task<IActionResult> CreatePurchaseOrder([FromBody] CreatePurchaseOrderRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -55,6 +55,7 @@ namespace AgriIDMS.API.Controllers
         /// Lấy PurchaseOrder theo Id
         /// </summary>
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
         public async Task<IActionResult> GetPurchaseOrderById(int id)
         {
             _logger.LogInformation("Fetching PurchaseOrder {PurchaseOrderId}", id);
@@ -68,7 +69,7 @@ namespace AgriIDMS.API.Controllers
         /// Cập nhật PurchaseOrder (chỉ khi trạng thái Pending, chưa duyệt).
         /// </summary>
         [HttpPut("{id}")]
-        //[Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
         public async Task<IActionResult> UpdatePurchaseOrder(int id, [FromBody] UpdatePurchaseOrderRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -80,7 +81,7 @@ namespace AgriIDMS.API.Controllers
         /// Duyệt PurchaseOrder (chỉ Manager hoặc Admin)
         /// </summary>
         [HttpPost("{id}/approve")]
-        //[Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApprovePurchaseOrder(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -106,7 +107,7 @@ namespace AgriIDMS.API.Controllers
         /// Xóa PurchaseOrder (chỉ khi Pending và chưa có phiếu nhập kho).
         /// </summary>
         [HttpDelete("{id}")]
-        //[Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
         public async Task<IActionResult> DeletePurchaseOrder(int id)
         {
             await _purchaseOrderService.DeleteAsync(id);
@@ -114,6 +115,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet()]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
         public async Task<IActionResult> GetAll()
         {
             var result = await _purchaseOrderService.GetAllAsync();

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AgriIDMS.Domain.Enums;
 
 namespace AgriIDMS.Application.DTOs.StockCheck
 {
@@ -13,5 +14,10 @@ namespace AgriIDMS.Application.DTOs.StockCheck
 
         [MaxLength(500)]
         public string? Note { get; set; }
+
+        /// <summary>
+        /// Nguyên nhân chênh lệch (bắt buộc khi thiếu hàng / Shortage).
+        /// </summary>
+        public VarianceReason? VarianceReason { get; set; }
     }
 }

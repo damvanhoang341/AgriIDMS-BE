@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -32,6 +33,9 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d!.GoodsReceipt)
                 .FirstOrDefaultAsync(l => l.Id == id);
         }
@@ -52,6 +56,43 @@ namespace AgriIDMS.Infrastructure.Repositories
                     .ThenInclude(d => d.ProductVariant)
                         .ThenInclude(pv => pv.Product)
                 .FirstOrDefaultAsync(l => l.LotCode == lotCode);
+
+        }
+
+        public async Task<IEnumerable<Lot>> GetAllExpiryDateAsync()
+        {
+            var now = DateTime.UtcNow;
+
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Where(l => l.ExpiryDate <= now.AddDays(3)
+                         && l.ExpiryDate >= now
+                         && l.RemainingQuantity > 0
+                         && l.Status == LotStatus.Active)
+                .OrderBy(l => l.ExpiryDate) // 
+                .ToListAsync();
+        }
+
+        public async Task<List<Lot>> GetNearExpiryLotsAsync(int days)
+        {
+            var now = DateTime.UtcNow;
+            var deadline = now.AddDays(days);
+
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(l => l.Boxes)
+                    .ThenInclude(b => b.Slot)
+                .Where(l =>
+                    l.ExpiryDate >= now &&
+                    l.ExpiryDate <= deadline &&
+                    l.RemainingQuantity > 0 &&
+                    l.Status == LotStatus.Active)
+                .OrderBy(l => l.ExpiryDate)
+                .ToListAsync();
         }
 
     }

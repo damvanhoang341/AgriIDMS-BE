@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,5 +27,17 @@ namespace AgriIDMS.Domain.Enums
         Match = 1,
         Shortage = 2,
         Excess = 3
+    }
+
+    /// <summary>
+    /// Nguyên nhân chênh lệch khi kiểm kê.
+    /// Chỉ bắt buộc với dòng thiếu (Shortage).
+    /// </summary>
+    public enum VarianceReason
+    {
+        None = 0,
+        Damaged = 1,
+        Loss = 2,
+        MeasurementError = 3
     }
 }
