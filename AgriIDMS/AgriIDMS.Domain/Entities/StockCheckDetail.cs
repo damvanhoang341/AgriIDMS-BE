@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Enums;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
@@ -30,6 +30,7 @@ namespace AgriIDMS.Domain.Entities
         public decimal? DifferenceWeight { get; set; }
 
         public VarianceType? VarianceType { get; set; }
+        public VarianceReason? VarianceReason { get; set; }
 
         public string? CountedBy { get; set; }
         public ApplicationUser? CountedUser { get; set; }
