@@ -91,6 +91,12 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? LatestPaymentStatus { get; set; }
     }
 
+    public class SaleConfirmOrderResponseDto
+    {
+        public string Message { get; set; } = null!;
+        public OrderListItemDto Order { get; set; } = null!;
+    }
+
     public class OrderDetailDto
     {
         public int OrderId { get; set; }

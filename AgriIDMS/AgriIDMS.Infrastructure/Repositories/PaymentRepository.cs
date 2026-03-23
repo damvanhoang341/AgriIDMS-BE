@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -50,6 +51,34 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(p => p.OrderId == orderId)
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
+        }
+
+        public async Task<List<Payment>> GetPaymentsByMethodAndStatusAsync(
+            PaymentMethod paymentMethod,
+            PaymentStatus paymentStatus,
+            int? orderId,
+            string? customerUserId,
+            int skip,
+            int take)
+        {
+            var query = _context.Payments
+                .Include(p => p.Order)
+                .Where(p => p.PaymentMethod == paymentMethod && p.PaymentStatus == paymentStatus);
+
+            if (orderId.HasValue)
+                query = query.Where(p => p.OrderId == orderId.Value);
+
+            if (!string.IsNullOrWhiteSpace(customerUserId))
+            {
+                var customerUserIdTrimmed = customerUserId.Trim();
+                query = query.Where(p => p.Order.UserId == customerUserIdTrimmed);
+            }
+
+            return await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
         }
 
         public async Task<bool> HasSuccessPaymentAsync(int orderId)

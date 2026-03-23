@@ -651,7 +651,7 @@ namespace AgriIDMS.Application.Services
         }
 
         /// <summary>Sale xác nhận đơn → đơn chuyển sang chờ giữ hàng (allocate).</summary>
-        public async Task SaleConfirmOrderAsync(int orderId, string confirmedByUserId)
+        public async Task<SaleConfirmOrderResponseDto> SaleConfirmOrderAsync(int orderId, string confirmedByUserId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
@@ -672,6 +672,21 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation(
                 "Order {OrderId} sale-confirmed by {UserId} → AwaitingAllocation",
                 orderId, confirmedByUserId);
+
+            return new SaleConfirmOrderResponseDto
+            {
+                Message = "Sale đã xác nhận đơn — đơn đã vào danh sách chờ allocate",
+                Order = new OrderListItemDto
+                {
+                    OrderId = order.Id,
+                    TotalAmount = order.TotalAmount,
+                    Status = order.Status.ToString(),
+                    Source = order.Source.ToString(),
+                    CreatedAt = order.CreatedAt,
+                    ItemCount = order.Details?.Count ?? 0,
+                    LatestPaymentStatus = null
+                }
+            };
         }
 
         /// <summary>Khách chọn chờ đủ hàng (backorder) cho phần còn thiếu.</summary>
