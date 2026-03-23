@@ -5,9 +5,11 @@ using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -23,6 +25,8 @@ namespace AgriIDMS.Application.Services
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
+        private readonly int _nearExpiryDiscountDays;
+        private readonly decimal _nearExpiryDiscountPercent;
 
         private const int AllocationExpirationHours = 24;
 
@@ -34,6 +38,7 @@ namespace AgriIDMS.Application.Services
             IOrderAllocationRepository allocationRepo,
             IInventoryTransactionRepository inventoryTranRepo,
             IUnitOfWork uow,
+            IConfiguration config,
             ILogger<OrderService> logger)
         {
             _cartRepo = cartRepo;
@@ -43,6 +48,16 @@ namespace AgriIDMS.Application.Services
             _allocationRepo = allocationRepo;
             _inventoryTranRepo = inventoryTranRepo;
             _uow = uow;
+            _nearExpiryDiscountDays = int.TryParse(config["Pricing:NearExpiryDiscountDays"], out var days)
+                ? days
+                : 0;
+            _nearExpiryDiscountPercent = decimal.TryParse(
+                config["Pricing:NearExpiryDiscountPercent"],
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var percent)
+                ? percent
+                : 0m;
             _logger = logger;
         }
 
@@ -227,6 +242,8 @@ namespace AgriIDMS.Application.Services
             try
             {
                 decimal estimatedTotal = 0;
+                var nearExpiryEligibilityCache = new Dictionary<int, bool>();
+                var unitPriceByType = new Dictionary<(int ProductVariantId, decimal BoxWeight, bool IsPartial), decimal>();
                 var order = new Order
                 {
                     UserId = userId,
@@ -237,18 +254,24 @@ namespace AgriIDMS.Application.Services
 
                 foreach (var item in cart.Items)
                 {
+                    var unitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
+                        item.ProductVariantId,
+                        item.UnitPrice,
+                        nearExpiryEligibilityCache);
+
                     var detail = new OrderDetail
                     {
                         ProductVariantId = item.ProductVariantId,
                         BoxWeight = item.BoxWeight,
                         IsPartial = item.IsPartial,
                         Quantity = (int)item.Quantity,
-                        UnitPrice = item.UnitPrice,
+                        UnitPrice = unitPrice,
                         FulfilledQuantity = 0,
                         ShortageQuantity = 0
                     };
                     order.Details.Add(detail);
                     estimatedTotal += detail.Quantity * detail.UnitPrice;
+                    unitPriceByType[(item.ProductVariantId, item.BoxWeight, item.IsPartial)] = detail.UnitPrice;
                 }
 
                 order.TotalAmount = estimatedTotal;
@@ -261,7 +284,7 @@ namespace AgriIDMS.Application.Services
                     BoxWeight = i.BoxWeight,
                     IsPartial = i.IsPartial,
                     Quantity = (int)i.Quantity,
-                    UnitPrice = i.UnitPrice
+                    UnitPrice = unitPriceByType[(i.ProductVariantId, i.BoxWeight, i.IsPartial)]
                 }).ToList();
 
                 await _orderRepo.AddAsync(order);
@@ -326,6 +349,7 @@ namespace AgriIDMS.Application.Services
             try
             {
                 decimal estimatedTotal = 0;
+                var nearExpiryEligibilityCache = new Dictionary<int, bool>();
 
                 var order = new Order
                 {
@@ -380,7 +404,10 @@ namespace AgriIDMS.Application.Services
                             BoxWeight = item.BoxWeight,
                             IsPartial = item.IsPartial,
                             Quantity = qtyToTake,
-                            UnitPrice = item.UnitPrice,
+                            UnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
+                                item.ProductVariantId,
+                                item.UnitPrice,
+                                nearExpiryEligibilityCache),
                             FulfilledQuantity = 0,
                             ShortageQuantity = 0
                         };
@@ -396,7 +423,7 @@ namespace AgriIDMS.Application.Services
                             BoxWeight = item.BoxWeight,
                             IsPartial = item.IsPartial,
                             Quantity = qtyToTake,
-                            UnitPrice = item.UnitPrice
+                            UnitPrice = detail.UnitPrice
                         });
 
                         // Cập nhật lại cart (không apply cùng quantity cho tất cả CartItem)
@@ -449,6 +476,7 @@ namespace AgriIDMS.Application.Services
                 : request.CustomerUserId.Trim();
 
             var now = DateTime.UtcNow;
+            var nearExpiryEligibilityCache = new Dictionary<int, bool>();
             await _uow.BeginTransactionAsync();
             try
             {
@@ -472,7 +500,13 @@ namespace AgriIDMS.Application.Services
                     var variant = await _variantRepo.GetProductVariantByIdAsync(item.ProductVariantId)
                         ?? throw new NotFoundException($"ProductVariant #{item.ProductVariantId} không tồn tại");
 
-                    var unitPrice = item.UnitPrice ?? variant.Price;
+                    var baseUnitPrice = item.UnitPrice ?? variant.Price;
+                    var unitPrice = item.UnitPrice.HasValue
+                        ? baseUnitPrice
+                        : await ApplyNearExpiryDiscountIfEligibleAsync(
+                            item.ProductVariantId,
+                            baseUnitPrice,
+                            nearExpiryEligibilityCache);
                     if (unitPrice <= 0)
                         throw new InvalidBusinessRuleException("Đơn giá phải lớn hơn 0");
 
@@ -520,6 +554,37 @@ namespace AgriIDMS.Application.Services
                 await _uow.RollbackAsync();
                 throw;
             }
+        }
+
+        private async Task<decimal> ApplyNearExpiryDiscountIfEligibleAsync(
+            int productVariantId,
+            decimal baseUnitPrice,
+            IDictionary<int, bool> eligibilityCache)
+        {
+            if (baseUnitPrice <= 0 || _nearExpiryDiscountDays <= 0 || _nearExpiryDiscountPercent <= 0)
+                return baseUnitPrice;
+
+            if (!eligibilityCache.TryGetValue(productVariantId, out var isNearExpiry))
+            {
+                var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(productVariantId);
+                var nearestExpiry = availableBoxes
+                    .Select(b => b.Lot?.ExpiryDate)
+                    .Where(d => d.HasValue)
+                    .Select(d => d!.Value)
+                    .DefaultIfEmpty(DateTime.MaxValue)
+                    .Min();
+
+                var daysLeft = (nearestExpiry - DateTime.UtcNow).TotalDays;
+                isNearExpiry = nearestExpiry != DateTime.MaxValue && daysLeft <= _nearExpiryDiscountDays;
+                eligibilityCache[productVariantId] = isNearExpiry;
+            }
+
+            if (!isNearExpiry)
+                return baseUnitPrice;
+
+            var discountedPrice = baseUnitPrice * (1 - (_nearExpiryDiscountPercent / 100m));
+            var safePrice = Math.Round(Math.Max(discountedPrice, 0.01m), 2, MidpointRounding.AwayFromZero);
+            return safePrice;
         }
 
         /// <summary>Sale xác nhận đơn → đơn chuyển sang chờ giữ hàng (allocate).</summary>
