@@ -87,6 +87,33 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<OrderListItemDto>> GetPendingSaleConfirmOrdersAsync(GetPendingSaleConfirmOrdersQuery query)
+        {
+            query ??= new GetPendingSaleConfirmOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            var orders = await _orderRepo.GetPendingSaleConfirmationOrdersAsync(
+                query.CustomerUserId,
+                skip,
+                take);
+
+            return orders.Select(o => new OrderListItemDto
+            {
+                OrderId = o.Id,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status.ToString(),
+                Source = o.Source.ToString(),
+                CreatedAt = o.CreatedAt,
+                ItemCount = o.Details?.Count ?? 0,
+                LatestPaymentStatus = o.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString()
+            }).ToList();
+        }
+
         public async Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
