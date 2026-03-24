@@ -55,6 +55,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn thiếu hàng đang chờ khách quyết định (wait/cancel-shortage).</summary>
+        [HttpGet("staff/pending-customer-decision")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetPendingCustomerDecisionOrders([FromQuery] GetPendingAllocationOrdersQuery query)
+        {
+            var result = await _orderService.GetPendingCustomerDecisionOrdersAsync(query);
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết box đang được propose FEFO cho 1 đơn.</summary>
         [HttpGet("{id:int:min(1)}/allocation/proposals")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
@@ -173,6 +182,26 @@ namespace AgriIDMS.API.Controllers
         {
             var operatorUserId = GetCurrentUserId();
             var result = await _orderService.AutoProposeAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
+            return Ok(result);
+        }
+
+        /// <summary>Kho làm mới proposal FEFO cho đơn (hủy proposal cũ và đề xuất lại).</summary>
+        [HttpPatch("{id:int:min(1)}/allocation/re-propose")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> ReProposeAllocationAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            var result = await _orderService.ReProposeAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
+            return Ok(result);
+        }
+
+        /// <summary>Kho từ chối proposal hiện tại và đưa đơn về AwaitingAllocation.</summary>
+        [HttpPatch("{id:int:min(1)}/allocation/reject")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> RejectAllocationProposalAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            var result = await _orderService.RejectAllocationProposalAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
             return Ok(result);
         }
 

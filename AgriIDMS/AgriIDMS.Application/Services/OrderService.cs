@@ -190,6 +190,42 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<OrderListItemDto>> GetPendingCustomerDecisionOrdersAsync(GetPendingAllocationOrdersQuery query)
+        {
+            query ??= new GetPendingAllocationOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            OrderSource? source = null;
+            if (!string.IsNullOrWhiteSpace(query.Source))
+            {
+                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
+                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
+                source = parsedSource;
+            }
+
+            var orders = await _orderRepo.GetPendingCustomerDecisionOrdersAsync(
+                query.CustomerUserId,
+                source,
+                skip,
+                take);
+
+            return orders.Select(o => new OrderListItemDto
+            {
+                OrderId = o.Id,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status.ToString(),
+                Source = o.Source.ToString(),
+                CreatedAt = o.CreatedAt,
+                ItemCount = o.Details?.Count ?? 0,
+                LatestPaymentStatus = o.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString()
+            }).ToList();
+        }
+
         public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
@@ -994,6 +1030,68 @@ namespace AgriIDMS.Application.Services
                 ProposedBoxCount = proposals.Count,
                 Message = "Đã tạo đề xuất allocate FEFO, chờ kho xác nhận"
             };
+        }
+
+        public async Task<AllocationProposalResultDto> ReProposeAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
+
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                var oldProposals = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
+                foreach (var p in oldProposals)
+                    p.Status = AllocationStatus.Cancelled;
+
+                if (order.Status == OrderStatus.PendingWarehouseConfirm)
+                    order.Status = OrderStatus.AwaitingAllocation;
+
+                await _uow.CommitAsync();
+            }
+            catch
+            {
+                await _uow.RollbackAsync();
+                throw;
+            }
+
+            return await AutoProposeAllocationAsync(orderId, operatorUserId, skipCustomerOwnershipCheck);
+        }
+
+        public async Task<AllocationProposalResultDto> RejectAllocationProposalAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
+            if (order.Status != OrderStatus.PendingWarehouseConfirm)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ từ chối proposal khi đơn đang PendingWarehouseConfirm. Hiện tại: {order.Status}");
+
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                var proposals = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
+                foreach (var p in proposals)
+                    p.Status = AllocationStatus.Cancelled;
+
+                order.Status = OrderStatus.AwaitingAllocation;
+                await _uow.CommitAsync();
+
+                return new AllocationProposalResultDto
+                {
+                    OrderId = orderId,
+                    ProposedBoxCount = 0,
+                    Message = "Kho đã từ chối proposal hiện tại. Đơn quay về hàng chờ allocate"
+                };
+            }
+            catch
+            {
+                await _uow.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<ConfirmAllocationResultDto> ConfirmAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
