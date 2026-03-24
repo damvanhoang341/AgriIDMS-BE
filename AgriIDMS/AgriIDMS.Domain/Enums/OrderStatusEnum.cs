@@ -30,6 +30,9 @@ namespace AgriIDMS.Domain.Enums
         /// <summary>Sale đã xác nhận — chờ bước allocate (giữ tồn).</summary>
         AwaitingAllocation = 9,
 
+        /// <summary>Hệ thống đã đề xuất allocate FEFO, chờ kho xác nhận giữ hàng.</summary>
+        PendingWarehouseConfirm = 12,
+
         /// <summary>Đã allocate/giữ được một phần, còn thiếu hàng.</summary>
         PartiallyAllocated = 10,
 
@@ -65,6 +68,7 @@ namespace AgriIDMS.Domain.Enums
 
     public enum AllocationStatus
     {
+        Proposed,
         Reserved,
         Picked,
         Cancelled
