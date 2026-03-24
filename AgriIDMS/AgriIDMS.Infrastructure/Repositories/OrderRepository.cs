@@ -127,7 +127,10 @@ namespace AgriIDMS.Infrastructure.Repositories
                     .ThenInclude(d => d.ProductVariant)
                         .ThenInclude(v => v.Product)
                 .Include(o => o.Payments)
-                .Where(o => o.Status == OrderStatus.PendingWarehouseConfirm);
+                .Include(o => o.Allocations)
+                .Where(o =>
+                    o.Status == OrderStatus.PendingWarehouseConfirm
+                    && o.Allocations.Any(a => a.Status == AllocationStatus.Proposed));
 
             if (!string.IsNullOrWhiteSpace(customerUserId))
                 query = query.Where(o => o.UserId == customerUserId.Trim());

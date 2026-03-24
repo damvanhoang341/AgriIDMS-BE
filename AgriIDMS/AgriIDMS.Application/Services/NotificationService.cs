@@ -88,6 +88,24 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: new[] { order.UserId });
         }
 
+        public async Task NotifyOrderAllocationShortageAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var totalShortage = order.Details?.Sum(d => d.ShortageQuantity) ?? 0;
+            var message = totalShortage > 0
+                ? $"Đơn hàng #{orderId} đang thiếu {totalShortage} box sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc hủy phần thiếu."
+                : $"Đơn hàng #{orderId} đang thiếu hàng sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc hủy phần thiếu.";
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "OrderAllocationShortage",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.UserId });
+        }
+
         public async Task NotifyExportApprovedAsync(int exportReceiptId)
         {
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)

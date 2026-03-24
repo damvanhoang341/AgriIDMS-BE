@@ -173,12 +173,8 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> ConfirmAllocationAsStaff(int id)
         {
             var operatorUserId = GetCurrentUserId();
-            await _orderService.ConfirmAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
-            return Ok(new
-            {
-                Message = "Kho đã xác nhận allocate và giữ hàng",
-                OrderId = id
-            });
+            var result = await _orderService.ConfirmAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
+            return Ok(result);
         }
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
