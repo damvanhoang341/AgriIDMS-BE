@@ -35,6 +35,22 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await query.ToListAsync();
         }
 
+        public async Task<List<OrderAllocation>> GetByOrderIdWithDetailsAsync(int orderId, AllocationStatus? status = null)
+        {
+            var query = _context.OrderAllocations
+                .Include(a => a.Box)
+                    .ThenInclude(b => b.Lot)
+                .Include(a => a.OrderDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Where(a => a.OrderId == orderId);
+
+            if (status.HasValue)
+                query = query.Where(a => a.Status == status.Value);
+
+            return await query.ToListAsync();
+        }
+
         public async Task<OrderAllocation?> GetByOrderIdAndBoxIdAsync(int orderId, int boxId)
         {
             return await _context.OrderAllocations

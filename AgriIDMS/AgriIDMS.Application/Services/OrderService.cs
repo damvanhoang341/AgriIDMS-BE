@@ -190,6 +190,74 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Status != OrderStatus.PendingWarehouseConfirm
+                && order.Status != OrderStatus.PartiallyAllocated
+                && order.Status != OrderStatus.BackorderWaiting)
+            {
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ xem proposal khi đơn đang chờ kho xác nhận/backorder. Hiện tại: {order.Status}");
+            }
+
+            var proposals = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, AllocationStatus.Proposed);
+            var proposalItems = proposals.Select(p => new AllocationProposalItemDto
+            {
+                AllocationId = p.Id,
+                OrderDetailId = p.OrderDetailId,
+                ProductVariantId = p.OrderDetail.ProductVariantId,
+                ProductName = p.OrderDetail.ProductVariant?.Product?.Name ?? string.Empty,
+                Grade = p.OrderDetail.ProductVariant?.Grade.ToString() ?? string.Empty,
+                BoxId = p.BoxId,
+                BoxCode = p.Box?.BoxCode ?? string.Empty,
+                BoxWeight = p.Box?.Weight ?? 0,
+                IsPartial = p.Box?.IsPartial ?? false,
+                ExpiryDate = p.Box?.Lot?.ExpiryDate,
+                Status = p.Status.ToString()
+            }).ToList();
+
+            var proposedByDetailId = proposals
+                .GroupBy(p => p.OrderDetailId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var detailSummaries = order.Details.Select(d =>
+            {
+                proposedByDetailId.TryGetValue(d.Id, out var proposedQty);
+
+                var requestedQty = order.Status == OrderStatus.PartiallyAllocated || order.Status == OrderStatus.BackorderWaiting
+                    ? (int)d.ShortageQuantity
+                    : (int)d.Quantity;
+
+                var shortage = Math.Max(0, requestedQty - proposedQty);
+                return new AllocationProposalDetailSummaryDto
+                {
+                    OrderDetailId = d.Id,
+                    ProductVariantId = d.ProductVariantId,
+                    ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                    Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
+                    BoxWeight = d.BoxWeight,
+                    IsPartial = d.IsPartial,
+                    RequestedQuantity = requestedQty,
+                    ProposedQuantity = proposedQty,
+                    ShortageQuantity = shortage
+                };
+            }).ToList();
+
+            return new AllocationProposalOverviewDto
+            {
+                OrderId = order.Id,
+                OrderStatus = order.Status.ToString(),
+                TotalRequestedBoxes = detailSummaries.Sum(x => x.RequestedQuantity),
+                TotalProposedBoxes = detailSummaries.Sum(x => x.ProposedQuantity),
+                TotalShortageBoxes = detailSummaries.Sum(x => x.ShortageQuantity),
+                Details = detailSummaries,
+                Proposals = proposalItems
+            };
+        }
+
         public async Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
@@ -724,13 +792,18 @@ namespace AgriIDMS.Application.Services
             order.Status = OrderStatus.AwaitingAllocation;
             await _uow.SaveChangesAsync();
 
+            var proposalResult = await AutoProposeAllocationAsync(
+                orderId,
+                confirmedByUserId,
+                skipCustomerOwnershipCheck: true);
+
             _logger.LogInformation(
-                "Order {OrderId} sale-confirmed by {UserId} → AwaitingAllocation",
-                orderId, confirmedByUserId);
+                "Order {OrderId} sale-confirmed by {UserId}. Auto-propose result: {ProposalMessage}",
+                orderId, confirmedByUserId, proposalResult.Message);
 
             return new SaleConfirmOrderResponseDto
             {
-                Message = "Sale đã xác nhận đơn — đơn đã vào danh sách chờ allocate",
+                Message = $"Sale đã xác nhận đơn. {proposalResult.Message}",
                 Order = new OrderListItemDto
                 {
                     OrderId = order.Id,

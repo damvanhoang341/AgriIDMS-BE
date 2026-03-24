@@ -99,6 +99,47 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Message { get; set; } = null!;
     }
 
+    public class AllocationProposalItemDto
+    {
+        public int AllocationId { get; set; }
+        public int OrderDetailId { get; set; }
+        public int ProductVariantId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string Grade { get; set; } = string.Empty;
+        public int BoxId { get; set; }
+        public string BoxCode { get; set; } = string.Empty;
+        public decimal BoxWeight { get; set; }
+        public bool IsPartial { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        public string Status { get; set; } = null!;
+    }
+
+    public class AllocationProposalDetailSummaryDto
+    {
+        public int OrderDetailId { get; set; }
+        public int ProductVariantId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string Grade { get; set; } = string.Empty;
+        public decimal BoxWeight { get; set; }
+        public bool IsPartial { get; set; }
+        public int RequestedQuantity { get; set; }
+        public int ProposedQuantity { get; set; }
+        public int ShortageQuantity { get; set; }
+        public bool IsSufficient => ShortageQuantity <= 0;
+    }
+
+    public class AllocationProposalOverviewDto
+    {
+        public int OrderId { get; set; }
+        public string OrderStatus { get; set; } = null!;
+        public int TotalRequestedBoxes { get; set; }
+        public int TotalProposedBoxes { get; set; }
+        public int TotalShortageBoxes { get; set; }
+        public bool IsFullyProposed => TotalShortageBoxes <= 0;
+        public IList<AllocationProposalDetailSummaryDto> Details { get; set; } = new List<AllocationProposalDetailSummaryDto>();
+        public IList<AllocationProposalItemDto> Proposals { get; set; } = new List<AllocationProposalItemDto>();
+    }
+
     public class OrderListItemDto
     {
         public int OrderId { get; set; }

@@ -55,6 +55,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Chi tiết box đang được propose FEFO cho 1 đơn.</summary>
+        [HttpGet("{id:int:min(1)}/allocation/proposals")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetAllocationProposals(int id)
+        {
+            var result = await _orderService.GetAllocationProposalsAsync(id);
+            return Ok(result);
+        }
+
         [HttpGet("{id:int:min(1)}")]
         public async Task<IActionResult> GetMyOrderById(int id)
         {
