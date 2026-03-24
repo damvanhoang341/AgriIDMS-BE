@@ -145,7 +145,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Giữ hàng thay mặt kho/sale (operator không phải chủ đơn). Nên bật Authorize role khi deploy.</summary>
         [HttpPatch("{id:int:min(1)}/allocate/staff")]
-        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> AllocateAsStaff(int id)
         {
             var operatorUserId = GetCurrentUserId();
@@ -169,7 +169,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>Kho xác nhận đề xuất allocate và commit reserve box.</summary>
         [HttpPatch("{id:int:min(1)}/allocation/confirm")]
-        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> ConfirmAllocationAsStaff(int id)
         {
             var operatorUserId = GetCurrentUserId();
