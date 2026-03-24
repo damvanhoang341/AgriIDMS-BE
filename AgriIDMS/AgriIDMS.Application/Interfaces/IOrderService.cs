@@ -9,6 +9,7 @@ namespace AgriIDMS.Application.Interfaces
         Task<IList<OrderListItemDto>> GetMyOrdersAsync(string userId, GetOrdersQuery query);
         Task<IList<OrderListItemDto>> GetPendingSaleConfirmOrdersAsync(GetPendingSaleConfirmOrdersQuery query);
         Task<IList<OrderListItemDto>> GetPendingAllocationOrdersAsync(GetPendingAllocationOrdersQuery query);
+        Task<IList<OrderListItemDto>> GetPendingWarehouseConfirmOrdersAsync(GetPendingAllocationOrdersQuery query);
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
 
@@ -26,6 +27,8 @@ namespace AgriIDMS.Application.Interfaces
 
         /// <summary>Giữ hàng (allocate): chỉ khi đơn đã AwaitingAllocation (hoặc AwaitingPayment — đơn cũ). Nên bật phân quyền staff khi <paramref name="skipCustomerOwnershipCheck"/> = true.</summary>
         Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
+        Task<AllocationProposalResultDto> AutoProposeAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
+        Task ConfirmAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
         Task WaitBackorderAsync(int orderId, string userId);

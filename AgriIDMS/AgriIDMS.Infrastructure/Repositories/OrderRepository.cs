@@ -119,6 +119,28 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Take(take)
                 .ToListAsync();
         }
+
+        public async Task<IList<Order>> GetPendingWarehouseConfirmOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take)
+        {
+            var query = _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(o => o.Payments)
+                .Where(o => o.Status == OrderStatus.PendingWarehouseConfirm);
+
+            if (!string.IsNullOrWhiteSpace(customerUserId))
+                query = query.Where(o => o.UserId == customerUserId.Trim());
+
+            if (source.HasValue)
+                query = query.Where(o => o.Source == source.Value);
+
+            return await query
+                .OrderBy(o => o.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
     }
 }
 

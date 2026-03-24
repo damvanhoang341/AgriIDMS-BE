@@ -46,6 +46,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn đã được system propose FEFO, chờ kho xác nhận.</summary>
+        [HttpGet("staff/pending-warehouse-confirm")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetPendingWarehouseConfirmOrders([FromQuery] GetPendingAllocationOrdersQuery query)
+        {
+            var result = await _orderService.GetPendingWarehouseConfirmOrdersAsync(query);
+            return Ok(result);
+        }
+
         [HttpGet("{id:int:min(1)}")]
         public async Task<IActionResult> GetMyOrderById(int id)
         {
@@ -144,6 +153,30 @@ namespace AgriIDMS.API.Controllers
             return Ok(new
             {
                 Message = "Đã kiểm tra và giữ hàng cho đơn hàng (thao tác nhân sự)",
+                OrderId = id
+            });
+        }
+
+        /// <summary>System/staff chạy auto allocate FEFO, tạo đề xuất chờ kho xác nhận.</summary>
+        [HttpPatch("{id:int:min(1)}/allocation/auto-propose")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
+        public async Task<IActionResult> AutoProposeAllocationAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            var result = await _orderService.AutoProposeAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
+            return Ok(result);
+        }
+
+        /// <summary>Kho xác nhận đề xuất allocate và commit reserve box.</summary>
+        [HttpPatch("{id:int:min(1)}/allocation/confirm")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
+        public async Task<IActionResult> ConfirmAllocationAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
+            return Ok(new
+            {
+                Message = "Kho đã xác nhận allocate và giữ hàng",
                 OrderId = id
             });
         }

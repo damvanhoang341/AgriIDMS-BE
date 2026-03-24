@@ -80,6 +80,14 @@ namespace AgriIDMS.Application.DTOs.Order
         public int Take { get; set; } = 50;
     }
 
+    public class AllocationProposalResultDto
+    {
+        public int OrderId { get; set; }
+        public int ProposedBoxCount { get; set; }
+        public bool ProposedEmpty => ProposedBoxCount <= 0;
+        public string Message { get; set; } = null!;
+    }
+
     public class OrderListItemDto
     {
         public int OrderId { get; set; }
