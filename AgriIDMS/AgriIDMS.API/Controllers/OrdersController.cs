@@ -64,6 +64,24 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn khách đã chọn chờ backorder (BackorderWaiting).</summary>
+        [HttpGet("staff/backorder-waiting")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetBackorderWaitingOrders([FromQuery] GetPendingAllocationOrdersQuery query)
+        {
+            var result = await _orderService.GetBackorderWaitingOrdersAsync(query);
+            return Ok(result);
+        }
+
+        /// <summary>Chi tiết đơn đang chờ backorder để staff xử lý allocate/timeout action.</summary>
+        [HttpGet("staff/backorder-waiting/{id:int:min(1)}")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetBackorderWaitingOrderDetail(int id)
+        {
+            var result = await _orderService.GetBackorderWaitingOrderDetailAsync(id);
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết box đang được propose FEFO cho 1 đơn.</summary>
         [HttpGet("{id:int:min(1)}/allocation/proposals")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
