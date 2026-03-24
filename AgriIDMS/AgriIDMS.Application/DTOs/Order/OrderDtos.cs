@@ -88,6 +88,17 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Message { get; set; } = null!;
     }
 
+    public class ConfirmAllocationResultDto
+    {
+        public int OrderId { get; set; }
+        public string Status { get; set; } = null!;
+        public decimal FulfilledQuantity { get; set; }
+        public decimal ShortageQuantity { get; set; }
+        public bool CustomerActionRequired { get; set; }
+        public IList<string> CustomerActions { get; set; } = new List<string>();
+        public string Message { get; set; } = null!;
+    }
+
     public class OrderListItemDto
     {
         public int OrderId { get; set; }

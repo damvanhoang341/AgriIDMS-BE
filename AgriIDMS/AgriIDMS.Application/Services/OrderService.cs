@@ -23,6 +23,7 @@ namespace AgriIDMS.Application.Services
         private readonly IProductVariantRepository _variantRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
+        private readonly INotificationService _notificationService;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
         private readonly int _nearExpiryDiscountDays;
@@ -38,6 +39,7 @@ namespace AgriIDMS.Application.Services
             IProductVariantRepository variantRepo,
             IOrderAllocationRepository allocationRepo,
             IInventoryTransactionRepository inventoryTranRepo,
+            INotificationService notificationService,
             IUnitOfWork uow,
             IConfiguration config,
             ILogger<OrderService> logger)
@@ -48,6 +50,7 @@ namespace AgriIDMS.Application.Services
             _variantRepo = variantRepo;
             _allocationRepo = allocationRepo;
             _inventoryTranRepo = inventoryTranRepo;
+            _notificationService = notificationService;
             _uow = uow;
             _nearExpiryDiscountDays = int.TryParse(config["Pricing:NearExpiryDiscountDays"], out var days)
                 ? days
@@ -830,12 +833,59 @@ namespace AgriIDMS.Application.Services
             var existingProposed = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
             if (existingProposed.Any())
             {
-                return new AllocationProposalResultDto
+                // Re-check proposal validity to avoid stale "pending warehouse confirm"
+                // when another order already reserved the same boxes.
+                await _uow.BeginTransactionAsync();
+                try
                 {
-                    OrderId = orderId,
-                    ProposedBoxCount = existingProposed.Count,
-                    Message = "Đơn đã có đề xuất allocate FEFO, đang chờ kho xác nhận"
-                };
+                    var validProposedCount = 0;
+                    foreach (var proposal in existingProposed)
+                    {
+                        var box = await _boxRepo.GetByIdAsync(proposal.BoxId);
+                        if (box == null || box.Status != BoxStatus.Stored)
+                        {
+                            proposal.Status = AllocationStatus.Cancelled;
+                            continue;
+                        }
+
+                        validProposedCount++;
+                    }
+
+                    if (validProposedCount > 0)
+                    {
+                        if (IsInitialAllocationStatus(order.Status))
+                            order.Status = OrderStatus.PendingWarehouseConfirm;
+
+                        await _uow.CommitAsync();
+                        return new AllocationProposalResultDto
+                        {
+                            OrderId = orderId,
+                            ProposedBoxCount = validProposedCount,
+                            Message = "Đơn đã có đề xuất allocate FEFO hợp lệ, đang chờ kho xác nhận"
+                        };
+                    }
+
+                    // No valid proposal left -> move out of pending queue before rebuilding.
+                    if (order.Status == OrderStatus.PendingWarehouseConfirm)
+                        order.Status = OrderStatus.AwaitingAllocation;
+
+                    await _uow.CommitAsync();
+                }
+                catch
+                {
+                    await _uow.RollbackAsync();
+                    throw;
+                }
+
+                existingProposed = new List<OrderAllocation>();
+            }
+
+            // Re-read order status after stale-proposal cleanup.
+            if (order.Status == OrderStatus.PendingWarehouseConfirm)
+            {
+                var latestOrder = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                    ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+                order = latestOrder;
             }
 
             var proposals = await BuildProposedAllocationsAsync(order);
@@ -873,7 +923,7 @@ namespace AgriIDMS.Application.Services
             };
         }
 
-        public async Task ConfirmAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
+        public async Task<ConfirmAllocationResultDto> ConfirmAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
@@ -959,6 +1009,41 @@ namespace AgriIDMS.Application.Services
                         : OrderStatus.PartiallyAllocated);
 
                 await _uow.CommitAsync();
+
+                var fulfilledQty = order.Details.Sum(d => d.FulfilledQuantity);
+                var shortageQty = order.Details.Sum(d => d.ShortageQuantity);
+                var needsCustomerAction =
+                    order.Status == OrderStatus.PartiallyAllocated && shortageQty > 0;
+
+                if (needsCustomerAction)
+                {
+                    try
+                    {
+                        await _notificationService.NotifyOrderAllocationShortageAsync(order.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(
+                            ex,
+                            "Allocation confirmed with shortage for order {OrderId}, but customer notification failed",
+                            order.Id);
+                    }
+                }
+
+                return new ConfirmAllocationResultDto
+                {
+                    OrderId = order.Id,
+                    Status = order.Status.ToString(),
+                    FulfilledQuantity = fulfilledQty,
+                    ShortageQuantity = shortageQty,
+                    CustomerActionRequired = needsCustomerAction,
+                    CustomerActions = needsCustomerAction
+                        ? new List<string> { "wait_backorder", "cancel_shortage" }
+                        : new List<string>(),
+                    Message = needsCustomerAction
+                        ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
+                        : "Kho đã xác nhận allocate thành công"
+                };
             }
             catch (InvalidBusinessRuleException)
             {
