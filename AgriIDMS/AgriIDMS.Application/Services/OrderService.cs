@@ -226,6 +226,140 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<BackorderWaitingListItemDto>> GetBackorderWaitingOrdersAsync(GetPendingAllocationOrdersQuery query)
+        {
+            query ??= new GetPendingAllocationOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            OrderSource? source = null;
+            if (!string.IsNullOrWhiteSpace(query.Source))
+            {
+                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
+                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
+                source = parsedSource;
+            }
+
+            var orders = await _orderRepo.GetBackorderWaitingOrdersAsync(
+                query.CustomerUserId,
+                source,
+                skip,
+                take);
+
+            var now = DateTime.UtcNow;
+            var result = new List<BackorderWaitingListItemDto>();
+            foreach (var o in orders)
+            {
+                var deadline = await GetBackorderDeadlineAtAsync(o.Id);
+                var totalRequested = o.Details?.Sum(d => d.Quantity) ?? 0m;
+                var totalFulfilled = o.Details?.Sum(d => d.FulfilledQuantity) ?? 0m;
+                var totalShortage = o.Details?.Sum(d => d.ShortageQuantity) ?? 0m;
+                var isOverdue = !deadline.HasValue || now > deadline.Value;
+
+                result.Add(new BackorderWaitingListItemDto
+                {
+                    OrderId = o.Id,
+                    CustomerUserId = o.UserId,
+                    CustomerName = null,
+                    Source = o.Source.ToString(),
+                    Status = o.Status.ToString(),
+                    CreatedAt = o.CreatedAt,
+                    BackorderDeadlineAt = deadline,
+                    IsOverdue = isOverdue,
+                    TotalRequestedBoxes = totalRequested,
+                    TotalFulfilledBoxes = totalFulfilled,
+                    TotalShortageBoxes = totalShortage,
+                    TotalAmount = o.TotalAmount,
+                    ItemCount = o.Details?.Count ?? 0,
+                    LatestPaymentStatus = o.Payments?
+                        .OrderByDescending(p => p.CreatedAt)
+                        .FirstOrDefault()?
+                        .PaymentStatus
+                        .ToString(),
+                    NextRecommendedAction = isOverdue
+                        ? "choose_expired_action"
+                        : "allocate_backorder"
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<BackorderWaitingDetailDto> GetBackorderWaitingOrderDetailAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Status != OrderStatus.BackorderWaiting)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ xem chi tiết backorder-waiting khi đơn ở trạng thái BackorderWaiting. Hiện tại: {order.Status}");
+
+            var deadline = await GetBackorderDeadlineAtAsync(order.Id);
+            var now = DateTime.UtcNow;
+            var isOverdue = !deadline.HasValue || now > deadline.Value;
+
+            var reservedAllocations = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, AllocationStatus.Reserved);
+            var latestPaymentStatus = order.Payments?
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefault()?
+                .PaymentStatus
+                .ToString();
+
+            var items = order.Details.Select(d => new BackorderWaitingDetailItemDto
+            {
+                OrderDetailId = d.Id,
+                ProductVariantId = d.ProductVariantId,
+                ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
+                BoxWeight = d.BoxWeight,
+                IsPartial = d.IsPartial,
+                RequestedQuantity = d.Quantity,
+                FulfilledQuantity = d.FulfilledQuantity,
+                ShortageQuantity = d.ShortageQuantity,
+                UnitPrice = d.UnitPrice
+            }).ToList();
+
+            var totalRequested = items.Sum(i => i.RequestedQuantity);
+            var totalFulfilled = items.Sum(i => i.FulfilledQuantity);
+            var totalShortage = items.Sum(i => i.ShortageQuantity);
+
+            return new BackorderWaitingDetailDto
+            {
+                OrderId = order.Id,
+                CustomerUserId = order.UserId,
+                CustomerName = null,
+                Source = order.Source.ToString(),
+                Status = order.Status.ToString(),
+                CreatedAt = order.CreatedAt,
+                BackorderDeadlineAt = deadline,
+                IsOverdue = isOverdue,
+                TotalAmount = order.TotalAmount,
+                LatestPaymentStatus = latestPaymentStatus,
+                Summary = new BackorderWaitingSummaryDto
+                {
+                    TotalRequestedBoxes = totalRequested,
+                    TotalFulfilledBoxes = totalFulfilled,
+                    TotalShortageBoxes = totalShortage,
+                    IsFullyAllocated = totalShortage <= 0
+                },
+                Items = items,
+                ReservedAllocations = reservedAllocations.Select(a => new BackorderWaitingReservedAllocationDto
+                {
+                    AllocationId = a.Id,
+                    OrderDetailId = a.OrderDetailId,
+                    BoxId = a.BoxId,
+                    BoxCode = a.Box?.BoxCode ?? string.Empty,
+                    ReservedQuantity = a.ReservedQuantity,
+                    Status = a.Status.ToString(),
+                    ReservedAt = a.ReservedAt,
+                    ExpiredAt = a.ExpiredAt
+                }).ToList(),
+                AllowedActions = isOverdue
+                    ? new List<string> { "cancel_shortage", "cancel_order" }
+                    : new List<string> { "allocate_backorder" }
+            };
+        }
+
         public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
