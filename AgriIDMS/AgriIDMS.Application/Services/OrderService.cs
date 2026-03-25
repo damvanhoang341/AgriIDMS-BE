@@ -413,6 +413,42 @@ namespace AgriIDMS.Application.Services
             };
         }
 
+        public async Task<IList<OrderListItemDto>> GetConfirmedAllocationOrdersAsync(GetPendingAllocationOrdersQuery query)
+        {
+            query ??= new GetPendingAllocationOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            OrderSource? source = null;
+            if (!string.IsNullOrWhiteSpace(query.Source))
+            {
+                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
+                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
+                source = parsedSource;
+            }
+
+            var orders = await _orderRepo.GetConfirmedAllocationOrdersAsync(
+                query.CustomerUserId,
+                source,
+                skip,
+                take);
+
+            return orders.Select(o => new OrderListItemDto
+            {
+                OrderId = o.Id,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status.ToString(),
+                Source = o.Source.ToString(),
+                CreatedAt = o.CreatedAt,
+                ItemCount = o.Details?.Count ?? 0,
+                LatestPaymentStatus = o.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString()
+            }).ToList();
+        }
+
         public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
@@ -420,13 +456,20 @@ namespace AgriIDMS.Application.Services
 
             if (order.Status != OrderStatus.PendingWarehouseConfirm
                 && order.Status != OrderStatus.PartiallyAllocated
-                && order.Status != OrderStatus.BackorderWaiting)
+                && order.Status != OrderStatus.BackorderWaiting
+                && order.Status != OrderStatus.Confirmed)
             {
                 throw new InvalidBusinessRuleException(
                     $"Chỉ xem proposal khi đơn đang chờ kho xác nhận/backorder. Hiện tại: {order.Status}");
             }
 
-            var proposals = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, AllocationStatus.Proposed);
+            // For fully allocated orders (Confirmed), FE should still see the reserved boxes.
+            // Reuse this endpoint by switching from Proposed -> Reserved.
+            var allocationStatus = order.Status == OrderStatus.Confirmed
+                ? AllocationStatus.Reserved
+                : AllocationStatus.Proposed;
+
+            var proposals = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, allocationStatus);
             var proposalItems = proposals.Select(p => new AllocationProposalItemDto
             {
                 AllocationId = p.Id,
@@ -478,6 +521,36 @@ namespace AgriIDMS.Application.Services
                 TotalShortageBoxes = detailSummaries.Sum(x => x.ShortageQuantity),
                 Details = detailSummaries,
                 Proposals = proposalItems
+            };
+        }
+
+        public async Task<AllocationHistoryDto> GetAllocationHistoryAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var allocations = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId);
+            var items = allocations.Select(a => new AllocationHistoryItemDto
+            {
+                AllocationId = a.Id,
+                OrderDetailId = a.OrderDetailId,
+                ProductVariantId = a.OrderDetail?.ProductVariantId ?? 0,
+                ProductName = a.OrderDetail?.ProductVariant?.Product?.Name ?? string.Empty,
+                Grade = a.OrderDetail?.ProductVariant?.Grade.ToString() ?? string.Empty,
+                BoxId = a.BoxId,
+                BoxCode = a.Box?.BoxCode ?? string.Empty,
+                BoxWeight = a.Box?.Weight ?? 0,
+                IsPartial = a.Box?.IsPartial ?? false,
+                ReservedAt = a.ReservedAt,
+                ExpiredAt = a.ExpiredAt,
+                Status = a.Status.ToString()
+            }).ToList();
+
+            return new AllocationHistoryDto
+            {
+                OrderId = order.Id,
+                OrderStatus = order.Status.ToString(),
+                Items = items
             };
         }
 
