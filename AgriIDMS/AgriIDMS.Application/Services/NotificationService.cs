@@ -94,9 +94,14 @@ namespace AgriIDMS.Application.Services
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
             var totalShortage = order.Details?.Sum(d => d.ShortageQuantity) ?? 0;
+            var totalFulfilled = order.Details?.Sum(d => d.FulfilledQuantity) ?? 0m;
+            var actionText = totalFulfilled > 0
+                ? "hủy phần thiếu"
+                : "hủy đơn";
+
             var message = totalShortage > 0
-                ? $"Đơn hàng #{orderId} đang thiếu {totalShortage} box sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc hủy phần thiếu."
-                : $"Đơn hàng #{orderId} đang thiếu hàng sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc hủy phần thiếu.";
+                ? $"Đơn hàng #{orderId} đang thiếu {totalShortage} box sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc {actionText}."
+                : $"Đơn hàng #{orderId} đang thiếu hàng sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc {actionText}.";
 
             await CreateNotificationIfNotExistsAsync(
                 NotificationType.Warning,

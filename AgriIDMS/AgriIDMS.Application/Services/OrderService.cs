@@ -1346,16 +1346,6 @@ namespace AgriIDMS.Application.Services
                     totalAmount += allocated * detail.BoxWeight * detail.UnitPrice;
                 }
 
-                var reservedCount = allocatedCountByDetail.Values.Sum();
-                if (reservedCount == 0)
-                {
-                    if (IsInitialAllocationStatus(originalStatus))
-                        order.Status = OrderStatus.AwaitingAllocation;
-
-                    await _uow.CommitAsync();
-                    throw new InvalidBusinessRuleException("Kho xác nhận allocate thất bại: không còn box khả dụng");
-                }
-
                 order.TotalAmount = IsInitialAllocationStatus(originalStatus)
                     ? totalAmount
                     : order.TotalAmount + totalAmount;
@@ -1396,10 +1386,14 @@ namespace AgriIDMS.Application.Services
                     ShortageQuantity = shortageQty,
                     CustomerActionRequired = needsCustomerAction,
                     CustomerActions = needsCustomerAction
-                        ? new List<string> { "wait_backorder", "cancel_shortage" }
+                        ? (fulfilledQty > 0
+                            ? new List<string> { "wait_backorder", "cancel_shortage" }
+                            : new List<string> { "wait_backorder", "cancel_order" })
                         : new List<string>(),
                     Message = needsCustomerAction
-                        ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
+                        ? (fulfilledQty > 0
+                            ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
+                            : "Đơn thiếu hàng sau khi xác nhận kho nhưng chưa giữ được phần nào. Vui lòng để khách chọn chờ backorder hoặc hủy đơn.")
                         : "Kho đã xác nhận allocate thành công"
                 };
             }
