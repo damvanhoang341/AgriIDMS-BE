@@ -28,6 +28,9 @@ namespace AgriIDMS.Domain.Interfaces
 
         /// <summary>Đơn Paid, còn allocation Reserved (đủ điều kiện tạo/luồng phiếu xuất).</summary>
         Task<IList<Order>> GetPaidPendingExportOrdersAsync(int? orderId, OrderSource? source, int skip, int take, string? sort);
+
+        /// <summary>Danh sách đơn của customer có thể khiếu nại (Shipping/Completed).</summary>
+        Task<IList<Order>> GetCustomerOrdersForComplaintAsync(string userId, int skip, int take);
     }
 }
 

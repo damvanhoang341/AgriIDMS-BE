@@ -94,6 +94,56 @@ namespace AgriIDMS.Application.Services
             return list.Select(c => MapToDto(c, c.Box?.BoxCode)).ToList();
         }
 
+        public async Task<IReadOnlyList<ComplaintableBoxListItemDto>> GetOrderBoxesForComplaintAsync(int orderId, string userId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Đơn hàng #{orderId} không tồn tại");
+
+            if (order.UserId != userId)
+                throw new ForbiddenException("Bạn không có quyền khiếu nại trên đơn hàng này");
+
+            if (!AllowedOrderStatusesForComplaint.Contains(order.Status))
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ được khiếu nại khi đơn đang giao hoặc đã hoàn thành (Shipping/Completed). Hiện tại: {order.Status}");
+
+            // Lấy toàn bộ allocation thuộc đơn (reserved/picked...), chỉ loại trừ allocation bị cancel.
+            var allocations = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, status: null);
+            var allocationsFiltered = allocations
+                .Where(a => a.Status != AllocationStatus.Cancelled && a.Box != null)
+                .ToList();
+
+            var pendingBoxIds = await _complaintRepo.GetPendingComplaintBoxIdsForOrderAsync(orderId);
+
+            return allocationsFiltered.Select(a => new ComplaintableBoxListItemDto
+            {
+                BoxId = a.BoxId,
+                BoxCode = a.Box.BoxCode,
+                ReservedQuantity = a.ReservedQuantity,
+                ComplaintableQuantity = CalculateComplaintableQuantity(a.ReservedQuantity, a.Box.Weight),
+                HasPendingComplaint = pendingBoxIds.Contains(a.BoxId)
+            }).ToList();
+        }
+
+        public async Task<IReadOnlyList<EligibleOrderForComplaintListItemDto>> GetEligibleOrdersForCustomerAsync(string userId, int skip, int take)
+        {
+            take = Math.Clamp(take, 1, 200);
+            skip = Math.Max(0, skip);
+
+            var orders = await _orderRepo.GetCustomerOrdersForComplaintAsync(userId, skip, take);
+
+            return orders.Select(o => new EligibleOrderForComplaintListItemDto
+            {
+                OrderId = o.Id,
+                Status = o.Status.ToString(),
+                CreatedAt = o.CreatedAt,
+                BoxCount = (o.Allocations ?? Array.Empty<OrderAllocation>())
+                    .Where(a => a.Status != AllocationStatus.Cancelled)
+                    .Select(a => a.BoxId)
+                    .Distinct()
+                    .Count()
+            }).ToList();
+        }
+
         public async Task<ComplaintResponseDto> GetByIdAsync(int complaintId, string userId)
         {
             var c = await _complaintRepo.GetByIdWithDetailsAsync(complaintId)
@@ -196,6 +246,14 @@ namespace AgriIDMS.Application.Services
                 default:
                     throw new InvalidBusinessRuleException("Loại khiếu nại không hợp lệ.");
             }
+        }
+
+        private static decimal CalculateComplaintableQuantity(decimal reservedQty, decimal boxWeight)
+        {
+            var max = Math.Min(reservedQty, boxWeight);
+            if (max <= 0)
+                max = boxWeight;
+            return max;
         }
 
         private static ComplaintResponseDto MapToDto(Complaint c, string? boxCode)

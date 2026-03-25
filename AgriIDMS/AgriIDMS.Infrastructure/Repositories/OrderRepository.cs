@@ -224,6 +224,21 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Take(take)
                 .ToListAsync();
         }
+
+        public async Task<IList<Order>> GetCustomerOrdersForComplaintAsync(string userId, int skip, int take)
+        {
+            var query = _context.Orders
+                .Include(o => o.Allocations)
+                .Where(o =>
+                    o.UserId == userId
+                    && (o.Status == OrderStatus.Shipping || o.Status == OrderStatus.Completed));
+
+            return await query
+                .OrderByDescending(o => o.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
     }
 }
 
