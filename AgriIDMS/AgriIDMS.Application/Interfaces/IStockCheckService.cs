@@ -11,5 +11,9 @@ namespace AgriIDMS.Application.Interfaces
         Task CompleteCountAsync(int stockCheckId);
         Task ApproveAsync(int stockCheckId, string userId);
         Task RejectAsync(int stockCheckId, string userId);
+
+        Task<StockCheckWarehouseDashboardDto> GetWarehouseDashboardAsync(int? warehouseId);
+        Task<StockCheckManagerDashboardDto> GetManagerDashboardAsync(int? warehouseId);
+        Task<StockCheckDetailsResponseDto> GetDetailsAsync(int stockCheckId);
     }
 }

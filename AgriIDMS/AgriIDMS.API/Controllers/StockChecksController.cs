@@ -75,5 +75,32 @@ namespace AgriIDMS.API.Controllers
             await _stockCheckService.RejectAsync(id, userId);
             return Ok(new { Message = "Đã từ chối phiếu kiểm kê" });
         }
+
+        /// <summary>Dashboard dành cho WarehouseStaff: Draft / InProgress / Counted.</summary>
+        [HttpGet("dashboard/warehouse")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetWarehouseDashboard([FromQuery] int? warehouseId = null)
+        {
+            var dashboard = await _stockCheckService.GetWarehouseDashboardAsync(warehouseId);
+            return Ok(dashboard);
+        }
+
+        /// <summary>Dashboard dành cho Manager: PendingApproval / Approved / Rejected.</summary>
+        [HttpGet("dashboard/manager")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetManagerDashboard([FromQuery] int? warehouseId = null)
+        {
+            var dashboard = await _stockCheckService.GetManagerDashboardAsync(warehouseId);
+            return Ok(dashboard);
+        }
+
+        /// <summary>Lấy chi tiết một phiếu kiểm kê (kèm Box/Lot/Slot để hiển thị & nhập số đếm).</summary>
+        [HttpGet("{id:int}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetDetails(int id)
+        {
+            var details = await _stockCheckService.GetDetailsAsync(id);
+            return Ok(details);
+        }
     }
 }

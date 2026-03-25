@@ -249,6 +249,134 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("StockCheck {Id} rejected by {UserId}", stockCheckId, userId);
         }
 
+        public async Task<StockCheckWarehouseDashboardDto> GetWarehouseDashboardAsync(int? warehouseId)
+        {
+            var statuses = new[]
+            {
+                StockCheckStatus.Draft,
+                StockCheckStatus.InProgress,
+                StockCheckStatus.Counted
+            };
+
+            var checks = await _stockCheckRepo.GetStockChecksWithDetailsAsync(
+                warehouseId,
+                statuses);
+
+            StockCheckDashboardItemDto MapItem(StockCheck sc)
+            {
+                var details = sc.Details ?? Array.Empty<StockCheckDetail>();
+                var totalLines = details.Count;
+                var countedLines = details.Count(d => d.CountedWeight.HasValue);
+
+                var shortageLines = details.Count(d => d.VarianceType == VarianceType.Shortage);
+                var excessLines = details.Count(d => d.VarianceType == VarianceType.Excess);
+
+                return new StockCheckDashboardItemDto
+                {
+                    StockCheckId = sc.Id,
+                    Status = sc.Status.ToString(),
+                    CheckType = sc.CheckType.ToString(),
+                    SnapshotAt = sc.SnapshotAt,
+                    CreatedAt = sc.CreatedAt,
+                    TotalLines = totalLines,
+                    CountedLines = countedLines,
+                    ShortageLines = shortageLines,
+                    ExcessLines = excessLines
+                };
+            }
+
+            return new StockCheckWarehouseDashboardDto
+            {
+                DraftChecks = checks.Where(c => c.Status == StockCheckStatus.Draft).Select(MapItem).ToList(),
+                InProgressChecks = checks.Where(c => c.Status == StockCheckStatus.InProgress).Select(MapItem).ToList(),
+                CountedChecks = checks.Where(c => c.Status == StockCheckStatus.Counted).Select(MapItem).ToList()
+            };
+        }
+
+        public async Task<StockCheckManagerDashboardDto> GetManagerDashboardAsync(int? warehouseId)
+        {
+            var statuses = new[]
+            {
+                StockCheckStatus.Counted,
+                StockCheckStatus.Approved,
+                StockCheckStatus.Rejected
+            };
+
+            var checks = await _stockCheckRepo.GetStockChecksWithDetailsAsync(
+                warehouseId,
+                statuses);
+
+            StockCheckDashboardItemDto MapItem(StockCheck sc)
+            {
+                var details = sc.Details ?? Array.Empty<StockCheckDetail>();
+                var totalLines = details.Count;
+                var countedLines = details.Count(d => d.CountedWeight.HasValue);
+
+                var shortageLines = details.Count(d => d.VarianceType == VarianceType.Shortage);
+                var excessLines = details.Count(d => d.VarianceType == VarianceType.Excess);
+
+                return new StockCheckDashboardItemDto
+                {
+                    StockCheckId = sc.Id,
+                    Status = sc.Status.ToString(),
+                    CheckType = sc.CheckType.ToString(),
+                    SnapshotAt = sc.SnapshotAt,
+                    CreatedAt = sc.CreatedAt,
+                    TotalLines = totalLines,
+                    CountedLines = countedLines,
+                    ShortageLines = shortageLines,
+                    ExcessLines = excessLines
+                };
+            }
+
+            return new StockCheckManagerDashboardDto
+            {
+                PendingApprovalChecks = checks.Where(c => c.Status == StockCheckStatus.Counted).Select(MapItem).ToList(),
+                ApprovedChecks = checks.Where(c => c.Status == StockCheckStatus.Approved).Select(MapItem).ToList(),
+                RejectedChecks = checks.Where(c => c.Status == StockCheckStatus.Rejected).Select(MapItem).ToList()
+            };
+        }
+
+        public async Task<StockCheckDetailsResponseDto> GetDetailsAsync(int stockCheckId)
+        {
+            var stockCheck = await _stockCheckRepo.GetByIdWithDetailsAndBoxesAsync(stockCheckId);
+            if (stockCheck == null)
+                throw new NotFoundException("Phiếu kiểm kê không tồn tại");
+
+            var details = stockCheck.Details ?? new List<StockCheckDetail>();
+
+            return new StockCheckDetailsResponseDto
+            {
+                StockCheckId = stockCheck.Id,
+                WarehouseId = stockCheck.WarehouseId,
+                WarehouseName = stockCheck.Warehouse?.Name ?? string.Empty,
+                Status = stockCheck.Status.ToString(),
+                CheckType = stockCheck.CheckType.ToString(),
+                SnapshotAt = stockCheck.SnapshotAt,
+                IsLockedSnapshot = stockCheck.IsLockedSnapshot,
+                Details = details.Select(d => new StockCheckDetailDto
+                {
+                    StockCheckDetailId = d.Id,
+                    BoxId = d.BoxId,
+                    BoxCode = d.Box?.BoxCode ?? string.Empty,
+                    LotCode = d.Box?.Lot?.LotCode ?? string.Empty,
+                    SlotCode = d.Box?.Slot?.Code,
+
+                    SnapshotWeight = d.SnapshotWeight,
+                    CurrentSystemWeight = d.CurrentSystemWeight,
+                    CountedWeight = d.CountedWeight,
+                    DifferenceWeight = d.DifferenceWeight,
+
+                    VarianceType = d.VarianceType?.ToString(),
+                    VarianceReason = d.VarianceReason?.ToString(),
+
+                    CountedBy = d.CountedBy,
+                    CountedAt = d.CountedAt,
+                    Note = d.Note
+                }).ToList()
+            };
+        }
+
         private static VarianceType ComputeVarianceType(decimal differenceWeight)
         {
             if (Math.Abs(differenceWeight) <= VarianceTolerance) return VarianceType.Match;

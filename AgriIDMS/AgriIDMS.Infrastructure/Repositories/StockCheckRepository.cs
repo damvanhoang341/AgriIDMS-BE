@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -34,6 +35,10 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(s => s.Warehouse)
                 .Include(s => s.Details)
                     .ThenInclude(d => d.Box)
+                        .ThenInclude(b => b.Lot)
+                .Include(s => s.Details)
+                    .ThenInclude(d => d.Box)
+                        .ThenInclude(b => b.Slot)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
@@ -48,6 +53,26 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Slots
                 .Where(s => s.Rack.Zone.WarehouseId == warehouseId)
                 .SelectMany(s => s.Boxes.Select(b => b.Id))
+                .ToListAsync();
+        }
+
+        public async Task<List<StockCheck>> GetStockChecksWithDetailsAsync(
+            int? warehouseId,
+            IEnumerable<StockCheckStatus> statuses)
+        {
+            var statusList = statuses?.ToList() ?? new List<StockCheckStatus>();
+
+            var query = _context.StockChecks
+                .AsQueryable()
+                .Include(s => s.Warehouse)
+                .Include(s => s.Details)
+                .Where(s => statusList.Contains(s.Status));
+
+            if (warehouseId.HasValue)
+                query = query.Where(s => s.WarehouseId == warehouseId.Value);
+
+            return await query
+                .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync();
         }
     }
