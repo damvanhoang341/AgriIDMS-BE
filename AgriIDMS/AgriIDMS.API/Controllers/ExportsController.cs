@@ -67,5 +67,12 @@ namespace AgriIDMS.API.Controllers
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? throw new Application.Exceptions.UnauthorizedException("Không xác định được người dùng hiện tại");
         }
+
+        [HttpGet("get-all-export")]
+        public async Task<IActionResult> GetAllExport()
+        {
+            var result = await _exportService.GetAllExport();
+            return Ok(result);
+        }
     }
 }
