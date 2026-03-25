@@ -34,12 +34,13 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { UnreadCount = count });
         }
 
-        [HttpPost("{userNotificationId:int:min(1)}/read")]
-        [HttpPatch("{userNotificationId:int:min(1)}/read")]
-        public async Task<IActionResult> MarkAsRead(int userNotificationId)
+        /// <summary>Đánh dấu đã đọc theo <c>Notification.Id</c> (cùng giá trị với <c>notificationId</c> trong list). Không dùng cột UserNotifications.Id.</summary>
+        [HttpPost("{notificationId:int:min(1)}/read")]
+        [HttpPatch("{notificationId:int:min(1)}/read")]
+        public async Task<IActionResult> MarkAsRead(int notificationId)
         {
             var userId = GetCurrentUserId();
-            await _notificationService.MarkAsReadAsync(userId, userNotificationId);
+            await _notificationService.MarkAsReadAsync(userId, notificationId);
             return Ok(new { Message = "Đã đánh dấu đã đọc" });
         }
 

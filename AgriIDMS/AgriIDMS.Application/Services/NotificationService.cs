@@ -212,7 +212,8 @@ namespace AgriIDMS.Application.Services
                 Total = total,
                 Items = items.Select(un => new NotificationItemDto
                 {
-                    UserNotificationId = un.Id,
+                    // UserNotifications.Id không phải identity (DB thường = 0); FE gọi đánh dấu đọc bằng NotificationId.
+                    UserNotificationId = un.NotificationId,
                     NotificationId = un.NotificationId,
                     Type = un.Notification.Type.ToString(),
                     Message = un.Notification.Message,
@@ -230,13 +231,10 @@ namespace AgriIDMS.Application.Services
             return _userNotificationRepo.GetUnreadCountAsync(userId);
         }
 
-        public async Task MarkAsReadAsync(string userId, int userNotificationId)
+        public async Task MarkAsReadAsync(string userId, int notificationId)
         {
-            var un = await _userNotificationRepo.GetByIdAsync(userNotificationId)
+            var un = await _userNotificationRepo.GetByUserAndNotificationAsync(userId, notificationId)
                 ?? throw new NotFoundException("Thông báo không tồn tại");
-
-            if (!string.Equals(un.UserId, userId, StringComparison.OrdinalIgnoreCase))
-                throw new ForbiddenException("Bạn không có quyền thao tác thông báo này");
 
             if (!un.IsRead)
             {

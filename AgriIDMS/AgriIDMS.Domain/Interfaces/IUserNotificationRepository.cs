@@ -16,7 +16,8 @@ namespace AgriIDMS.Domain.Interfaces
 
         Task<int> GetUnreadCountAsync(string userId);
 
-        Task<UserNotification?> GetByIdAsync(int id);
+        /// <summary>Lấy bản ghi inbox theo khóa nghiệp vụ (UserId + NotificationId). Cột UserNotifications.Id không dùng làm khóa tra cứu.</summary>
+        Task<UserNotification?> GetByUserAndNotificationAsync(string userId, int notificationId);
 
         Task MarkAllAsReadAsync(string userId);
     }
