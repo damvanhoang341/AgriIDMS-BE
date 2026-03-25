@@ -52,4 +52,24 @@ namespace AgriIDMS.Application.DTOs.Complaint
         /// <summary>Mã box (hiển thị nhanh).</summary>
         public string? BoxCode { get; set; }
     }
+
+    public class ComplaintableBoxListItemDto
+    {
+        public int BoxId { get; set; }
+        public string BoxCode { get; set; } = null!;
+        public decimal ReservedQuantity { get; set; }
+        /// <summary>
+        /// Số lượng tối đa FE có thể cho khiếu nại (match logic ValidateDamagedQuantity trong backend).
+        /// </summary>
+        public decimal ComplaintableQuantity { get; set; }
+        public bool HasPendingComplaint { get; set; }
+    }
+
+    public class EligibleOrderForComplaintListItemDto
+    {
+        public int OrderId { get; set; }
+        public string Status { get; set; } = null!;
+        public int BoxCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 }

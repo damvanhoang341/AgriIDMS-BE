@@ -50,6 +50,21 @@ namespace AgriIDMS.Infrastructure.Repositories
                 && c.Status == ComplaintStatus.Pending);
         }
 
+        public async Task<HashSet<int>> GetPendingComplaintBoxIdsForOrderAsync(int orderId)
+        {
+            var boxIds = await _context.Complaints
+                .AsNoTracking()
+                .Where(c =>
+                    c.OrderId == orderId
+                    && !c.IsDeleted
+                    && c.Status == ComplaintStatus.Pending)
+                .Select(c => c.BoxId)
+                .Distinct()
+                .ToListAsync();
+
+            return boxIds.ToHashSet();
+        }
+
         public async Task<List<Complaint>> ListByUserIdAsync(string userId)
         {
             return await _context.Complaints

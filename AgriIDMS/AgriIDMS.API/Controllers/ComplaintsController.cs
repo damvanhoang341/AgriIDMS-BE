@@ -38,6 +38,31 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Lấy danh sách box của đơn để customer chọn khiếu nại.
+        /// Order thuộc user hiện tại + status phải Shipping/Completed.
+        /// </summary>
+        [HttpGet("orders/{orderId:int:min(1)}/boxes")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> GetOrderBoxesForComplaint([FromRoute] int orderId)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _complaintService.GetOrderBoxesForComplaintAsync(orderId, userId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Danh sách đơn của customer có thể khiếu nại (Shipping/Completed) + số lượng box eligible.
+        /// </summary>
+        [HttpGet("my/eligible-orders")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> GetEligibleOrdersForComplaint([FromQuery] int skip = 0, [FromQuery] int take = 20)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _complaintService.GetEligibleOrdersForCustomerAsync(userId, skip, take);
+            return Ok(result);
+        }
+
         [HttpGet("{id:int:min(1)}")]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> GetById(int id)
