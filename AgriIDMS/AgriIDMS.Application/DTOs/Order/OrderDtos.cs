@@ -276,4 +276,31 @@ namespace AgriIDMS.Application.DTOs.Order
         public IList<BackorderWaitingReservedAllocationDto> ReservedAllocations { get; set; } = new List<BackorderWaitingReservedAllocationDto>();
         public IList<string> AllowedActions { get; set; } = new List<string>();
     }
+
+    public class GetPaidPendingExportOrdersQuery
+    {
+        public int Skip { get; set; } = 0;
+        public int Take { get; set; } = 50;
+        /// <summary>paidAtDesc (mặc định), paidAtAsc, createdAtDesc, createdAtAsc.</summary>
+        public string? Sort { get; set; }
+        /// <summary>Lọc theo OrderId (chính xác).</summary>
+        public int? OrderId { get; set; }
+        /// <summary>Online hoặc POS.</summary>
+        public string? Source { get; set; }
+    }
+
+    public class PaidPendingExportOrderListItemDto
+    {
+        public int OrderId { get; set; }
+        public string Status { get; set; } = null!;
+        public decimal TotalAmount { get; set; }
+        public DateTime? PaidAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int ItemCount { get; set; }
+        public string Source { get; set; } = null!;
+        public bool HasExportReceipt { get; set; }
+        public int? ExportReceiptId { get; set; }
+        public string? ExportStatus { get; set; }
+        public string? ExportCode { get; set; }
+    }
 }

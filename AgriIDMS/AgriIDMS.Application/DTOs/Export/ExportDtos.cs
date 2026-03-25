@@ -30,4 +30,22 @@ namespace AgriIDMS.Application.DTOs.Export
         public decimal ActualQuantity { get; set; }
         public string BoxStatus { get; set; } = null!;
     }
+
+    public class GetPendingApproveExportsQuery
+    {
+        public int Skip { get; set; } = 0;
+        public int Take { get; set; } = 50;
+        /// <summary>createdAtDesc (mặc định), createdAtAsc.</summary>
+        public string? Sort { get; set; }
+    }
+
+    public class PendingApproveExportListItemDto
+    {
+        public int ExportId { get; set; }
+        public string ExportCode { get; set; } = null!;
+        public int OrderId { get; set; }
+        public string Status { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public int BoxCount { get; set; }
+    }
 }

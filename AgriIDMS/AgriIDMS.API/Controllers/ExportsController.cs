@@ -19,6 +19,9 @@ namespace AgriIDMS.API.Controllers
             _exportService = exportService;
         }
 
+        /// <summary>
+        /// Tạo phiếu xuất: chỉ khi đơn <c>OrderStatus.Paid</c>, có allocation <c>Reserved</c>, và chưa có phiếu xuất đang hoạt động (trạng thái khác <c>Cancelled</c>).
+        /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreateExportReceipt([FromBody] CreateExportReceiptRequest request)
@@ -66,6 +69,17 @@ namespace AgriIDMS.API.Controllers
         {
             return User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? throw new Application.Exceptions.UnauthorizedException("Không xác định được người dùng hiện tại");
+        }
+
+        /// <summary>
+        /// Danh sách phiếu <c>ReadyToExport</c> chờ Manager/Admin duyệt. Query: skip, take, sort (createdAtDesc mặc định, createdAtAsc).
+        /// </summary>
+        [HttpGet("staff/pending-approve")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetPendingApproveExports([FromQuery] GetPendingApproveExportsQuery query)
+        {
+            var result = await _exportService.GetPendingApproveExportsAsync(query);
+            return Ok(result);
         }
 
         [HttpGet("get-all-export")]

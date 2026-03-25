@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.Export;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Interfaces
@@ -11,5 +12,6 @@ namespace AgriIDMS.Application.Interfaces
         Task<ExportReceiptResponseDto> CancelExportAsync(int exportId, string userId);
         Task<ExportReceiptResponseDto> GetExportReceiptAsync(int exportId);
         Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport();
+        Task<IList<PendingApproveExportListItemDto>> GetPendingApproveExportsAsync(GetPendingApproveExportsQuery query);
     }
 }

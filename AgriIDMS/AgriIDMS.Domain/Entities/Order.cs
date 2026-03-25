@@ -24,5 +24,6 @@ namespace AgriIDMS.Domain.Entities
         public ICollection<OrderDetail> Details { get; set; } = new List<OrderDetail>();
         public ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public ICollection<OrderAllocation> Allocations { get; set; } = new List<OrderAllocation>();
+        public ICollection<ExportReceipt> ExportReceipts { get; set; } = new List<ExportReceipt>();
     }
 }
