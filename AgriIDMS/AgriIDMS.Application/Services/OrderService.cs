@@ -1386,10 +1386,14 @@ namespace AgriIDMS.Application.Services
                     ShortageQuantity = shortageQty,
                     CustomerActionRequired = needsCustomerAction,
                     CustomerActions = needsCustomerAction
-                        ? new List<string> { "wait_backorder", "cancel_shortage" }
+                        ? (fulfilledQty > 0
+                            ? new List<string> { "wait_backorder", "cancel_shortage" }
+                            : new List<string> { "wait_backorder", "cancel_order" })
                         : new List<string>(),
                     Message = needsCustomerAction
-                        ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
+                        ? (fulfilledQty > 0
+                            ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
+                            : "Đơn thiếu hàng sau khi xác nhận kho nhưng chưa giữ được phần nào. Vui lòng để khách chọn chờ backorder hoặc hủy đơn.")
                         : "Kho đã xác nhận allocate thành công"
                 };
             }
