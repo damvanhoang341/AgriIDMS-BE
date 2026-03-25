@@ -8,6 +8,7 @@ namespace AgriIDMS.Application.Interfaces
     {
         Task<IList<OrderListItemDto>> GetMyOrdersAsync(string userId, GetOrdersQuery query);
         Task<IList<OrderListItemDto>> GetPendingSaleConfirmOrdersAsync(GetPendingSaleConfirmOrdersQuery query);
+        Task<IList<PaidPendingExportOrderListItemDto>> GetPaidPendingExportOrdersAsync(GetPaidPendingExportOrdersQuery query);
         Task<IList<OrderListItemDto>> GetPendingAllocationOrdersAsync(GetPendingAllocationOrdersQuery query);
         Task<IList<OrderListItemDto>> GetPendingWarehouseConfirmOrdersAsync(GetPendingAllocationOrdersQuery query);
         Task<IList<OrderListItemDto>> GetPendingCustomerDecisionOrdersAsync(GetPendingAllocationOrdersQuery query);

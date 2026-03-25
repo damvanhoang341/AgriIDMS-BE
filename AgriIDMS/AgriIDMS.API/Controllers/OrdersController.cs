@@ -37,6 +37,18 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Đơn đã Paid, còn allocation Reserved (cùng điều kiện với tạo phiếu xuất). Trả về kèm phiếu xuất đang hoạt động (không Cancelled) nếu có.
+        /// Query: skip, take, sort (paidAtDesc mặc định, paidAtAsc, createdAtDesc, createdAtAsc), orderId, source (Online|POS).
+        /// </summary>
+        [HttpGet("staff/paid-pending-export")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetPaidPendingExportOrders([FromQuery] GetPaidPendingExportOrdersQuery query)
+        {
+            var result = await _orderService.GetPaidPendingExportOrdersAsync(query);
+            return Ok(result);
+        }
+
         /// <summary>Danh sách đơn đang chờ giữ hàng (AwaitingAllocation) cho Sale/Kho/Admin/Manager.</summary>
         [HttpGet("staff/pending-allocation")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]

@@ -2,6 +2,7 @@ using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -185,6 +186,40 @@ namespace AgriIDMS.Infrastructure.Repositories
 
             return await query
                 .OrderBy(o => o.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
+
+        public async Task<IList<Order>> GetPaidPendingExportOrdersAsync(int? orderId, OrderSource? source, int skip, int take, string? sort)
+        {
+            var query = _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(o => o.Payments)
+                .Include(o => o.Allocations)
+                .Include(o => o.ExportReceipts)
+                .Where(o => o.Status == OrderStatus.Paid)
+                .Where(o => o.Allocations.Any(a => a.Status == AllocationStatus.Reserved));
+
+            if (orderId.HasValue)
+                query = query.Where(o => o.Id == orderId.Value);
+
+            if (source.HasValue)
+                query = query.Where(o => o.Source == source.Value);
+
+            var sortKey = sort?.Trim();
+            if (string.Equals(sortKey, "createdAtDesc", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderByDescending(o => o.CreatedAt);
+            else if (string.Equals(sortKey, "createdAtAsc", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderBy(o => o.CreatedAt);
+            else if (string.Equals(sortKey, "paidAtAsc", StringComparison.OrdinalIgnoreCase))
+                query = query.OrderBy(o => o.Payments.Max(p => (DateTime?)p.PaidAt) ?? o.CreatedAt);
+            else
+                query = query.OrderByDescending(o => o.Payments.Max(p => (DateTime?)p.PaidAt) ?? o.CreatedAt);
+
+            return await query
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync();

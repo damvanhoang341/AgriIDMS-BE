@@ -1186,7 +1186,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             // Order (1 - many ExportReceipt nếu cho phép partial shipment)
             entity.HasOne(x => x.Order)
-                  .WithMany()
+                  .WithMany(o => o.ExportReceipts)
                   .HasForeignKey(x => x.OrderId)
                   .OnDelete(DeleteBehavior.Restrict);
 

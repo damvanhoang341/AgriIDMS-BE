@@ -118,6 +118,59 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<PaidPendingExportOrderListItemDto>> GetPaidPendingExportOrdersAsync(GetPaidPendingExportOrdersQuery query)
+        {
+            query ??= new GetPaidPendingExportOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            OrderSource? source = null;
+            if (!string.IsNullOrWhiteSpace(query.Source))
+            {
+                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
+                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
+                source = parsedSource;
+            }
+
+            var orders = await _orderRepo.GetPaidPendingExportOrdersAsync(
+                query.OrderId,
+                source,
+                skip,
+                take,
+                query.Sort);
+
+            return orders.Select(o =>
+            {
+                var activeExport = o.ExportReceipts?
+                    .Where(e => e.Status != ExportStatus.Cancelled)
+                    .OrderByDescending(e => e.Id)
+                    .FirstOrDefault();
+
+                DateTime? paidAt = null;
+                if (o.Payments != null && o.Payments.Count > 0)
+                {
+                    var paidDates = o.Payments.Where(p => p.PaidAt.HasValue).Select(p => p.PaidAt!.Value).ToList();
+                    if (paidDates.Count > 0)
+                        paidAt = paidDates.Max();
+                }
+
+                return new PaidPendingExportOrderListItemDto
+                {
+                    OrderId = o.Id,
+                    Status = o.Status.ToString(),
+                    TotalAmount = o.TotalAmount,
+                    PaidAt = paidAt,
+                    CreatedAt = o.CreatedAt,
+                    ItemCount = o.Details?.Count ?? 0,
+                    Source = o.Source.ToString(),
+                    HasExportReceipt = activeExport != null,
+                    ExportReceiptId = activeExport?.Id,
+                    ExportStatus = activeExport?.Status.ToString(),
+                    ExportCode = activeExport?.ExportCode
+                };
+            }).ToList();
+        }
+
         public async Task<IList<OrderListItemDto>> GetPendingAllocationOrdersAsync(GetPendingAllocationOrdersQuery query)
         {
             query ??= new GetPendingAllocationOrdersQuery();
