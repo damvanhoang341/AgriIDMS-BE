@@ -314,5 +314,27 @@ namespace AgriIDMS.Application.Services
             message = ColdStorageExportRule.GetNotEligibleMessage(box.BoxCode, minHours, box.PlacedInColdAt);
             return false;
         }
+
+        public async Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport()
+        {
+            var exportsList = await _exportRepo.GetAllExport();
+            return exportsList.Select(s => new ExportReceiptResponseDto
+            {
+                Id = s.Id,
+                ExportCode = s.ExportCode,
+                OrderId = s.OrderId,
+                Status = s.Status.ToString(),
+                CreatedBy = s.CreatedBy,
+                CreatedAt = s.CreatedAt,
+                Details = s.Details.Select(d => new ExportDetailDto
+                {
+                    Id = d.Id,
+                    BoxId = d.BoxId,
+                    BoxCode = d.Box?.BoxCode ?? "N/A",
+                    ActualQuantity = d.ActualQuantity,
+                    BoxStatus = d.Box?.Status.ToString() ?? "N/A"
+                }).ToList()
+            });
+        }
     }
 }

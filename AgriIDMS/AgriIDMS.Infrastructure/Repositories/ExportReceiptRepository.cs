@@ -35,5 +35,10 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .AnyAsync(e => e.OrderId == orderId
                     && e.Status != Domain.Enums.ExportStatus.Cancelled);
         }
+
+        public async Task<IEnumerable<ExportReceipt>> GetAllExport()
+        {
+            return await _context.ExportReceipts.ToListAsync();
+        }
     }
 }

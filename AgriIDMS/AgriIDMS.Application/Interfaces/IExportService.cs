@@ -10,5 +10,6 @@ namespace AgriIDMS.Application.Interfaces
         Task<ExportReceiptResponseDto> ApproveExportAsync(int exportId, string userId);
         Task<ExportReceiptResponseDto> CancelExportAsync(int exportId, string userId);
         Task<ExportReceiptResponseDto> GetExportReceiptAsync(int exportId);
+        Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport();
     }
 }
