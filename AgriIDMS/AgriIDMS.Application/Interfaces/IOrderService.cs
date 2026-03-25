@@ -14,7 +14,9 @@ namespace AgriIDMS.Application.Interfaces
         Task<IList<OrderListItemDto>> GetPendingCustomerDecisionOrdersAsync(GetPendingAllocationOrdersQuery query);
         Task<IList<BackorderWaitingListItemDto>> GetBackorderWaitingOrdersAsync(GetPendingAllocationOrdersQuery query);
         Task<BackorderWaitingDetailDto> GetBackorderWaitingOrderDetailAsync(int orderId);
+        Task<IList<OrderListItemDto>> GetConfirmedAllocationOrdersAsync(GetPendingAllocationOrdersQuery query);
         Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId);
+        Task<AllocationHistoryDto> GetAllocationHistoryAsync(int orderId);
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
 

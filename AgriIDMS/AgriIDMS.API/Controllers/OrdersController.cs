@@ -94,12 +94,30 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Danh sách đơn đã allocate xong (Confirmed) để staff xem lại box đã reserve.</summary>
+        [HttpGet("staff/allocation-completed")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetConfirmedAllocationOrders([FromQuery] GetPendingAllocationOrdersQuery query)
+        {
+            var result = await _orderService.GetConfirmedAllocationOrdersAsync(query);
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết box đang được propose FEFO cho 1 đơn.</summary>
         [HttpGet("{id:int:min(1)}/allocation/proposals")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> GetAllocationProposals(int id)
         {
             var result = await _orderService.GetAllocationProposalsAsync(id);
+            return Ok(result);
+        }
+
+        /// <summary>Lịch sử allocation (Proposed/Reserved/Cancelled) theo từng allocation record.</summary>
+        [HttpGet("{id:int:min(1)}/allocation/history")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetAllocationHistory(int id)
+        {
+            var result = await _orderService.GetAllocationHistoryAsync(id);
             return Ok(result);
         }
 

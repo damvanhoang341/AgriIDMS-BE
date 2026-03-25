@@ -191,6 +191,31 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IList<Order>> GetConfirmedAllocationOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take)
+        {
+            var query = _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(o => o.Payments)
+                .Include(o => o.Allocations)
+                .Where(o =>
+                    o.Status == OrderStatus.Confirmed
+                    && o.Allocations.Any(a => a.Status == AllocationStatus.Reserved));
+
+            if (!string.IsNullOrWhiteSpace(customerUserId))
+                query = query.Where(o => o.UserId == customerUserId.Trim());
+
+            if (source.HasValue)
+                query = query.Where(o => o.Source == source.Value);
+
+            return await query
+                .OrderBy(o => o.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
+
         public async Task<IList<Order>> GetPaidPendingExportOrdersAsync(int? orderId, OrderSource? source, int skip, int take, string? sort)
         {
             var query = _context.Orders

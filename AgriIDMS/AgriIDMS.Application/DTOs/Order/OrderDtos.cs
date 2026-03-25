@@ -259,6 +259,30 @@ namespace AgriIDMS.Application.DTOs.Order
         public DateTime? ExpiredAt { get; set; }
     }
 
+    public class AllocationHistoryItemDto
+    {
+        public int AllocationId { get; set; }
+        public int OrderDetailId { get; set; }
+        public int ProductVariantId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string Grade { get; set; } = string.Empty;
+        public int BoxId { get; set; }
+        public string BoxCode { get; set; } = string.Empty;
+        public decimal BoxWeight { get; set; }
+        public bool IsPartial { get; set; }
+        public DateTime ReservedAt { get; set; }
+        public DateTime? ExpiredAt { get; set; }
+        public string Status { get; set; } = null!;
+    }
+
+    /// <summary>Allocation history theo từng allocation record (Proposed/Reserved/Cancelled).</summary>
+    public class AllocationHistoryDto
+    {
+        public int OrderId { get; set; }
+        public string OrderStatus { get; set; } = null!;
+        public IList<AllocationHistoryItemDto> Items { get; set; } = new List<AllocationHistoryItemDto>();
+    }
+
     public class BackorderWaitingDetailDto
     {
         public int OrderId { get; set; }
