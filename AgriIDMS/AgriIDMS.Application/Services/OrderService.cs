@@ -1362,8 +1362,83 @@ namespace AgriIDMS.Application.Services
             await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
 
             var proposedAllocations = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
+            // Race-condition / stale proposal handling:
+            // Another order may have reserved boxes, causing all proposals to be cancelled by auto-propose cleanup
+            // or leaving no Proposed rows when staff clicks confirm.
+            // In that case, treat confirm as "reserved 0", compute shortage, and require customer decision.
             if (!proposedAllocations.Any())
-                throw new InvalidBusinessRuleException("Không tìm thấy đề xuất allocate để kho xác nhận");
+            {
+                await _uow.BeginTransactionAsync();
+                try
+                {
+                    var originalStatus = order.Status;
+
+                    // No new boxes reserved. For initial allocation, fulfilled=0, shortage=quantity.
+                    // For backorder, keep existing fulfilled/shortage (no progress this round).
+                    if (IsInitialAllocationStatus(originalStatus))
+                    {
+                        foreach (var detail in order.Details)
+                        {
+                            detail.FulfilledQuantity = 0;
+                            detail.ShortageQuantity = detail.Quantity;
+                        }
+
+                        order.TotalAmount = 0m;
+                    }
+
+                    order.Status = IsOrderFullyReserved(order)
+                        ? OrderStatus.Confirmed
+                        : (originalStatus == OrderStatus.BackorderWaiting
+                            ? OrderStatus.BackorderWaiting
+                            : OrderStatus.PartiallyAllocated);
+
+                    await _uow.CommitAsync();
+
+                    var fulfilledQty = order.Details.Sum(d => d.FulfilledQuantity);
+                    var shortageQty = order.Details.Sum(d => d.ShortageQuantity);
+                    var needsCustomerAction =
+                        order.Status == OrderStatus.PartiallyAllocated && shortageQty > 0;
+
+                    if (needsCustomerAction)
+                    {
+                        try
+                        {
+                            await _notificationService.NotifyOrderAllocationShortageAsync(order.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(
+                                ex,
+                                "Allocation confirm had no proposals for order {OrderId}, customer notification failed",
+                                order.Id);
+                        }
+                    }
+
+                    return new ConfirmAllocationResultDto
+                    {
+                        OrderId = order.Id,
+                        Status = order.Status.ToString(),
+                        FulfilledQuantity = fulfilledQty,
+                        ShortageQuantity = shortageQty,
+                        CustomerActionRequired = needsCustomerAction,
+                        CustomerActions = needsCustomerAction
+                            ? (fulfilledQty > 0
+                                ? new List<string> { "wait_backorder", "cancel_shortage" }
+                                : new List<string> { "wait_backorder", "cancel_order" })
+                            : new List<string>(),
+                        Message = needsCustomerAction
+                            ? (fulfilledQty > 0
+                                ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
+                                : "Đơn thiếu hàng sau khi xác nhận kho nhưng chưa giữ được phần nào. Vui lòng để khách chọn chờ backorder hoặc hủy đơn.")
+                            : "Kho đã xác nhận allocate thành công"
+                    };
+                }
+                catch
+                {
+                    await _uow.RollbackAsync();
+                    throw;
+                }
+            }
 
             await _uow.BeginTransactionAsync();
             try
