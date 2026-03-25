@@ -5,6 +5,7 @@ namespace AgriIDMS.Application.DTOs.Notification
 {
     public class NotificationItemDto
     {
+        /// <summary>Giá trị trùng <see cref="NotificationId"/> — dùng làm id trong route đánh dấu đã đọc (UserNotifications.Id không dùng).</summary>
         public int UserNotificationId { get; set; }
         public int NotificationId { get; set; }
         public string Type { get; set; } = null!;

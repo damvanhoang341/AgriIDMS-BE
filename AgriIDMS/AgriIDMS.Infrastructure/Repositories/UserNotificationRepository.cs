@@ -50,11 +50,13 @@ namespace AgriIDMS.Infrastructure.Repositories
             return _context.UserNotifications.CountAsync(un => un.UserId == userId && !un.IsRead);
         }
 
-        public Task<UserNotification?> GetByIdAsync(int id)
+        public Task<UserNotification?> GetByUserAndNotificationAsync(string userId, int notificationId)
         {
             return _context.UserNotifications
                 .Include(un => un.Notification)
-                .FirstOrDefaultAsync(un => un.Id == id);
+                .FirstOrDefaultAsync(un =>
+                    un.UserId == userId
+                    && un.NotificationId == notificationId);
         }
 
         public async Task MarkAllAsReadAsync(string userId)

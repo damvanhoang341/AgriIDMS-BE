@@ -18,7 +18,8 @@ namespace AgriIDMS.Application.Interfaces
         // User inbox
         Task<PagedNotificationResponse> GetMyNotificationsAsync(string userId, bool unreadOnly, int page, int pageSize);
         Task<int> GetMyUnreadCountAsync(string userId);
-        Task MarkAsReadAsync(string userId, int userNotificationId);
+        /// <param name="notificationId">Id bản ghi Notifications (cùng giá trị với trường notificationId trong list inbox).</param>
+        Task MarkAsReadAsync(string userId, int notificationId);
         Task MarkAllAsReadAsync(string userId);
     }
 }
