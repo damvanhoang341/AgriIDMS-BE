@@ -1346,16 +1346,6 @@ namespace AgriIDMS.Application.Services
                     totalAmount += allocated * detail.BoxWeight * detail.UnitPrice;
                 }
 
-                var reservedCount = allocatedCountByDetail.Values.Sum();
-                if (reservedCount == 0)
-                {
-                    if (IsInitialAllocationStatus(originalStatus))
-                        order.Status = OrderStatus.AwaitingAllocation;
-
-                    await _uow.CommitAsync();
-                    throw new InvalidBusinessRuleException("Kho xác nhận allocate thất bại: không còn box khả dụng");
-                }
-
                 order.TotalAmount = IsInitialAllocationStatus(originalStatus)
                     ? totalAmount
                     : order.TotalAmount + totalAmount;
