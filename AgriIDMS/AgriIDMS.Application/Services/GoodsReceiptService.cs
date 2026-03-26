@@ -59,56 +59,73 @@ namespace AgriIDMS.Application.Services
         // ===============================
         // CREATE GOODS RECEIPT (3.5: PurchaseOrderId bắt buộc, validate PO tồn tại, đã duyệt, cùng NCC)
         // ===============================
-        public async Task<int> CreateGoodsReceiptAsync(CreateGoodsReceiptRequest request, string userId)
+        public async Task<int> CreateGoodsReceiptAsync(
+            CreateGoodsReceiptRequest request,
+            string userId,
+            bool autoApproveWhenCreatedByManager = false)
         {
             _logger.LogInformation("User {UserId} tạo phiếu nhập kho", userId);
-
-            var po = await _purchaseOrderRepo.GetByIdAsync(request.PurchaseOrderId);
-            if (po == null)
-                throw new NotFoundException("Đơn mua không tồn tại");
-            if (po.Status != PurchaseOrderStatus.Approved)
-                throw new InvalidBusinessRuleException("Chỉ được tạo phiếu nhập theo đơn mua đã duyệt");
-
-            var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
-            if (warehouse == null)
-                throw new NotFoundException("Kho không tồn tại");
-
-            var receipt = new GoodsReceipt
+            await _unitOfWork.BeginTransactionAsync();
+            try
             {
-                ReceiptCode = await _receiptRepo.GenerateReceiptCodeAsync(),
-                PurchaseOrderId = request.PurchaseOrderId,
-                SupplierId = po.SupplierId,
-                WarehouseId = request.WarehouseId,
-                VehicleNumber = request.VehicleNumber,
-                DriverName = request.DriverName,
-                TransportCompany = request.TransportCompany,
-                CreatedBy = userId,
-                ReceivedBy = userId,
-                ReceivedDate = DateTime.UtcNow,
-                Status = GoodsReceiptStatus.Draft
-            };
+                var po = await _purchaseOrderRepo.GetByIdAsync(request.PurchaseOrderId);
+                if (po == null)
+                    throw new NotFoundException("Đơn mua không tồn tại");
+                if (po.Status != PurchaseOrderStatus.Approved)
+                    throw new InvalidBusinessRuleException("Chỉ được tạo phiếu nhập theo đơn mua đã duyệt");
 
-            await _receiptRepo.AddGoodsReceiptAsync(receipt);
-            await _unitOfWork.SaveChangesAsync();
+                var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(request.WarehouseId);
+                if (warehouse == null)
+                    throw new NotFoundException("Kho không tồn tại");
 
-            // Nếu request có kèm danh sách chi tiết thì thêm luôn các dòng detail vào phiếu vừa tạo
-            if (request.Details != null && request.Details.Count > 0)
-            {
-                foreach (var line in request.Details)
+                var receipt = new GoodsReceipt
                 {
-                    var addDetailRequest = new AddGoodsReceiptDetailRequest
+                    ReceiptCode = await _receiptRepo.GenerateReceiptCodeAsync(),
+                    PurchaseOrderId = request.PurchaseOrderId,
+                    SupplierId = po.SupplierId,
+                    WarehouseId = request.WarehouseId,
+                    VehicleNumber = request.VehicleNumber,
+                    DriverName = request.DriverName,
+                    TransportCompany = request.TransportCompany,
+                    CreatedBy = userId,
+                    ReceivedBy = userId,
+                    ReceivedDate = DateTime.UtcNow,
+                    Status = GoodsReceiptStatus.Draft
+                };
+
+                await _receiptRepo.AddGoodsReceiptAsync(receipt);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Nếu request có kèm danh sách chi tiết thì thêm luôn các dòng detail vào phiếu vừa tạo
+                if (request.Details != null && request.Details.Count > 0)
+                {
+                    foreach (var line in request.Details)
                     {
-                        GoodsReceiptId = receipt.Id,
-                        PurchaseOrderDetailId = line.PurchaseOrderDetailId,
-                        ProductVariantId = line.ProductVariantId,
-                        ReceivedWeight = line.ReceivedWeight
-                    };
+                        var addDetailRequest = new AddGoodsReceiptDetailRequest
+                        {
+                            GoodsReceiptId = receipt.Id,
+                            PurchaseOrderDetailId = line.PurchaseOrderDetailId,
+                            ProductVariantId = line.ProductVariantId,
+                            ReceivedWeight = line.ReceivedWeight
+                        };
 
-                    await _detailService.AddGoodsReceiptDetailAsync(addDetailRequest);
+                        await _detailService.AddGoodsReceiptDetailAsync(addDetailRequest);
+                    }
                 }
-            }
 
-            return receipt.Id;
+                if (autoApproveWhenCreatedByManager)
+                {
+                    await AutoApproveCreatedReceiptByManagerAsync(receipt.Id, userId);
+                }
+
+                await _unitOfWork.CommitAsync();
+                return receipt.Id;
+            }
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
         }
 
 
@@ -408,6 +425,40 @@ namespace AgriIDMS.Application.Services
                     return true;
             }
             return false;
+        }
+
+        private async Task AutoApproveCreatedReceiptByManagerAsync(int receiptId, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptForApproveAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+            if (!receipt.Details.Any())
+            {
+                _logger.LogWarning(
+                    "Receipt {ReceiptId} created by manager but has no details, skip auto-approve",
+                    receiptId);
+                return;
+            }
+
+            foreach (var d in receipt.Details)
+            {
+                if (d.Qc == null)
+                    d.Qc = new Qc { GoodsReceiptDetail = d };
+
+                d.Qc.UsableWeight = d.ReceivedWeight;
+                d.Qc.QCResult = QCResult.Passed;
+                d.Qc.QCNote = "Tự động QC đạt do Manager tạo phiếu và chọn auto duyệt.";
+                d.Qc.InspectedBy = userId;
+                d.Qc.InspectedAt = DateTime.UtcNow;
+            }
+
+            // Manager tạo phiếu thì tự động bỏ qua bước chờ duyệt trung gian.
+            receipt.Status = GoodsReceiptStatus.QCCompleted;
+            receipt.PendingReason = null;
+            await _unitOfWork.SaveChangesAsync();
+
+            await EnsureWarehouseCapacityAsync(receipt);
+            await CreateLotsAndSetApprovedAsync(receipt, userId);
         }
 
         // ===============================

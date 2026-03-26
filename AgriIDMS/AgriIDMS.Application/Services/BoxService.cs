@@ -308,7 +308,34 @@ namespace AgriIDMS.Application.Services
                 Status = b.Status.ToString(),
                 SlotId = b.SlotId,
                 WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                WarehouseName = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name,
                 LotId = b.LotId,
+                LotCode = b.Lot?.LotCode,
+                SlotCode = b.Slot?.Code,
+                ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
+                ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
+                ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                PlacedInColdAt = b.PlacedInColdAt
+            }).ToList();
+        }
+
+        public async Task<List<UnassignedBoxDto>> GetBoxesByGoodsReceiptAsync(int goodsReceiptId)
+        {
+            var boxes = await _boxRepo.GetByGoodsReceiptIdAsync(goodsReceiptId);
+            return boxes.Select(b => new UnassignedBoxDto
+            {
+                Id = b.Id,
+                BoxCode = b.BoxCode,
+                QrCode = b.QRCode,
+                QrImageUrl = b.QrImageUrl,
+                Weight = b.Weight,
+                Status = b.Status.ToString(),
+                SlotId = b.SlotId,
+                WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                WarehouseName = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name,
+                LotId = b.LotId,
+                LotCode = b.Lot?.LotCode,
+                SlotCode = b.Slot?.Code,
                 ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
                 ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
                 ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,

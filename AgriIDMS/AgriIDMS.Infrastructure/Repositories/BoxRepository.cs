@@ -100,6 +100,24 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Box>> GetByGoodsReceiptIdAsync(int goodsReceiptId)
+        {
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.GoodsReceipt)
+                            .ThenInclude(gr => gr.Warehouse)
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.ProductVariant)
+                            .ThenInclude(v => v.Product)
+                .Include(b => b.Slot)
+                .AsNoTracking()
+                .Where(b => b.Lot.GoodsReceiptDetail.GoodsReceiptId == goodsReceiptId)
+                .OrderByDescending(b => b.CreatedAt)
+                .ToListAsync();
+        }
+
         public async Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId)
         {
             return await _context.Boxes

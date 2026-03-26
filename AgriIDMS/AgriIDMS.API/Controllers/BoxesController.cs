@@ -93,5 +93,14 @@ namespace AgriIDMS.API.Controllers
             var boxes = await _boxService.GetUnassignedBoxesByWarehouseAsync(warehouseId);
             return Ok(boxes);
         }
+
+        /// <summary>Lấy danh sách box của một phiếu nhập (phục vụ hiển thị QR box).</summary>
+        [HttpGet("by-goods-receipt/{goodsReceiptId:int}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetBoxesByGoodsReceipt(int goodsReceiptId)
+        {
+            var boxes = await _boxService.GetBoxesByGoodsReceiptAsync(goodsReceiptId);
+            return Ok(boxes);
+        }
     }
 }

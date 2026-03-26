@@ -69,12 +69,18 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var autoApproveWhenCreatedByManager = User.IsInRole("Manager");
 
-            var receiptId = await _goodsReceiptService.CreateGoodsReceiptAsync(request, userId);
+            var receiptId = await _goodsReceiptService.CreateGoodsReceiptAsync(
+                request,
+                userId,
+                autoApproveWhenCreatedByManager);
 
             return Ok(new
             {
-                Message = "Tạo phiếu nhập thành công",
+                Message = autoApproveWhenCreatedByManager
+                    ? "Tạo phiếu nhập thành công và đã tự động duyệt theo quyền Manager"
+                    : "Tạo phiếu nhập thành công",
                 ReceiptId = receiptId
             });
         }

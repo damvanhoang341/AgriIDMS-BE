@@ -18,5 +18,7 @@ namespace AgriIDMS.Application.Interfaces
 
         /// <summary>Danh sách box thuộc kho nhưng chưa được gán vào slot.</summary>
         Task<List<UnassignedBoxDto>> GetUnassignedBoxesByWarehouseAsync(int warehouseId);
+        /// <summary>Danh sách box thuộc một phiếu nhập (để hiển thị QR box).</summary>
+        Task<List<UnassignedBoxDto>> GetBoxesByGoodsReceiptAsync(int goodsReceiptId);
     }
 }
