@@ -416,3 +416,12 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# ==== Sensitive local configs ====
+AgriIDMS/**/appsettings.json
+AgriIDMS/**/appsettings.*.json
+!AgriIDMS/**/appsettings.example.json
+
+# ==== Sensitive seeders ====
+AgriIDMS/**/Seeders/**
+AgriIDMS/**/*IdentitySeeder*.cs
