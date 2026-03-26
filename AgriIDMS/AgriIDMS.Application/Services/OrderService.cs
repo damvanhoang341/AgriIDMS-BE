@@ -1136,10 +1136,8 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Không thể backorder: đơn đã thanh toán thành công");
             }
 
-            // Reserved allocation cần tồn tại để biết phần nào sẽ được ship ngay.
-            var reservedAllocations = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Reserved);
-            if (!reservedAllocations.Any())
-                throw new InvalidBusinessRuleException("Không tìm thấy allocations (Reserved) cho đơn backorder");
+            // Cho phép vào backorder ngay cả khi chưa giữ được box nào (reserved = 0),
+            // miễn là đơn vẫn còn shortage để chờ allocate trong các vòng backorder sau.
 
             order.Status = OrderStatus.BackorderWaiting;
             await _uow.SaveChangesAsync();
