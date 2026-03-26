@@ -13,7 +13,10 @@ namespace AgriIDMS.Application.DTOs.Box
 
         public int? SlotId { get; set; }
         public int? WarehouseId { get; set; }
+        public string? WarehouseName { get; set; }
         public int LotId { get; set; }
+        public string? LotCode { get; set; }
+        public string? SlotCode { get; set; }
         public int? ProductVariantId { get; set; }
         public string? ProductVariantName { get; set; }
         public string? ProductName { get; set; }
