@@ -425,3 +425,5 @@ AgriIDMS/**/appsettings.*.json
 # ==== Sensitive seeders ====
 AgriIDMS/**/Seeders/**
 AgriIDMS/**/*IdentitySeeder*.cs
+!AgriIDMS/AgriIDMS.Infrastructure/Identity/IdentitySeeder.cs
+/AgriIDMS/AgriIDMS.Infrastructure/Identity/IdentitySeeder.cs
