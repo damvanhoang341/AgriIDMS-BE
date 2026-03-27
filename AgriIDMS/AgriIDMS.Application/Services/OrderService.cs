@@ -1140,6 +1140,7 @@ namespace AgriIDMS.Application.Services
             // miễn là đơn vẫn còn shortage để chờ allocate trong các vòng backorder sau.
 
             order.Status = OrderStatus.BackorderWaiting;
+            order.BackorderExpiryNotifiedAt = null;
             await _uow.SaveChangesAsync();
         }
 

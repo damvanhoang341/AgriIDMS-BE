@@ -972,6 +972,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
 
+            entity.Property(x => x.BackorderExpiryNotifiedAt)
+                  .IsRequired(false);
+
             entity.HasOne<ApplicationUser>()
                   .WithMany()
                   .HasForeignKey(x => x.UserId)
@@ -985,6 +988,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.UserId);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.Source);
+            entity.HasIndex(x => x.BackorderExpiryNotifiedAt);
         });
 
         // ===================== OrderDetail =====================

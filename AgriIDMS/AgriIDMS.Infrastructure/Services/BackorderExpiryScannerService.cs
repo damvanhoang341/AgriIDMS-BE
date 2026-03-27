@@ -56,26 +56,36 @@ namespace AgriIDMS.Infrastructure.Services
 
             var now = DateTime.UtcNow;
 
-            var overdueOrderIds = await db.OrderAllocations
-                .AsNoTracking()
-                .Where(a =>
-                    a.Status == AllocationStatus.Reserved
-                    && a.ExpiredAt.HasValue
-                    && a.ExpiredAt.Value <= now
-                    && a.Order.Status == OrderStatus.BackorderWaiting)
-                .Select(a => a.OrderId)
-                .Distinct()
+            var overdueOrders = await db.Orders
+                .Where(o =>
+                    o.Status == OrderStatus.BackorderWaiting
+                    && o.BackorderExpiryNotifiedAt == null
+                    && o.Details.Any(d => d.ShortageQuantity > 0)
+                    && o.Allocations.Any(a =>
+                        a.Status == AllocationStatus.Reserved
+                        && a.ExpiredAt.HasValue
+                        && a.ExpiredAt.Value <= now))
                 .ToListAsync(cancellationToken);
 
-            if (overdueOrderIds.Count == 0)
+            if (overdueOrders.Count == 0)
                 return;
 
-            _logger.LogInformation("Found {Count} overdue backorder orders", overdueOrderIds.Count);
+            _logger.LogInformation("Found {Count} overdue backorder orders", overdueOrders.Count);
 
-            foreach (var orderId in overdueOrderIds)
+            foreach (var order in overdueOrders)
             {
-                await notificationService.NotifyBackorderExpiredForSalesAsync(orderId);
+                try
+                {
+                    await notificationService.NotifyBackorderExpiredForSalesAsync(order.Id);
+                    order.BackorderExpiryNotifiedAt = now;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send backorder-expired notification for order {OrderId}", order.Id);
+                }
             }
+
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 }

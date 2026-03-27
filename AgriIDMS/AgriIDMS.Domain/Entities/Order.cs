@@ -20,6 +20,7 @@ namespace AgriIDMS.Domain.Entities
         public OrderSource Source { get; set; } = OrderSource.Online;
 
         public OrderStatus Status { get; set; }
+        public DateTime? BackorderExpiryNotifiedAt { get; set; }
 
         public ICollection<OrderDetail> Details { get; set; } = new List<OrderDetail>();
         public ICollection<Payment> Payments { get; set; } = new List<Payment>();
