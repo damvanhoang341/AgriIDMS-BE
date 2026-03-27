@@ -277,6 +277,20 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
+        /// <summary>Sales staff chọn chờ backorder thay khách.</summary>
+        [HttpPatch("{id:int:min(1)}/backorder/wait/staff")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> WaitBackorderAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.WaitBackorderAsStaffAsync(id, operatorUserId);
+            return Ok(new
+            {
+                Message = "Đã chuyển trạng thái chờ backorder (thao tác nhân sự)",
+                OrderId = id
+            });
+        }
+
         /// <summary>Khách chọn hủy phần còn thiếu để chỉ ship phần đã allocate/giữ được.</summary>
         [HttpPatch("{id:int:min(1)}/backorder/cancel-shortage")]
         [Authorize(Roles = "Customer")]
@@ -287,6 +301,20 @@ namespace AgriIDMS.API.Controllers
             return Ok(new
             {
                 Message = "Đã hủy phần thiếu: chỉ ship phần còn lại",
+                OrderId = id
+            });
+        }
+
+        /// <summary>Sales staff chọn hủy phần thiếu thay khách.</summary>
+        [HttpPatch("{id:int:min(1)}/backorder/cancel-shortage/staff")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> CancelShortageAsStaff(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.CancelShortageAsStaffAsync(id, operatorUserId);
+            return Ok(new
+            {
+                Message = "Đã hủy phần thiếu: chỉ ship phần còn lại (thao tác nhân sự)",
                 OrderId = id
             });
         }

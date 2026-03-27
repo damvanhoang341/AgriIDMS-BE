@@ -103,12 +103,20 @@ namespace AgriIDMS.Application.Services
                 ? $"Đơn hàng #{orderId} đang thiếu {totalShortage} box sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc {actionText}."
                 : $"Đơn hàng #{orderId} đang thiếu hàng sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc {actionText}.";
 
+            var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                order.UserId
+            };
+            var salesUsers = await _userRepo.GetUserIdsInRolesAsync("SalesStaff");
+            foreach (var id in salesUsers)
+                recipients.Add(id);
+
             await CreateNotificationIfNotExistsAsync(
                 NotificationType.Warning,
                 message,
                 referenceType: "OrderAllocationShortage",
                 referenceId: orderId,
-                recipientUserIds: new[] { order.UserId });
+                recipientUserIds: recipients);
         }
 
         public async Task NotifyExportApprovedAsync(int exportReceiptId)

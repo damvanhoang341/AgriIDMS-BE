@@ -41,9 +41,13 @@ namespace AgriIDMS.Application.Interfaces
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
         Task WaitBackorderAsync(int orderId, string userId);
+        /// <summary>Sales staff chọn chờ backorder thay khách cho phần còn thiếu.</summary>
+        Task WaitBackorderAsStaffAsync(int orderId, string operatorUserId);
 
         /// <summary>Khách chấp nhận bỏ phần còn thiếu: chỉ ship phần đã allocate/giữ được.</summary>
         Task CancelShortageAsync(int orderId, string userId);
+        /// <summary>Sales staff chọn hủy phần thiếu thay khách.</summary>
+        Task CancelShortageAsStaffAsync(int orderId, string operatorUserId);
 
         /// <summary>
         /// Staff allocate nốt phần còn thiếu cho backorder.

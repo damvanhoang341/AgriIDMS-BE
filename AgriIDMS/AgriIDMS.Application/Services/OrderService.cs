@@ -1116,38 +1116,25 @@ namespace AgriIDMS.Application.Services
         /// <summary>Khách chọn chờ đủ hàng (backorder) cho phần còn thiếu.</summary>
         public async Task WaitBackorderAsync(int orderId, string userId)
         {
-            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+            await WaitBackorderInternalAsync(orderId, userId, skipCustomerOwnershipCheck: false);
+        }
 
-            if (order.UserId != userId)
-                throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
-
-            if (order.Status != OrderStatus.PartiallyAllocated)
-                throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể chờ backorder khi đơn đang ở trạng thái PartiallyAllocated. Hiện tại: {order.Status}");
-
-            if (order.Details == null || !order.Details.Any(d => d.ShortageQuantity > 0))
-                throw new InvalidBusinessRuleException("Đơn không còn thiếu hàng để chờ backorder");
-
-            if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Success ||
-                    p.PaymentStatus == PaymentStatus.Refunded))
-            {
-                throw new InvalidBusinessRuleException("Không thể backorder: đơn đã thanh toán thành công");
-            }
-
-            // Cho phép vào backorder ngay cả khi chưa giữ được box nào (reserved = 0),
-            // miễn là đơn vẫn còn shortage để chờ allocate trong các vòng backorder sau.
-
-            order.Status = OrderStatus.BackorderWaiting;
-            order.BackorderExpiryNotifiedAt = null;
-            await _uow.SaveChangesAsync();
+        /// <summary>Sales staff chọn chờ backorder thay khách cho phần còn thiếu.</summary>
+        public async Task WaitBackorderAsStaffAsync(int orderId, string operatorUserId)
+        {
+            await WaitBackorderInternalAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
         }
 
         /// <summary>Khách chấp nhận bỏ phần còn thiếu: chỉ ship phần đã allocate được.</summary>
         public async Task CancelShortageAsync(int orderId, string userId)
         {
             await CancelShortageInternalAsync(orderId, userId, skipCustomerOwnershipCheck: false);
+        }
+
+        /// <summary>Sales staff chọn hủy phần thiếu thay khách.</summary>
+        public async Task CancelShortageAsStaffAsync(int orderId, string operatorUserId)
+        {
+            await CancelShortageInternalAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
         }
 
         /// <summary>
@@ -1562,6 +1549,35 @@ namespace AgriIDMS.Application.Services
             await ConfirmAllocationAsync(orderId, operatorUserId, skipCustomerOwnershipCheck);
         }
 
+        private async Task WaitBackorderInternalAsync(int orderId, string actorUserId, bool skipCustomerOwnershipCheck)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (!skipCustomerOwnershipCheck && order.UserId != actorUserId)
+                throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
+
+            if (order.Status != OrderStatus.PartiallyAllocated)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ có thể chờ backorder khi đơn đang ở trạng thái PartiallyAllocated. Hiện tại: {order.Status}");
+
+            if (order.Details == null || !order.Details.Any(d => d.ShortageQuantity > 0))
+                throw new InvalidBusinessRuleException("Đơn không còn thiếu hàng để chờ backorder");
+
+            if (order.Payments != null && order.Payments.Any(p =>
+                    p.PaymentStatus == PaymentStatus.Success ||
+                    p.PaymentStatus == PaymentStatus.Refunded))
+            {
+                throw new InvalidBusinessRuleException("Không thể backorder: đơn đã thanh toán thành công");
+            }
+
+            // Cho phép vào backorder ngay cả khi chưa giữ được box nào (reserved = 0),
+            // miễn là đơn vẫn còn shortage để chờ allocate trong các vòng backorder sau.
+            order.Status = OrderStatus.BackorderWaiting;
+            order.BackorderExpiryNotifiedAt = null;
+            await _uow.SaveChangesAsync();
+        }
+
         private async Task CancelShortageInternalAsync(int orderId, string actorUserId, bool skipCustomerOwnershipCheck)
         {
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
@@ -1738,7 +1754,14 @@ namespace AgriIDMS.Application.Services
 
             var isInitialAllocation = IsInitialAllocationStatus(order.Status);
             var existingAllocations = await _allocationRepo.GetByOrderIdAsync(order.Id);
+            var activeAllocationStatuses = new HashSet<AllocationStatus>
+            {
+                AllocationStatus.Proposed,
+                AllocationStatus.Reserved,
+                AllocationStatus.Picked
+            };
             var allocatedBoxByDetail = existingAllocations
+                .Where(x => activeAllocationStatuses.Contains(x.Status))
                 .GroupBy(x => x.OrderDetailId)
                 .ToDictionary(
                     g => g.Key,
