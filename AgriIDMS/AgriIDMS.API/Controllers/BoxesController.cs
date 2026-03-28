@@ -4,6 +4,7 @@ using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
@@ -101,6 +102,68 @@ namespace AgriIDMS.API.Controllers
         {
             var boxes = await _boxService.GetBoxesByGoodsReceiptAsync(goodsReceiptId);
             return Ok(boxes);
+        }
+
+        /// <summary>Lấy danh sách box hư hỏng (có thể lọc theo kho).</summary>
+        [HttpGet("damaged")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetDamagedBoxes([FromQuery] int? warehouseId = null)
+        {
+            var boxes = await _boxService.GetDamagedBoxesAsync(warehouseId);
+            return Ok(boxes);
+        }
+
+        /// <summary>Lấy danh sách box hết hạn trong kho (dành cho màn hình tiêu hủy).</summary>
+        [HttpGet("expired")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetExpiredBoxes([FromQuery] int warehouseId)
+        {
+            var boxes = await _boxService.GetExpiredBoxesByWarehouseAsync(warehouseId);
+            return Ok(boxes);
+        }
+
+        /// <summary>Tiêu hủy box hết hạn, cập nhật sức chứa slot và lưu InventoryTransaction.</summary>
+        [HttpPost("dispose-expired")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> DisposeExpiredBoxes([FromBody] DisposeExpiredBoxesRequest request)
+        {
+            var userId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue("sub") ??
+                User.FindFirstValue("userId") ??
+                User.FindFirstValue("id");
+
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new UnauthorizedException("Bạn cần đăng nhập để tiêu hủy box.");
+
+            var result = await _boxService.DisposeExpiredBoxesAsync(request, userId);
+            return Ok(new
+            {
+                Message = "Đã tiêu hủy box hết hạn",
+                result.RequestedCount,
+                result.DisposedCount,
+                result.SkippedCount
+            });
+        }
+
+        /// <summary>Lịch sử tiêu hủy box theo kho, có thể lọc theo ngày và người thao tác.</summary>
+        [HttpGet("dispose-history")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetDisposeHistory(
+            [FromQuery] int warehouseId,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] string? createdBy = null)
+        {
+            if (fromDate.HasValue && toDate.HasValue && fromDate.Value.Date > toDate.Value.Date)
+                return BadRequest(new { Message = "Từ ngày không được lớn hơn Đến ngày" });
+
+            var items = await _boxService.GetDisposeHistoryAsync(
+                warehouseId,
+                fromDate,
+                toDate,
+                createdBy);
+            return Ok(items);
         }
     }
 }

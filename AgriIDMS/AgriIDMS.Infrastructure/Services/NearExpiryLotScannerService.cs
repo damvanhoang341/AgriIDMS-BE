@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace AgriIDMS.Infrastructure.Services
 {
     /// <summary>
-    /// Periodically scans near-expiry lots and notifies warehouse/sales/manager.
+    /// Periodically scans near-expiry/expired lots and notifies warehouse/sales/manager.
     /// </summary>
     public class NearExpiryLotScannerService : BackgroundService
     {
@@ -64,9 +64,8 @@ namespace AgriIDMS.Infrastructure.Services
             var lotIds = await db.Lots
                 .AsNoTracking()
                 .Where(l =>
-                    l.Status == LotStatus.Active &&
+                    (l.Status == LotStatus.Active || l.Status == LotStatus.Expired) &&
                     l.RemainingQuantity > 0 &&
-                    l.ExpiryDate >= now &&
                     l.ExpiryDate <= deadline)
                 .Select(l => l.Id)
                 .ToListAsync(cancellationToken);
@@ -75,7 +74,7 @@ namespace AgriIDMS.Infrastructure.Services
                 return;
 
             _logger.LogInformation(
-                "Found {Count} near-expiry lots within {Days} days",
+                "Found {Count} near-expiry/expired lots within +{Days} days threshold",
                 lotIds.Count,
                 DefaultNearExpiryDays);
 

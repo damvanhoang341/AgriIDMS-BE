@@ -385,12 +385,19 @@ namespace AgriIDMS.Application.Services
             if (totalUsableWeight <= 0)
                 return;
 
-            decimal remainingCapacity = await _warehouseRepo.GetTotalRemainingCapacityByWarehouseIdAsync(receipt.WarehouseId);
+            // Dung lượng kho cần tính cả hàng đã xếp slot và hàng chưa xếp slot
+            // để tránh duyệt phiếu nhập vượt sức chứa "ảo".
+            decimal totalCapacity = await _warehouseRepo.GetTotalCapacityByWarehouseIdAsync(receipt.WarehouseId);
+            decimal assignedWeight = await _boxRepo.GetAssignedStockWeightByWarehouseIdAsync(receipt.WarehouseId);
+            decimal unassignedWeight = await _boxRepo.GetUnassignedStockWeightByWarehouseIdAsync(receipt.WarehouseId);
+            decimal usedCapacity = assignedWeight + unassignedWeight;
+            decimal remainingCapacity = Math.Max(0, totalCapacity - usedCapacity);
+
             if (totalUsableWeight > remainingCapacity)
             {
                 var warehouseName = receipt.Warehouse?.Name ?? $"Id={receipt.WarehouseId}";
                 throw new InvalidBusinessRuleException(
-                    $"Kho [{warehouseName}] chỉ còn {remainingCapacity:N2} kg trống. Phiếu nhập {totalUsableWeight:N2} kg. Không đủ dung lượng. Vui lòng giải phóng dung lượng (xuất hàng / chuyển slot) hoặc nhập vào kho khác.");
+                    $"Kho [{warehouseName}] chỉ còn {remainingCapacity:N2} kg trống (đã gồm hàng chưa xếp slot). Phiếu nhập {totalUsableWeight:N2} kg. Không đủ dung lượng. Vui lòng giải phóng dung lượng (xuất hàng / chuyển slot) hoặc nhập vào kho khác.");
             }
         }
 

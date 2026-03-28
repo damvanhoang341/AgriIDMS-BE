@@ -14,6 +14,7 @@ namespace AgriIDMS.Application.Services
 {
     public class BoxService : IBoxService
     {
+        private const decimal CapacityTolerance = 0.0001m;
         private readonly IBoxRepository _boxRepo;
         private readonly ISlotRepository _slotRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
@@ -59,6 +60,11 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Không xác định được loại sản phẩm của box");
 
             var existingVariantId = slot.Boxes
+                .Where(b =>
+                    b.SlotId == slot.Id &&
+                    b.Weight > CapacityTolerance &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Status != BoxStatus.Expired)
                 .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                 .FirstOrDefault(v => v.HasValue && v.Value > 0);
 
@@ -67,10 +73,11 @@ namespace AgriIDMS.Application.Services
                     "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
 
             bool isNewSlot = box.SlotId != request.SlotId;
-            if (isNewSlot && slot.CurrentCapacity + box.Weight > slot.Capacity)
+            if (isNewSlot && (slot.CurrentCapacity + box.Weight - slot.Capacity) > CapacityTolerance)
                 throw new InvalidBusinessRuleException(
                     $"Slot không đủ dung lượng: còn trống {slot.Capacity - slot.CurrentCapacity}, box nặng {box.Weight}.");
 
+            var oldSlotId = box.SlotId;
             if (isNewSlot && box.SlotId.HasValue)
             {
                 var oldSlot = await _slotRepo.GetByIdAsync(box.SlotId.Value);
@@ -96,6 +103,14 @@ namespace AgriIDMS.Application.Services
             }
             await _boxRepo.UpdateAsync(box);
             await _unitOfWork.SaveChangesAsync();
+
+            if (isNewSlot)
+            {
+                await _slotRepo.RecalculateCurrentCapacityAsync(request.SlotId);
+                if (oldSlotId.HasValue && oldSlotId.Value != request.SlotId)
+                    await _slotRepo.RecalculateCurrentCapacityAsync(oldSlotId.Value);
+                await _unitOfWork.SaveChangesAsync();
+            }
         }
 
         /// <summary>Gán nhiều box vào cùng một slot trong một lần. Box và slot phải cùng kho; tổng dung lượng không vượt Capacity.</summary>
@@ -138,6 +153,11 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Batch box có nhiều loại sản phẩm khác nhau, không thể xếp chung 1 slot.");
 
             var existingVariantId = slot.Boxes
+                .Where(b =>
+                    b.SlotId == slot.Id &&
+                    b.Weight > CapacityTolerance &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Status != BoxStatus.Expired)
                 .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                 .FirstOrDefault(v => v.HasValue && v.Value > 0);
 
@@ -149,7 +169,7 @@ namespace AgriIDMS.Application.Services
             var boxesToAssign = boxes.Where(b => b.SlotId != request.SlotId).ToList();
             decimal totalWeightToAdd = boxesToAssign.Sum(b => b.Weight);
 
-            if (slot.CurrentCapacity + totalWeightToAdd > slot.Capacity)
+            if ((slot.CurrentCapacity + totalWeightToAdd - slot.Capacity) > CapacityTolerance)
                 throw new InvalidBusinessRuleException(
                     $"Slot không đủ dung lượng: còn trống {slot.Capacity - slot.CurrentCapacity:N2}, tổng khối lượng {totalWeightToAdd:N2}.");
 
@@ -178,6 +198,18 @@ namespace AgriIDMS.Application.Services
 
             slot.CurrentCapacity += totalWeightToAdd;
             await _slotRepo.UpdateAsync(slot);
+            await _unitOfWork.SaveChangesAsync();
+
+            var affectedSlotIds = boxesToAssign
+                .Where(b => b.SlotId.HasValue)
+                .Select(b => b.SlotId!.Value)
+                .Append(request.SlotId)
+                .Distinct()
+                .ToList();
+            foreach (var slotId in affectedSlotIds)
+            {
+                await _slotRepo.RecalculateCurrentCapacityAsync(slotId);
+            }
             await _unitOfWork.SaveChangesAsync();
         }
 
@@ -221,6 +253,11 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Không xác định được loại sản phẩm của box");
 
             var existingVariantId = toSlot.Boxes
+                .Where(b =>
+                    b.SlotId == toSlot.Id &&
+                    b.Weight > CapacityTolerance &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Status != BoxStatus.Expired)
                 .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                 .FirstOrDefault(v => v.HasValue && v.Value > 0);
 
@@ -228,7 +265,7 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
 
-            if (toSlot.CurrentCapacity + box.Weight > toSlot.Capacity)
+            if ((toSlot.CurrentCapacity + box.Weight - toSlot.Capacity) > CapacityTolerance)
                 throw new InvalidBusinessRuleException(
                     $"Slot không đủ dung lượng: còn trống {toSlot.Capacity - toSlot.CurrentCapacity:N2}, box nặng {box.Weight:N2}.");
 
@@ -263,6 +300,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = DateTime.UtcNow
             });
 
+            await _unitOfWork.SaveChangesAsync();
+            await _slotRepo.RecalculateCurrentCapacityAsync(fromSlot.Id);
+            await _slotRepo.RecalculateCurrentCapacityAsync(toSlot.Id);
             await _unitOfWork.SaveChangesAsync();
         }
 
@@ -315,6 +355,8 @@ namespace AgriIDMS.Application.Services
                 ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
                 ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
                 ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                ReceivedDate = b.Lot?.ReceivedDate,
+                ExpiryDate = b.Lot?.ExpiryDate,
                 PlacedInColdAt = b.PlacedInColdAt
             }).ToList();
         }
@@ -339,7 +381,177 @@ namespace AgriIDMS.Application.Services
                 ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
                 ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
                 ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                ReceivedDate = b.Lot?.ReceivedDate,
+                ExpiryDate = b.Lot?.ExpiryDate,
                 PlacedInColdAt = b.PlacedInColdAt
+            }).ToList();
+        }
+
+        public async Task<List<UnassignedBoxDto>> GetDamagedBoxesAsync(int? warehouseId = null)
+        {
+            var boxes = await _boxRepo.GetDamagedBoxesAsync(warehouseId);
+            return boxes.Select(b => new UnassignedBoxDto
+            {
+                Id = b.Id,
+                BoxCode = b.BoxCode,
+                QrCode = b.QRCode,
+                QrImageUrl = b.QrImageUrl,
+                Weight = b.Weight,
+                Status = b.Status.ToString(),
+                SlotId = b.SlotId,
+                WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                WarehouseName = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name,
+                LotId = b.LotId,
+                LotCode = b.Lot?.LotCode,
+                SlotCode = b.Slot?.Code,
+                ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
+                ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
+                ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                ReceivedDate = b.Lot?.ReceivedDate,
+                ExpiryDate = b.Lot?.ExpiryDate,
+                PlacedInColdAt = b.PlacedInColdAt
+            }).ToList();
+        }
+
+        public async Task<List<UnassignedBoxDto>> GetExpiredBoxesByWarehouseAsync(int warehouseId)
+        {
+            var boxes = await _boxRepo.GetExpiredBoxesByWarehouseIdAsync(warehouseId);
+            return boxes.Select(b => new UnassignedBoxDto
+            {
+                Id = b.Id,
+                BoxCode = b.BoxCode,
+                QrCode = b.QRCode,
+                QrImageUrl = b.QrImageUrl,
+                Weight = b.Weight,
+                Status = b.Status.ToString(),
+                SlotId = b.SlotId,
+                WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                WarehouseName = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name,
+                LotId = b.LotId,
+                LotCode = b.Lot?.LotCode,
+                SlotCode = b.Slot?.Code,
+                ProductVariantId = b.Lot?.GoodsReceiptDetail?.ProductVariantId,
+                ProductVariantName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
+                ProductName = b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                ReceivedDate = b.Lot?.ReceivedDate,
+                ExpiryDate = b.Lot?.ExpiryDate,
+                PlacedInColdAt = b.PlacedInColdAt
+            }).ToList();
+        }
+
+        public async Task<DisposeExpiredBoxesResultDto> DisposeExpiredBoxesAsync(
+            DisposeExpiredBoxesRequest request,
+            string userId)
+        {
+            var distinctIds = request.BoxIds
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (distinctIds.Count == 0)
+                throw new InvalidBusinessRuleException("Danh sách BoxId không hợp lệ");
+
+            var boxes = await _boxRepo.GetByIdsWithLotAndReceiptAsync(distinctIds);
+            if (boxes.Count == 0)
+                throw new NotFoundException("Không tìm thấy box cần tiêu hủy");
+
+            var now = DateTime.UtcNow;
+            var disposedCount = 0;
+
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                foreach (var box in boxes)
+                {
+                    var isExpiredByDate = box.Lot?.ExpiryDate <= now;
+                    var isAlreadyRemoved = box.Status == BoxStatus.Exported || box.Weight <= 0;
+                    if (!isExpiredByDate || isAlreadyRemoved)
+                        continue;
+
+                    var removedWeight = box.Weight;
+                    var fromSlotId = box.SlotId;
+
+                    if (box.SlotId.HasValue)
+                    {
+                        var slot = await _slotRepo.GetByIdAsync(box.SlotId.Value);
+                        if (slot != null)
+                        {
+                            slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity - removedWeight);
+                            await _slotRepo.UpdateAsync(slot);
+                        }
+                    }
+
+                    if (box.Lot != null)
+                    {
+                        box.Lot.RemainingQuantity = Math.Max(0, box.Lot.RemainingQuantity - removedWeight);
+                    }
+
+                    box.SlotId = null;
+                    box.Status = BoxStatus.Expired;
+                    box.Weight = 0;
+                    await _boxRepo.UpdateAsync(box);
+
+                    await _inventoryTranRepo.CreateAsync(new InventoryTransaction
+                    {
+                        BoxId = box.Id,
+                        TransactionType = InventoryTransactionType.Dispose,
+                        FromSlotId = fromSlotId,
+                        ToSlotId = null,
+                        Quantity = removedWeight,
+                        ReferenceType = ReferenceType.Adjustment,
+                        CreatedBy = string.IsNullOrWhiteSpace(userId) ? "system" : userId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    disposedCount++;
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.CommitAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
+
+            return new DisposeExpiredBoxesResultDto
+            {
+                RequestedCount = distinctIds.Count,
+                DisposedCount = disposedCount,
+                SkippedCount = distinctIds.Count - disposedCount
+            };
+        }
+
+        public async Task<List<DisposeHistoryItemDto>> GetDisposeHistoryAsync(
+            int warehouseId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            string? createdByKeyword)
+        {
+            var items = await _inventoryTranRepo.GetDisposeTransactionsAsync(
+                warehouseId,
+                fromDate,
+                toDate,
+                createdByKeyword);
+
+            return items.Select(t => new DisposeHistoryItemDto
+            {
+                TransactionId = t.Id,
+                BoxId = t.BoxId,
+                BoxCode = t.Box?.BoxCode ?? string.Empty,
+                LotId = t.Box?.LotId,
+                LotCode = t.Box?.Lot?.LotCode,
+                ProductName = t.Box?.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name,
+                ProductVariantName = t.Box?.Lot?.GoodsReceiptDetail?.ProductVariant?.Name,
+                Quantity = t.Quantity,
+                FromSlotId = t.FromSlotId,
+                FromSlotCode = t.Box?.Slot?.Code,
+                WarehouseId = t.Box?.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
+                WarehouseName = t.Box?.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name,
+                CreatedBy = t.CreatedBy,
+                CreatedByName = t.CreatedUser?.FullName ?? t.CreatedUser?.UserName,
+                CreatedAt = t.CreatedAt
             }).ToList();
         }
 

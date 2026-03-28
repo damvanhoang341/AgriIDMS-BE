@@ -2,8 +2,10 @@ using AgriIDMS.Application.DTOs.Warehouse;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -31,25 +33,32 @@ namespace AgriIDMS.Application.Services
             var slots = await _slotRepository.GetByRackAsync(rackId);
 
             return slots
-                .Select(s => new SlotDto
+                .Select(s =>
                 {
-                    ProductVariantId = s.Boxes
+                    var activeBoxes = (s.Boxes ?? new List<Box>())
+                        .Where(b => b.Weight > 0 && b.Status != BoxStatus.Exported)
+                        .ToList();
+
+                    return new SlotDto
+                    {
+                        ProductVariantId = activeBoxes
                         .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                         .FirstOrDefault(v => v.HasValue && v.Value > 0),
-                    ProductVariantName = s.Boxes
+                        ProductVariantName = activeBoxes
                         .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariant?.Name)
                         .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
-                    ProductName = s.Boxes
+                        ProductName = activeBoxes
                         .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariant?.Product?.Name)
                         .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
-                    Id = s.Id,
-                    Code = s.Code,
-                    QrCode = s.QrCode,
-                    QrImageUrl = s.QrImageUrl,
-                    Capacity = s.Capacity,
-                    CurrentCapacity = s.CurrentCapacity,
-                    RackId = s.RackId,
-                    RackName = null // GetByRackAsync không include navigation Rack
+                        Id = s.Id,
+                        Code = s.Code,
+                        QrCode = s.QrCode,
+                        QrImageUrl = s.QrImageUrl,
+                        Capacity = s.Capacity,
+                        CurrentCapacity = s.CurrentCapacity,
+                        RackId = s.RackId,
+                        RackName = null // GetByRackAsync không include navigation Rack
+                    };
                 })
                 .ToList();
         }
@@ -174,7 +183,9 @@ namespace AgriIDMS.Application.Services
             if (slot == null)
                 throw new NotFoundException("Slot không tồn tại");
 
-            var boxes = slot.Boxes?.ToList() ?? new List<Box>();
+            var boxes = (slot.Boxes ?? new List<Box>())
+                .Where(b => b.Weight > 0 && b.Status != BoxStatus.Exported)
+                .ToList();
             var first = boxes.FirstOrDefault();
             var detail = first?.Lot?.GoodsReceiptDetail;
             var pv = detail?.ProductVariant;
@@ -191,7 +202,7 @@ namespace AgriIDMS.Application.Services
                 ProductVariantId = detail?.ProductVariantId,
                 ProductName = pv?.Product?.Name,
                 VariantName = pv?.Name,
-                BoxCount = boxes.Count,
+                BoxCount = boxes.Count(),
                 TotalBoxWeight = boxes.Sum(b => b.Weight),
                 Boxes = boxes
                     .OrderByDescending(b => b.CreatedAt)
@@ -212,6 +223,16 @@ namespace AgriIDMS.Application.Services
             };
 
             return dto;
+        }
+
+        public async Task<int> SyncSlotCapacitiesByWarehouseAsync(int warehouseId)
+        {
+            if (warehouseId <= 0)
+                throw new InvalidBusinessRuleException("WarehouseId không hợp lệ");
+
+            var affected = await _slotRepository.RecalculateCurrentCapacityByWarehouseAsync(warehouseId);
+            await _unitOfWork.SaveChangesAsync();
+            return affected;
         }
     }
 }

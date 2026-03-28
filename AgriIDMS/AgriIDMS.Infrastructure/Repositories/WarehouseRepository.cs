@@ -50,6 +50,20 @@ namespace AgriIDMS.Infrastructure.Repositories
             return Task.CompletedTask;
         }
 
+        public async Task<decimal> GetTotalCapacityByWarehouseIdAsync(int warehouseId)
+        {
+            return await _context.Slots
+                .Where(s => s.Rack.Zone.WarehouseId == warehouseId)
+                .SumAsync(s => s.Capacity);
+        }
+
+        public async Task<decimal> GetTotalCurrentCapacityByWarehouseIdAsync(int warehouseId)
+        {
+            return await _context.Slots
+                .Where(s => s.Rack.Zone.WarehouseId == warehouseId)
+                .SumAsync(s => s.CurrentCapacity);
+        }
+
         /// <inheritdoc />
         public async Task<decimal> GetTotalRemainingCapacityByWarehouseIdAsync(int warehouseId)
         {

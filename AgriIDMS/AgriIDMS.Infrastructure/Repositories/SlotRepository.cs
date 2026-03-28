@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -94,6 +95,50 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             _context.Slots.Remove(slot);
             return Task.CompletedTask;
+        }
+
+        public async Task RecalculateCurrentCapacityAsync(int slotId)
+        {
+            var slot = await _context.Slots.FirstOrDefaultAsync(s => s.Id == slotId);
+            if (slot == null) return;
+
+            var actual = await _context.Boxes
+                .Where(b =>
+                    b.SlotId == slotId &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Weight > 0)
+                .SumAsync(b => (decimal?)b.Weight) ?? 0m;
+
+            slot.CurrentCapacity = actual;
+        }
+
+        public async Task<int> RecalculateCurrentCapacityByWarehouseAsync(int warehouseId)
+        {
+            var slots = await _context.Slots
+                .Where(s => s.Rack.Zone.WarehouseId == warehouseId)
+                .ToListAsync();
+
+            if (slots.Count == 0) return 0;
+
+            var actualBySlot = await _context.Boxes
+                .Where(b =>
+                    b.SlotId.HasValue &&
+                    b.Slot != null &&
+                    b.Slot.Rack.Zone.WarehouseId == warehouseId &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Weight > 0)
+                .GroupBy(b => b.SlotId!.Value)
+                .Select(g => new { SlotId = g.Key, Total = g.Sum(x => x.Weight) })
+                .ToDictionaryAsync(x => x.SlotId, x => x.Total);
+
+            foreach (var slot in slots)
+            {
+                slot.CurrentCapacity = actualBySlot.TryGetValue(slot.Id, out var total)
+                    ? total
+                    : 0m;
+            }
+
+            return slots.Count;
         }
     }
 }

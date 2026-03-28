@@ -19,6 +19,7 @@ namespace AgriIDMS.Application.Services
         private readonly IStockCheckRepository _stockCheckRepo;
         private readonly IStockCheckDetailRepository _detailRepo;
         private readonly IBoxRepository _boxRepo;
+        private readonly ISlotRepository _slotRepo;
         private readonly IWarehouseRepository _warehouseRepo;
         private readonly IInventoryRequestRepository _inventoryRequestRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
@@ -30,6 +31,7 @@ namespace AgriIDMS.Application.Services
             IStockCheckRepository stockCheckRepo,
             IStockCheckDetailRepository detailRepo,
             IBoxRepository boxRepo,
+            ISlotRepository slotRepo,
             IWarehouseRepository warehouseRepo,
             IInventoryRequestRepository inventoryRequestRepo,
             IInventoryTransactionRepository inventoryTranRepo,
@@ -40,6 +42,7 @@ namespace AgriIDMS.Application.Services
             _stockCheckRepo = stockCheckRepo;
             _detailRepo = detailRepo;
             _boxRepo = boxRepo;
+            _slotRepo = slotRepo;
             _warehouseRepo = warehouseRepo;
             _inventoryRequestRepo = inventoryRequestRepo;
             _inventoryTranRepo = inventoryTranRepo;
@@ -60,6 +63,20 @@ namespace AgriIDMS.Application.Services
                 if (request.BoxIds == null || !request.BoxIds.Any())
                     throw new InvalidBusinessRuleException("Kiểm kê Spot cần danh sách BoxIds");
                 boxIds = request.BoxIds.Distinct().ToList();
+            }
+            else if (request.CheckType == StockCheckType.Cycle)
+            {
+                if (!request.ZoneId.HasValue && !request.RackId.HasValue && !request.SlotId.HasValue)
+                    throw new InvalidBusinessRuleException("Kiểm kê theo chu kỳ cần chọn phạm vi (Zone/Rack/Slot)");
+
+                boxIds = await _stockCheckRepo.GetBoxIdsForCycleAsync(
+                    request.WarehouseId,
+                    request.ZoneId,
+                    request.RackId,
+                    request.SlotId);
+
+                if (boxIds.Count == 0)
+                    throw new InvalidBusinessRuleException("Phạm vi chu kỳ đã chọn không có box để kiểm kê");
             }
             else
             {
@@ -178,6 +195,7 @@ namespace AgriIDMS.Application.Services
                 stockCheck.ApprovedBy = userId;
                 stockCheck.ApprovedAt = DateTime.UtcNow;
                 stockCheck.Status = StockCheckStatus.Approved;
+                var affectedSlotIds = new HashSet<int>();
 
                 foreach (var d in stockCheck.Details!)
                 {
@@ -215,10 +233,40 @@ namespace AgriIDMS.Application.Services
                         InventoryRequestId = invRequest.Id
                     });
 
+                    var previousWeight = box.Weight;
                     box.Weight = d.CountedWeight.Value;
+                    var weightDiff = box.Weight - previousWeight;
+                    var originalSlotId = box.SlotId;
+                    if (originalSlotId.HasValue)
+                        affectedSlotIds.Add(originalSlotId.Value);
+
+                    if (originalSlotId.HasValue && weightDiff != 0m)
+                    {
+                        var slot = box.Slot ?? await _slotRepo.GetByIdAsync(originalSlotId.Value);
+                        if (slot != null)
+                        {
+                            slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity + weightDiff);
+                            await _slotRepo.UpdateAsync(slot);
+                        }
+                    }
+
+                    // Nếu sau kiểm kê còn 0kg thì coi như box không còn nằm trong slot.
+                    if (box.Weight <= 0m)
+                    {
+                        box.SlotId = null;
+                        box.Slot = null;
+                    }
+
                     if (d.VarianceType == VarianceType.Shortage && d.VarianceReason == VarianceReason.Damaged)
                         box.Status = BoxStatus.Damaged;
                     await _boxRepo.UpdateAsync(box);
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var slotId in affectedSlotIds)
+                {
+                    await _slotRepo.RecalculateCurrentCapacityAsync(slotId);
                 }
 
                 await _stockCheckRepo.UpdateAsync(stockCheck);
@@ -371,6 +419,7 @@ namespace AgriIDMS.Application.Services
                     VarianceReason = d.VarianceReason?.ToString(),
 
                     CountedBy = d.CountedBy,
+                    CountedByName = d.CountedUser?.FullName ?? d.CountedUser?.UserName,
                     CountedAt = d.CountedAt,
                     Note = d.Note
                 }).ToList()

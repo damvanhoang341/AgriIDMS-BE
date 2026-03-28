@@ -29,6 +29,20 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Lots.FindAsync(id);
         }
 
+        public async Task<Lot?> GetByIdWithContextAndBoxesAsync(int id)
+        {
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.GoodsReceipt)
+                        .ThenInclude(r => r.Warehouse)
+                .Include(l => l.Boxes)
+                    .ThenInclude(b => b.Slot)
+                .FirstOrDefaultAsync(l => l.Id == id);
+        }
+
         public async Task<Lot?> GetByIdWithDetailAndReceiptAsync(int id)
         {
             return await _context.Lots
@@ -37,6 +51,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(v => v.Product)
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d!.GoodsReceipt)
+                        .ThenInclude(gr => gr.Warehouse)
+                .Include(l => l.Boxes)
+                    .ThenInclude(b => b.Slot)
                 .FirstOrDefaultAsync(l => l.Id == id);
         }
 
@@ -59,6 +76,19 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         }
 
+        public async Task<List<Lot>> GetAllWithContextAsync()
+        {
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.GoodsReceipt)
+                        .ThenInclude(r => r.Warehouse)
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .OrderByDescending(l => l.ReceivedDate)
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<Lot>> GetAllExpiryDateAsync()
         {
             var now = DateTime.UtcNow;
@@ -75,22 +105,32 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<Lot>> GetNearExpiryLotsAsync(int days)
+        public async Task<List<Lot>> GetNearExpiryLotsAsync(int days, int? warehouseId = null)
         {
             var now = DateTime.UtcNow;
             var deadline = now.AddDays(days);
 
-            return await _context.Lots
+            var query = _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.ProductVariant)
                         .ThenInclude(v => v.Product)
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.GoodsReceipt)
+                        .ThenInclude(gr => gr.Warehouse)
                 .Include(l => l.Boxes)
                     .ThenInclude(b => b.Slot)
                 .Where(l =>
-                    l.ExpiryDate >= now &&
                     l.ExpiryDate <= deadline &&
                     l.RemainingQuantity > 0 &&
-                    l.Status == LotStatus.Active)
+                    l.Status == LotStatus.Active);
+
+            if (warehouseId.HasValue && warehouseId.Value > 0)
+            {
+                query = query.Where(
+                    l => l.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId.Value);
+            }
+
+            return await query
                 .OrderBy(l => l.ExpiryDate)
                 .ToListAsync();
         }

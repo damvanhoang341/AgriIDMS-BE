@@ -19,6 +19,22 @@ namespace AgriIDMS.API.Controllers
             _lotService = lotService;
         }
 
+        [HttpGet]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetAllLots()
+        {
+            var lots = await _lotService.GetAllLotsAsync();
+            return Ok(lots);
+        }
+
+        [HttpGet("{id:int}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetLotDetail(int id)
+        {
+            var lot = await _lotService.GetLotDetailAsync(id);
+            return Ok(lot);
+        }
+
         [HttpGet("by-goods-receipt/{goodsReceiptId}")]
         public async Task<IActionResult> GetLotsByGoodsReceiptId(int goodsReceiptId)
         {
@@ -54,9 +70,9 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet("near-expiry-dashboard")]
-        public async Task<IActionResult> GetNearExpiryDashboardAsync([FromQuery] int days = 3)
+        public async Task<IActionResult> GetNearExpiryDashboardAsync([FromQuery] int days = 3, [FromQuery] int? warehouseId = null)
         {
-            var dashboard = await _lotService.GetNearExpiryDashboardAsync(days);
+            var dashboard = await _lotService.GetNearExpiryDashboardAsync(days, warehouseId);
             return Ok(dashboard);
         }
     }

@@ -58,6 +58,18 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("~/api/slots/sync-capacity/{warehouseId:int:min(1)}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> SyncCapacitiesByWarehouse(int warehouseId)
+        {
+            var affected = await _slotService.SyncSlotCapacitiesByWarehouseAsync(warehouseId);
+            return Ok(new
+            {
+                Message = "Đã đồng bộ sức chứa slot theo dữ liệu box thực tế",
+                AffectedSlots = affected
+            });
+        }
+
         [HttpPut("{id:int}")]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> Update([FromRoute] int rackId, [FromRoute] int id, [FromBody] CreateSlotRequest request)

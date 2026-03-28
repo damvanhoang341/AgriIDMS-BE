@@ -21,6 +21,7 @@ namespace AgriIDMS.Application.DTOs.StockCheck
         public string? VarianceReason { get; set; }
 
         public string? CountedBy { get; set; }
+        public string? CountedByName { get; set; }
         public DateTime? CountedAt { get; set; }
         public string? Note { get; set; }
     }

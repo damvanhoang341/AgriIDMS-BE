@@ -21,6 +21,8 @@ namespace AgriIDMS.Application.DTOs.Box
         public string? ProductVariantName { get; set; }
         public string? ProductName { get; set; }
 
+        public DateTime? ReceivedDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
         public DateTime? PlacedInColdAt { get; set; }
     }
 }

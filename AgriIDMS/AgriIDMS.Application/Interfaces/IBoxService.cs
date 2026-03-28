@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.Box;
+using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -20,5 +21,17 @@ namespace AgriIDMS.Application.Interfaces
         Task<List<UnassignedBoxDto>> GetUnassignedBoxesByWarehouseAsync(int warehouseId);
         /// <summary>Danh sách box thuộc một phiếu nhập (để hiển thị QR box).</summary>
         Task<List<UnassignedBoxDto>> GetBoxesByGoodsReceiptAsync(int goodsReceiptId);
+        /// <summary>Danh sách box hư hỏng (có thể lọc theo kho).</summary>
+        Task<List<UnassignedBoxDto>> GetDamagedBoxesAsync(int? warehouseId = null);
+        /// <summary>Danh sách box hết hạn trong kho (dành cho tiêu hủy).</summary>
+        Task<List<UnassignedBoxDto>> GetExpiredBoxesByWarehouseAsync(int warehouseId);
+        /// <summary>Tiêu hủy hàng hết hạn và lưu transaction.</summary>
+        Task<DisposeExpiredBoxesResultDto> DisposeExpiredBoxesAsync(DisposeExpiredBoxesRequest request, string userId);
+        /// <summary>Lịch sử tiêu hủy box trong kho, đọc từ InventoryTransactions.</summary>
+        Task<List<DisposeHistoryItemDto>> GetDisposeHistoryAsync(
+            int warehouseId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            string? createdByKeyword);
     }
 }

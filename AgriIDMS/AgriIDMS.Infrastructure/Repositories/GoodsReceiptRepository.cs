@@ -39,6 +39,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
+                .Include(r => r.Details)
                 .ToListAsync();
         }
 

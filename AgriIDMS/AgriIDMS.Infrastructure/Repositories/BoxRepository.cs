@@ -85,6 +85,7 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<List<Box>> GetUnassignedBoxesByWarehouseIdAsync(int warehouseId)
         {
+            var now = DateTime.UtcNow;
             return await _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
@@ -96,7 +97,58 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .AsNoTracking()
                 .Where(b =>
                     b.SlotId == null &&
+                    b.Status == BoxStatus.Stored &&
+                    b.Weight > 0 &&
+                    b.Lot.Status == LotStatus.Active &&
+                    b.Lot.ExpiryDate > now &&
                     b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId)
+                .ToListAsync();
+        }
+
+        public async Task<List<Box>> GetDamagedBoxesAsync(int? warehouseId = null)
+        {
+            var query = _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.GoodsReceipt)
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.ProductVariant)
+                            .ThenInclude(v => v.Product)
+                .Include(b => b.Slot)
+                .AsNoTracking()
+                .Where(b => b.Status == BoxStatus.Damaged);
+
+            if (warehouseId.HasValue && warehouseId.Value > 0)
+            {
+                query = query.Where(
+                    b => b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId.Value);
+            }
+
+            return await query
+                .OrderByDescending(b => b.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<List<Box>> GetExpiredBoxesByWarehouseIdAsync(int warehouseId)
+        {
+            var now = DateTime.UtcNow;
+            return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.GoodsReceipt)
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.ProductVariant)
+                            .ThenInclude(v => v.Product)
+                .Include(b => b.Slot)
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
+                    b.Lot.ExpiryDate <= now &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Weight > 0)
+                .OrderBy(b => b.Lot.ExpiryDate)
+                .ThenBy(b => b.BoxCode)
                 .ToListAsync();
         }
 
@@ -118,9 +170,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId)
+        public async Task<List<Box>> GetAvailableBoxesForVariantAsync(int productVariantId, bool includeOfflineOnly = false)
         {
-            return await _context.Boxes
+            var query = _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                 .Include(b => b.Slot)
@@ -132,6 +184,20 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > System.DateTime.UtcNow)
+                .AsQueryable();
+
+            if (!includeOfflineOnly)
+            {
+                // Online channel: hide boxes that ever had approved stock-check variance.
+                // They can still be sold offline (POS) by calling with includeOfflineOnly=true.
+                query = query.Where(b => !_context.StockCheckDetails.Any(d =>
+                    d.BoxId == b.Id &&
+                    d.StockCheck.Status == StockCheckStatus.Approved &&
+                    d.VarianceType.HasValue &&
+                    d.VarianceType != VarianceType.Match));
+            }
+
+            return await query
                 .OrderBy(b => b.Lot.ExpiryDate)
                 .ToListAsync();
         }
@@ -170,7 +236,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.IsPartial == isPartial &&
-                    b.Weight == weight);
+                    b.Weight == weight &&
+                    !_context.StockCheckDetails.Any(d =>
+                        d.BoxId == b.Id &&
+                        d.StockCheck.Status == StockCheckStatus.Approved &&
+                        d.VarianceType.HasValue &&
+                        d.VarianceType != VarianceType.Match));
 
             // 1) Kiểm tra nhanh xem có box hết hạn / ExpiryDate <= now không
             bool hasExpired = await query.AnyAsync(b => b.Lot.ExpiryDate <= now);
@@ -183,6 +254,41 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await query.CountAsync(b => b.Lot.ExpiryDate > now);
         }
 
+        public async Task<decimal> GetTotalStockWeightByWarehouseIdAsync(int warehouseId)
+        {
+            var total = await _context.Boxes
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
+                    b.Status != BoxStatus.Exported)
+                .SumAsync(b => (decimal?)b.Weight);
+
+            return total ?? 0m;
+        }
+
+        public async Task<decimal> GetAssignedStockWeightByWarehouseIdAsync(int warehouseId)
+        {
+            var total = await _context.Boxes
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
+                    b.Status != BoxStatus.Exported &&
+                    b.SlotId != null)
+                .SumAsync(b => (decimal?)b.Weight);
+
+            return total ?? 0m;
+        }
+
+        public async Task<decimal> GetUnassignedStockWeightByWarehouseIdAsync(int warehouseId)
+        {
+            var total = await _context.Boxes
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
+                    b.Status != BoxStatus.Exported &&
+                    b.SlotId == null)
+                .SumAsync(b => (decimal?)b.Weight);
+
+            return total ?? 0m;
+        }
+
         public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)
         {
             return await _context.Boxes
@@ -192,7 +298,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
-                    b.Lot.ExpiryDate > DateTime.UtcNow)
+                    b.Lot.ExpiryDate > DateTime.UtcNow &&
+                    !_context.StockCheckDetails.Any(d =>
+                        d.BoxId == b.Id &&
+                        d.StockCheck.Status == StockCheckStatus.Approved &&
+                        d.VarianceType.HasValue &&
+                        d.VarianceType != VarianceType.Match))
                 .GroupBy(b => new { b.IsPartial, b.Weight })
                 .Select(g => new BoxTypeSummary
                 {
