@@ -31,6 +31,14 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public decimal? MinColdStorageHours { get; set; }
         /// <summary>Định mức tối thiểu (kg) cho mỗi phiếu nhập vào kho. Null = không bắt buộc.</summary>
         public decimal? MinReceiptWeight { get; set; }
+        /// <summary>Tổng khối lượng hàng trong kho (kg), bao gồm cả hàng chưa xếp slot.</summary>
+        public decimal TotalStockWeight { get; set; }
+        /// <summary>Tổng sức chứa slot của kho (kg).</summary>
+        public decimal TotalCapacity { get; set; }
+        /// <summary>Khối lượng hàng đang nằm trong các slot (kg).</summary>
+        public decimal StoredInSlotsWeight { get; set; }
+        /// <summary>Khối lượng hàng thuộc kho nhưng chưa xếp slot (kg).</summary>
+        public decimal UnassignedStockWeight { get; set; }
     }
 }
 

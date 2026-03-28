@@ -15,6 +15,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task AddAsync(Slot slot);
         Task UpdateAsync(Slot slot);
         Task DeleteAsync(Slot slot);
+        Task RecalculateCurrentCapacityAsync(int slotId);
+        Task<int> RecalculateCurrentCapacityByWarehouseAsync(int warehouseId);
     }
 }
 

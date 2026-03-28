@@ -14,5 +14,7 @@ namespace AgriIDMS.Application.Interfaces
         Task<SlotContentsDto> GetContentsAsync(int slotId);
         /// <summary>Lưu URL ảnh QR (đã upload Cloudinary từ FE).</summary>
         Task UpdateQrImageUrlAsync(int slotId, string qrImageUrl);
+        /// <summary>Đồng bộ CurrentCapacity của toàn bộ slot trong kho từ dữ liệu box thực tế.</summary>
+        Task<int> SyncSlotCapacitiesByWarehouseAsync(int warehouseId);
     }
 }

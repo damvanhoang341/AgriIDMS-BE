@@ -975,7 +975,8 @@ namespace AgriIDMS.Application.Services
                         : await ApplyNearExpiryDiscountIfEligibleAsync(
                             item.ProductVariantId,
                             baseUnitPrice,
-                            nearExpiryEligibilityCache);
+                            nearExpiryEligibilityCache,
+                            includeOfflineOnly: true);
                     if (unitPrice <= 0)
                         throw new InvalidBusinessRuleException("Đơn giá phải lớn hơn 0");
 
@@ -1028,14 +1029,17 @@ namespace AgriIDMS.Application.Services
         private async Task<decimal> ApplyNearExpiryDiscountIfEligibleAsync(
             int productVariantId,
             decimal baseUnitPrice,
-            IDictionary<int, bool> eligibilityCache)
+            IDictionary<int, bool> eligibilityCache,
+            bool includeOfflineOnly = false)
         {
             if (baseUnitPrice <= 0 || _nearExpiryDiscountDays <= 0 || _nearExpiryDiscountPercent <= 0)
                 return baseUnitPrice;
 
             if (!eligibilityCache.TryGetValue(productVariantId, out var isNearExpiry))
             {
-                var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(productVariantId);
+                var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(
+                    productVariantId,
+                    includeOfflineOnly);
                 var nearestExpiry = availableBoxes
                     .Select(b => b.Lot?.ExpiryDate)
                     .Where(d => d.HasValue)
@@ -1776,7 +1780,10 @@ namespace AgriIDMS.Application.Services
                 if (boxesNeeded <= 0)
                     continue;
 
-                var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(detail.ProductVariantId);
+                var includeOfflineOnly = order.Source == OrderSource.POS;
+                var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(
+                    detail.ProductVariantId,
+                    includeOfflineOnly);
                 boxes = boxes
                     .Where(b =>
                         b.IsPartial == detail.IsPartial

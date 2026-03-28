@@ -192,16 +192,32 @@ namespace AgriIDMS.Application.Services
 
             var now = DateTime.UtcNow;
             var daysLeft = (int)Math.Ceiling((lot.ExpiryDate - now).TotalDays);
-            if (daysLeft < 0)
-                daysLeft = 0;
+            var isExpired = lot.ExpiryDate < now;
+            var overdueDays = isExpired
+                ? Math.Max(1, (int)Math.Ceiling((now - lot.ExpiryDate).TotalDays))
+                : 0;
+            if (daysLeft < 0) daysLeft = 0;
 
             var variant = lot.GoodsReceiptDetail?.ProductVariant;
             var productName = variant?.Product?.Name ?? "N/A";
             var grade = variant?.Grade.ToString() ?? "N/A";
-            var message =
-                $"Lô {lot.LotCode} ({productName} - {grade}) sắp hết hạn HSD sau {daysLeft} ngày. Vui lòng ưu tiên xử lý/xuất kho.";
+            var warehouseName = lot.GoodsReceiptDetail?.GoodsReceipt?.Warehouse?.Name ?? "N/A";
+            var slotCodes = (lot.Boxes ?? Enumerable.Empty<Box>())
+                .Where(b => b.Slot != null)
+                .Select(b => b.Slot!.Code)
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(code => code)
+                .Take(5)
+                .ToList();
+            var slotDisplay = slotCodes.Count > 0
+                ? string.Join(", ", slotCodes)
+                : "Chưa xếp slot";
+            var message = isExpired
+                ? $"Lô {lot.LotCode} ({productName} - {grade}) đã quá hạn {overdueDays} ngày. Kho: {warehouseName}. Slot: {slotDisplay}. Cần xử lý gấp (chặn xuất online/ưu tiên xử lý)."
+                : $"Lô {lot.LotCode} ({productName} - {grade}) sắp hết hạn sau {daysLeft} ngày. Kho: {warehouseName}. Slot: {slotDisplay}. Vui lòng ưu tiên xử lý/xuất kho.";
 
-            var recipients = await _userRepo.GetUserIdsInRolesAsync("WarehouseStaff", "Sale", "Manager");
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("WarehouseStaff", "Sale", "Manager", "Admin");
 
             await CreateNotificationIfNotExistsAsync(
                 NotificationType.Warning,

@@ -11,10 +11,12 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task AddRangeAsync(IEnumerable<Lot> lots);
         Task<Lot?> GetByIdAsync(int id);
+        Task<Lot?> GetByIdWithContextAndBoxesAsync(int id);
         Task<Lot?> GetByIdWithDetailAndReceiptAsync(int id);
         Task<List<Lot>> GetByGoodsReceiptIdAsync(int goodsReceiptId);
         Task<Lot?> GetByLotCodeAsync(string lotCode);
+        Task<List<Lot>> GetAllWithContextAsync();
         Task<IEnumerable<Lot>> GetAllExpiryDateAsync();
-        Task<List<Lot>> GetNearExpiryLotsAsync(int days);
+        Task<List<Lot>> GetNearExpiryLotsAsync(int days, int? warehouseId = null);
     }
 }

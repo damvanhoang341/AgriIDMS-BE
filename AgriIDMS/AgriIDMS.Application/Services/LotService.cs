@@ -22,6 +22,72 @@ namespace AgriIDMS.Application.Services
             _unitOfWork = unitOfWork;
         }
 
+        public async Task<List<LotListItemDto>> GetAllLotsAsync()
+        {
+            var lots = await _lotRepository.GetAllWithContextAsync();
+            return lots.Select(l =>
+            {
+                var detail = l.GoodsReceiptDetail;
+                var productVariant = detail?.ProductVariant;
+                return new LotListItemDto
+                {
+                    LotId = l.Id,
+                    LotCode = l.LotCode,
+                    QrImageUrl = l.QrImageUrl,
+                    TotalQuantity = l.TotalQuantity,
+                    RemainingQuantity = l.RemainingQuantity,
+                    ReceivedDate = l.ReceivedDate,
+                    ExpiryDate = l.ExpiryDate,
+                    Status = l.Status.ToString(),
+                    GoodsReceiptId = detail?.GoodsReceiptId ?? 0,
+                    ProductName = productVariant?.Product?.Name ?? string.Empty,
+                    ProductVariantName = productVariant?.Name ?? string.Empty,
+                    WarehouseName = detail?.GoodsReceipt?.Warehouse?.Name ?? string.Empty
+                };
+            }).ToList();
+        }
+
+        public async Task<LotDetailDto> GetLotDetailAsync(int lotId)
+        {
+            var lot = await _lotRepository.GetByIdWithContextAndBoxesAsync(lotId);
+            if (lot == null)
+                throw new NotFoundException("Lot không tồn tại");
+
+            var detail = lot.GoodsReceiptDetail;
+            var productVariant = detail?.ProductVariant;
+
+            return new LotDetailDto
+            {
+                LotId = lot.Id,
+                LotCode = lot.LotCode,
+                QrImageUrl = lot.QrImageUrl,
+                TotalQuantity = lot.TotalQuantity,
+                RemainingQuantity = lot.RemainingQuantity,
+                ReceivedDate = lot.ReceivedDate,
+                ExpiryDate = lot.ExpiryDate,
+                Status = lot.Status.ToString(),
+                GoodsReceiptId = detail?.GoodsReceiptId ?? 0,
+                ProductName = productVariant?.Product?.Name ?? string.Empty,
+                ProductVariantName = productVariant?.Name ?? string.Empty,
+                WarehouseName = detail?.GoodsReceipt?.Warehouse?.Name ?? string.Empty,
+                Boxes = lot.Boxes
+                    .OrderByDescending(b => b.CreatedAt)
+                    .Select(b => new LotBoxItemDto
+                    {
+                        BoxId = b.Id,
+                        BoxCode = b.BoxCode,
+                        Weight = b.Weight,
+                        Status = b.Status.ToString(),
+                        SlotId = b.SlotId,
+                        SlotCode = b.Slot?.Code,
+                        QrCode = b.QRCode,
+                        QrImageUrl = b.QrImageUrl,
+                        CreatedAt = b.CreatedAt
+                    })
+                    .ToList()
+            };
+        }
+
         public async Task<List<Lot>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId)
         {
             var lots = await _lotRepository.GetByGoodsReceiptIdAsync(goodsReceiptId);
@@ -78,15 +144,23 @@ namespace AgriIDMS.Application.Services
             return dashboard.Lots;
         }
 
-        public async Task<NearExpiryDashboardDto> GetNearExpiryDashboardAsync(int days)
+        public async Task<NearExpiryDashboardDto> GetNearExpiryDashboardAsync(int days, int? warehouseId = null)
         {
             if (days <= 0)
                 throw new InvalidBusinessRuleException("Số ngày lọc phải lớn hơn 0");
 
             var now = DateTime.UtcNow;
-            var lots = await _lotRepository.GetNearExpiryLotsAsync(days);
+            var lots = await _lotRepository.GetNearExpiryLotsAsync(days, warehouseId);
             if (lots == null || !lots.Any())
-                throw new NotFoundException("Không có lô nào sắp hết hạn trong ngưỡng ngày đã chọn");
+            {
+                return new NearExpiryDashboardDto
+                {
+                    DaysThreshold = days,
+                    TotalLots = 0,
+                    TotalBoxes = 0,
+                    Lots = new List<NearExpiryLotDto>()
+                };
+            }
 
             var mappedLots = lots.Select(l =>
             {
@@ -116,6 +190,8 @@ namespace AgriIDMS.Application.Services
                     DaysLeft = (int)Math.Ceiling((l.ExpiryDate - now).TotalDays),
                     NearExpiryBoxCount = nearExpiryBoxes.Count(),
                     Boxes = nearExpiryBoxes,
+                    WarehouseId = l.GoodsReceiptDetail.GoodsReceipt.WarehouseId,
+                    WarehouseName = l.GoodsReceiptDetail.GoodsReceipt.Warehouse?.Name ?? string.Empty,
                     Status = l.ExpiryDate < now ? "Expired" : "NearExpiry"
                 };
             }).ToList();

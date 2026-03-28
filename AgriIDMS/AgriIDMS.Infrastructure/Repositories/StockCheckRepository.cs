@@ -34,6 +34,8 @@ namespace AgriIDMS.Infrastructure.Repositories
             return _context.StockChecks
                 .Include(s => s.Warehouse)
                 .Include(s => s.Details)
+                    .ThenInclude(d => d.CountedUser)
+                .Include(s => s.Details)
                     .ThenInclude(d => d.Box)
                         .ThenInclude(b => b.Lot)
                 .Include(s => s.Details)
@@ -53,6 +55,30 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Slots
                 .Where(s => s.Rack.Zone.WarehouseId == warehouseId)
                 .SelectMany(s => s.Boxes.Select(b => b.Id))
+                .ToListAsync();
+        }
+
+        public async Task<List<int>> GetBoxIdsForCycleAsync(
+            int warehouseId,
+            int? zoneId,
+            int? rackId,
+            int? slotId)
+        {
+            var slotQuery = _context.Slots
+                .Where(s => s.Rack.Zone.WarehouseId == warehouseId);
+
+            if (zoneId.HasValue && zoneId.Value > 0)
+                slotQuery = slotQuery.Where(s => s.Rack.ZoneId == zoneId.Value);
+
+            if (rackId.HasValue && rackId.Value > 0)
+                slotQuery = slotQuery.Where(s => s.RackId == rackId.Value);
+
+            if (slotId.HasValue && slotId.Value > 0)
+                slotQuery = slotQuery.Where(s => s.Id == slotId.Value);
+
+            return await slotQuery
+                .SelectMany(s => s.Boxes.Select(b => b.Id))
+                .Distinct()
                 .ToListAsync();
         }
 

@@ -13,6 +13,8 @@ namespace AgriIDMS.Domain.Interfaces
         Task UpdateAsync(StockCheck stockCheck);
         /// <summary>Lấy danh sách BoxId thuộc kho (box có Slot trong kho).</summary>
         Task<List<int>> GetBoxIdsInWarehouseAsync(int warehouseId);
+        /// <summary>Lấy danh sách BoxId theo phạm vi kiểm kê chu kỳ trong kho.</summary>
+        Task<List<int>> GetBoxIdsForCycleAsync(int warehouseId, int? zoneId, int? rackId, int? slotId);
 
         /// <summary>Dashboard: lấy danh sách phiếu kiểm kê kèm Details (không cần Box).</summary>
         Task<List<StockCheck>> GetStockChecksWithDetailsAsync(

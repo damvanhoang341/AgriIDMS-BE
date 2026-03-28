@@ -12,7 +12,8 @@ namespace AgriIDMS.Domain.Enums
         Move,
         Export,
         Adjust,
-        Transfer
+        Transfer,
+        Dispose
     }
     public enum ReferenceType
     {

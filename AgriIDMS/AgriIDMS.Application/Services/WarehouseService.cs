@@ -14,13 +14,16 @@ namespace AgriIDMS.Application.Services
     public class WarehouseService : IWarehouseService
     {
         private readonly IWarehouseRepository _warehouseRepository;
+        private readonly IBoxRepository _boxRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public WarehouseService(
             IWarehouseRepository warehouseRepository,
+            IBoxRepository boxRepository,
             IUnitOfWork unitOfWork)
         {
             _warehouseRepository = warehouseRepository;
+            _boxRepository = boxRepository;
             _unitOfWork = unitOfWork;
         }
 
@@ -77,18 +80,31 @@ namespace AgriIDMS.Application.Services
         public async Task<List<WarehouseDto>> GetAllAsync()
         {
             var warehouses = await _warehouseRepository.GetAllAsync();
+            var result = new List<WarehouseDto>(warehouses.Count);
 
-            return warehouses
-                .Select(w => new WarehouseDto
+            foreach (var w in warehouses)
+            {
+                var totalCapacity = await _warehouseRepository.GetTotalCapacityByWarehouseIdAsync(w.Id);
+                var totalStock = await _boxRepository.GetTotalStockWeightByWarehouseIdAsync(w.Id);
+                var storedInSlots = await _boxRepository.GetAssignedStockWeightByWarehouseIdAsync(w.Id);
+                var unassignedWeight = await _boxRepository.GetUnassignedStockWeightByWarehouseIdAsync(w.Id);
+
+                result.Add(new WarehouseDto
                 {
                     Id = w.Id,
                     Name = w.Name,
                     Location = w.Location,
                     TitleWarehouse = w.TitleWarehouse,
                     MinColdStorageHours = w.MinColdStorageHours,
-                    MinReceiptWeight = w.MinReceiptWeight
-                })
-                .ToList();
+                    MinReceiptWeight = w.MinReceiptWeight,
+                    TotalCapacity = totalCapacity,
+                    StoredInSlotsWeight = storedInSlots,
+                    UnassignedStockWeight = unassignedWeight,
+                    TotalStockWeight = totalStock
+                });
+            }
+
+            return result;
         }
 
         public async Task<WarehouseDto> GetByIdAsync(int id)
@@ -100,6 +116,11 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Kho không tồn tại");
             }
 
+            var totalCapacity = await _warehouseRepository.GetTotalCapacityByWarehouseIdAsync(warehouse.Id);
+            var totalStock = await _boxRepository.GetTotalStockWeightByWarehouseIdAsync(warehouse.Id);
+            var storedInSlots = await _boxRepository.GetAssignedStockWeightByWarehouseIdAsync(warehouse.Id);
+            var unassignedWeight = await _boxRepository.GetUnassignedStockWeightByWarehouseIdAsync(warehouse.Id);
+
             return new WarehouseDto
             {
                 Id = warehouse.Id,
@@ -107,7 +128,11 @@ namespace AgriIDMS.Application.Services
                 Location = warehouse.Location,
                 TitleWarehouse = warehouse.TitleWarehouse,
                 MinColdStorageHours = warehouse.MinColdStorageHours,
-                MinReceiptWeight = warehouse.MinReceiptWeight
+                MinReceiptWeight = warehouse.MinReceiptWeight,
+                TotalCapacity = totalCapacity,
+                StoredInSlotsWeight = storedInSlots,
+                UnassignedStockWeight = unassignedWeight,
+                TotalStockWeight = totalStock
             };
         }
 
