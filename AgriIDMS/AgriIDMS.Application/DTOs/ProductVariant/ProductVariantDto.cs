@@ -45,6 +45,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         /// <summary>Số box khả dụng trong kho.</summary>
         public int AvailableBoxCount { get; set; }
+
+        /// <summary>% giảm giá gần hết hạn do Manager cấu hình. Null = dùng % trong appsettings.</summary>
+        public decimal? ManualNearExpiryDiscountPercent { get; set; }
     }
 
 
@@ -141,5 +144,13 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
     {
         [Required(ErrorMessage = "Chuyển trạng thái không được để trống")]
         public bool IsActive { get; set; }
+    }
+
+    /// <summary>Manager đặt % giảm giá khi hàng gần hết hạn (ghi đè config chung).</summary>
+    public class SetManualNearExpiryDiscountRequestDto
+    {
+        /// <summary>0–100. Để null để xóa override và quay về <c>Pricing:NearExpiryDiscountPercent</c>.</summary>
+        [Range(0, 100, ErrorMessage = "DiscountPercent phải từ 0 đến 100")]
+        public decimal? DiscountPercent { get; set; }
     }
 }

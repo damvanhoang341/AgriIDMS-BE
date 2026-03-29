@@ -26,6 +26,12 @@ namespace AgriIDMS.Domain.Entities
 
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// % giảm giá khi tồn đủ điều kiện gần hết hạn (theo Pricing:NearExpiryDiscountDays).
+        /// Null = dùng Pricing:NearExpiryDiscountPercent trong cấu hình.
+        /// </summary>
+        public decimal? ManualNearExpiryDiscountPercent { get; set; }
+
         public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
         public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();

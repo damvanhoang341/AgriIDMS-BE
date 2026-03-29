@@ -1,4 +1,4 @@
-﻿using AgriIDMS.Application.DTOs.ProductVariant;
+using AgriIDMS.Application.DTOs.ProductVariant;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,5 +19,8 @@ namespace AgriIDMS.Application.Interfaces
 
         Task DeleteAsync(int id);
         Task UpdateStatusAsync(int id, UpdateProductVariantStatusDto dto);
+
+        /// <summary>Manager đặt % giảm giá gần hết hạn cho biến thể (ghi đè config chung).</summary>
+        Task SetManualNearExpiryDiscountAsync(int productVariantId, decimal? discountPercent);
     }
 }

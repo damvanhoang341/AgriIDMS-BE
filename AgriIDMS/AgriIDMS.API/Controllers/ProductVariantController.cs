@@ -65,5 +65,22 @@ namespace AgriIDMS.API.Controllers
             await _service.DeleteAsync(id);
             return Ok("Deleted");
         }
+
+        /// <summary>
+        /// Manager đặt % giảm giá thủ công khi tồn gần hết hạn (ghi đè Pricing:NearExpiryDiscountPercent).
+        /// Gửi <c>discountPercent: null</c> để xóa override.
+        /// </summary>
+        [HttpPut("{id:int}/near-expiry-discount")]
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> SetManualNearExpiryDiscount(int id, [FromBody] SetManualNearExpiryDiscountRequestDto? request)
+        {
+            await _service.SetManualNearExpiryDiscountAsync(id, request?.DiscountPercent);
+            return Ok(new
+            {
+                message = "Đã cập nhật giảm giá gần hết hạn cho biến thể.",
+                productVariantId = id,
+                discountPercent = request?.DiscountPercent
+            });
+        }
     }
 }

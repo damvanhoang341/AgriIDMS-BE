@@ -157,6 +157,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.MinReceiptWeight)
                   .HasColumnType("decimal(18,2)");
 
+            entity.Property(x => x.ManualNearExpiryDiscountPercent)
+                  .HasColumnType("decimal(5,2)");
+
             entity.Property(x => x.IsActive)
                   .HasDefaultValue(true);
 

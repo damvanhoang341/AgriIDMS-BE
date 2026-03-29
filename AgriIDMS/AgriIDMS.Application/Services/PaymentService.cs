@@ -198,7 +198,7 @@ namespace AgriIDMS.Application.Services
             dto.CheckoutUrl = paymentLink.CheckoutUrl;
             return dto;
         }
-
+        
         private static long GenerateOrderCode(int orderId)
         {
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds() % 100000;

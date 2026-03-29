@@ -710,7 +710,7 @@ namespace AgriIDMS.Application.Services
             try
             {
                 decimal estimatedTotal = 0;
-                var nearExpiryEligibilityCache = new Dictionary<int, bool>();
+                var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
                 var unitPriceByType = new Dictionary<(int ProductVariantId, decimal BoxWeight, bool IsPartial), decimal>();
                 var order = new Order
                 {
@@ -818,7 +818,7 @@ namespace AgriIDMS.Application.Services
             try
             {
                 decimal estimatedTotal = 0;
-                var nearExpiryEligibilityCache = new Dictionary<int, bool>();
+                var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
 
                 var order = new Order
                 {
@@ -945,7 +945,7 @@ namespace AgriIDMS.Application.Services
                 : request.CustomerUserId.Trim();
 
             var now = DateTime.UtcNow;
-            var nearExpiryEligibilityCache = new Dictionary<int, bool>();
+            var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
             await _uow.BeginTransactionAsync();
             try
             {
@@ -1029,14 +1029,19 @@ namespace AgriIDMS.Application.Services
         private async Task<decimal> ApplyNearExpiryDiscountIfEligibleAsync(
             int productVariantId,
             decimal baseUnitPrice,
-            IDictionary<int, bool> eligibilityCache,
+            IDictionary<int, (bool IsNearExpiry, decimal EffectivePercent)> eligibilityCache,
             bool includeOfflineOnly = false)
         {
-            if (baseUnitPrice <= 0 || _nearExpiryDiscountDays <= 0 || _nearExpiryDiscountPercent <= 0)
+            if (baseUnitPrice <= 0 || _nearExpiryDiscountDays <= 0)
                 return baseUnitPrice;
 
-            if (!eligibilityCache.TryGetValue(productVariantId, out var isNearExpiry))
+            if (!eligibilityCache.TryGetValue(productVariantId, out var cached))
             {
+                var variantMap = await _variantRepo.GetByIdsAsync(new[] { productVariantId });
+                var manualPercent = variantMap.TryGetValue(productVariantId, out var pv)
+                    ? pv.ManualNearExpiryDiscountPercent
+                    : null;
+
                 var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(
                     productVariantId,
                     includeOfflineOnly);
@@ -1048,14 +1053,20 @@ namespace AgriIDMS.Application.Services
                     .Min();
 
                 var daysLeft = (nearestExpiry - DateTime.UtcNow).TotalDays;
-                isNearExpiry = nearestExpiry != DateTime.MaxValue && daysLeft <= _nearExpiryDiscountDays;
-                eligibilityCache[productVariantId] = isNearExpiry;
+                var isNearExpiry = nearestExpiry != DateTime.MaxValue && daysLeft <= _nearExpiryDiscountDays;
+
+                var effectivePercent = 0m;
+                if (isNearExpiry)
+                    effectivePercent = manualPercent ?? _nearExpiryDiscountPercent;
+
+                cached = (isNearExpiry, effectivePercent);
+                eligibilityCache[productVariantId] = cached;
             }
 
-            if (!isNearExpiry)
+            if (!cached.IsNearExpiry || cached.EffectivePercent <= 0)
                 return baseUnitPrice;
 
-            var discountedPrice = baseUnitPrice * (1 - (_nearExpiryDiscountPercent / 100m));
+            var discountedPrice = baseUnitPrice * (1 - (cached.EffectivePercent / 100m));
             var safePrice = Math.Round(Math.Max(discountedPrice, 0.01m), 2, MidpointRounding.AwayFromZero);
             return safePrice;
         }
