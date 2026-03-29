@@ -167,8 +167,14 @@ namespace AgriIDMS.API.Controllers
         /// <summary>Đặt hàng online: bắt buộc thông tin người nhận (checkout).</summary>
         [HttpPost("from-cart")]
         [Authorize(Roles = "Customer")]
-        public async Task<IActionResult> CreateFromCart([FromBody] OrderRecipientCheckoutDto recipient)
+        public async Task<IActionResult> CreateFromCart([FromBody] OrderRecipientCheckoutDto? recipient)
         {
+            if (recipient == null)
+                return BadRequest(new { message = "Thiếu thông tin đặt hàng (body JSON)." });
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var userId = GetCurrentUserId();
             var result = await _orderService.CreateOrderFromCartAsync(userId, recipient);
             return Ok(result);
@@ -180,8 +186,20 @@ namespace AgriIDMS.API.Controllers
         /// </summary>
         [HttpPost("from-cart/variants")]
         [Authorize(Roles = "Customer")]
-        public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartRequest request)
+        public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartRequest? request)
         {
+            if (request == null)
+                return BadRequest(new { message = "Thiếu thông tin đặt hàng (body JSON)." });
+
+            if (request.Recipient == null)
+                return BadRequest(new { message = "Thiếu thông tin người nhận (recipient)." });
+
+            if (request.Items == null || request.Items.Count == 0)
+                return BadRequest(new { message = "Bạn phải chọn ít nhất 1 loại sản phẩm (items)." });
+
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var userId = GetCurrentUserId();
             var result = await _orderService.CreateOrderFromCartByVariantIdsAsync(userId, request.Items, request.Recipient);
             return Ok(result);

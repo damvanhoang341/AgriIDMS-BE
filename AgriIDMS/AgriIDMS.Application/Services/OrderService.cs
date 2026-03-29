@@ -717,6 +717,9 @@ namespace AgriIDMS.Application.Services
         {
             _logger.LogInformation("Creating order from cart for user {UserId}", userId);
 
+            if (recipient == null)
+                throw new InvalidBusinessRuleException("Thiếu thông tin người nhận (checkout).");
+
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
             if (cart == null || cart.Items == null || !cart.Items.Any())
                 throw new InvalidBusinessRuleException("Giỏ hàng trống");
@@ -810,6 +813,12 @@ namespace AgriIDMS.Application.Services
 
             if (requestItems == null || !requestItems.Any())
                 throw new InvalidBusinessRuleException("Bạn phải chọn ít nhất 1 loại sản phẩm");
+
+            if (recipient == null)
+                throw new InvalidBusinessRuleException("Thiếu thông tin người nhận (checkout).");
+
+            if (requestItems.Any(x => x == null))
+                throw new InvalidBusinessRuleException("Danh sách sản phẩm không hợp lệ (có dòng trống).");
 
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
             if (cart == null || cart.Items == null || !cart.Items.Any())
