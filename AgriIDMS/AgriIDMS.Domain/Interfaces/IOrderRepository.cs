@@ -27,7 +27,7 @@ namespace AgriIDMS.Domain.Interfaces
         Task<IList<Order>> GetBackorderWaitingOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take);
         Task<IList<Order>> GetConfirmedAllocationOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take);
 
-        /// <summary>Đơn Paid, còn allocation Reserved (đủ điều kiện tạo/luồng phiếu xuất).</summary>
+        /// <summary>Đơn sẵn sàng xuất kho: Paid, hoặc Confirmed + COD chờ thu; còn allocation Reserved.</summary>
         Task<IList<Order>> GetPaidPendingExportOrdersAsync(int? orderId, OrderSource? source, int skip, int take, string? sort);
 
         /// <summary>Danh sách đơn của customer có thể khiếu nại (Shipping/Completed).</summary>

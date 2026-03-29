@@ -38,7 +38,8 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Đơn đã Paid, còn allocation Reserved (cùng điều kiện với tạo phiếu xuất). Trả về kèm phiếu xuất đang hoạt động (không Cancelled) nếu có.
+        /// Đơn sẵn sàng xuất kho: đã Paid, hoặc Confirmed + COD chờ thu; còn allocation Reserved (cùng điều kiện tạo phiếu xuất).
+        /// Trả về kèm phiếu xuất đang hoạt động (không Cancelled) nếu có.
         /// Query: skip, take, sort (paidAtDesc mặc định, paidAtAsc, createdAtDesc, createdAtAsc), orderId, source (Online|POS).
         /// </summary>
         [HttpGet("staff/paid-pending-export")]

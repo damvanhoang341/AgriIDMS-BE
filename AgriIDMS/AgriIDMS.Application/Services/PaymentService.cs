@@ -91,6 +91,9 @@ namespace AgriIDMS.Application.Services
         {
             _logger.LogInformation("Creating COD payment for order {OrderId}", order.Id);
 
+            if (await _paymentRepo.HasPendingCodPaymentAsync(order.Id))
+                throw new InvalidBusinessRuleException("Đơn đã có thanh toán COD đang chờ thu. Không tạo trùng.");
+
             var payment = new Payment
             {
                 OrderId = order.Id,
@@ -128,13 +131,16 @@ namespace AgriIDMS.Application.Services
 
             payment.PaymentStatus = PaymentStatus.Success;
             payment.PaidAt = DateTime.UtcNow;
-            order.Status = OrderStatus.Paid;
+
+            // COD thu sau khi giao: đơn có thể đã Shipping — không đổi trạng thái đơn, chỉ ghi nhận thu.
+            if (order.Status != OrderStatus.Shipping && order.Status != OrderStatus.Completed)
+                order.Status = OrderStatus.Paid;
 
             await _uow.SaveChangesAsync();
 
             _logger.LogInformation(
-                "COD payment {PaymentId} confirmed. Order {OrderId} → Paid",
-                payment.Id, order.Id);
+                "COD payment {PaymentId} confirmed. Order {OrderId} status {Status}",
+                payment.Id, order.Id, order.Status);
 
             await _notificationService.NotifyOrderPaidAsync(order.Id);
 

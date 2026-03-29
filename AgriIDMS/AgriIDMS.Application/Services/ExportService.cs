@@ -48,12 +48,13 @@ namespace AgriIDMS.Application.Services
 
         public async Task<ExportReceiptResponseDto> CreateExportReceiptAsync(int orderId, string userId)
         {
-            var order = await _orderRepo.GetByIdAsync(orderId)
+            var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.Status != OrderStatus.Paid)
+            if (!CanCreateExportReceipt(order))
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ tạo phiếu xuất kho khi đơn hàng đã thanh toán (Paid). Hiện tại: {order.Status}");
+                    "Chỉ tạo phiếu xuất khi: (1) đơn đã thanh toán (Paid), hoặc (2) đơn Confirmed và đã tạo thanh toán COD chờ thu (Pending). "
+                    + $"Hiện tại trạng thái đơn: {order.Status}.");
 
             var alreadyExists = await _exportRepo.ExistsForOrderAsync(orderId);
             if (alreadyExists)
@@ -313,6 +314,23 @@ namespace AgriIDMS.Application.Services
 
             message = ColdStorageExportRule.GetNotEligibleMessage(box.BoxCode, minHours, box.PlacedInColdAt);
             return false;
+        }
+
+        /// <summary>
+        /// Xuất kho: đã thanh toán (Paid), hoặc COD thực tế (Confirmed + đã tạo COD Pending — thu tiền khi giao).
+        /// </summary>
+        private static bool CanCreateExportReceipt(Order order)
+        {
+            if (order.Status == OrderStatus.Paid)
+                return true;
+
+            if (order.Status != OrderStatus.Confirmed)
+                return false;
+
+            return order.Payments != null
+                   && order.Payments.Any(p =>
+                       p.PaymentMethod == PaymentMethod.COD
+                       && p.PaymentStatus == PaymentStatus.Pending);
         }
 
         public async Task<IList<PendingApproveExportListItemDto>> GetPendingApproveExportsAsync(GetPendingApproveExportsQuery query)
