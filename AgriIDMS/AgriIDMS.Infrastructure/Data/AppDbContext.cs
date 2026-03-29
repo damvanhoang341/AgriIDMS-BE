@@ -978,6 +978,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.BackorderExpiryNotifiedAt)
                   .IsRequired(false);
 
+            entity.Property(x => x.RecipientFullName)
+                  .HasMaxLength(200)
+                  .IsRequired();
+
+            entity.Property(x => x.RecipientPhone)
+                  .HasMaxLength(20)
+                  .IsRequired();
+
+            entity.Property(x => x.RecipientAddress)
+                  .HasMaxLength(500)
+                  .IsRequired();
+
             entity.HasOne<ApplicationUser>()
                   .WithMany()
                   .HasForeignKey(x => x.UserId)

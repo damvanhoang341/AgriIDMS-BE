@@ -23,10 +23,15 @@ namespace AgriIDMS.Application.Interfaces
         /// <summary>Hủy đơn trước khi vào bước shipping (tức là chỉ cho phép khi đơn chưa được thanh toán).</summary>
         Task CancelOrderAsync(int orderId, string userId);
 
-        Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId);
+        /// <summary>Gợi ý họ tên, SĐT, địa chỉ từ profile để màn checkout điền sẵn.</summary>
+        Task<OrderCheckoutDefaultsDto> GetOrderCheckoutDefaultsAsync(string userId);
 
+        Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId, OrderRecipientCheckoutDto recipient);
 
-        Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId, IList<CreateOrderFromCartByVariantIdsRequest> requestItems);
+        Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(
+            string userId,
+            IList<CreateOrderFromCartByVariantIdsRequest> requestItems,
+            OrderRecipientCheckoutDto recipient);
         Task<CreateOrderFromCartResponse> CreatePosOrderAsync(string operatorUserId, CreatePosOrderRequest request);
 
         /// <summary>Sale xác nhận đơn hợp lệ → chuyển sang chờ giữ hàng (AwaitingAllocation).</summary>

@@ -24,6 +24,7 @@ namespace AgriIDMS.Application.Services
         private readonly IOrderAllocationRepository _allocationRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly INotificationService _notificationService;
+        private readonly IUserRepository _userRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
         private readonly int _nearExpiryDiscountDays;
@@ -40,6 +41,7 @@ namespace AgriIDMS.Application.Services
             IOrderAllocationRepository allocationRepo,
             IInventoryTransactionRepository inventoryTranRepo,
             INotificationService notificationService,
+            IUserRepository userRepo,
             IUnitOfWork uow,
             IConfiguration config,
             ILogger<OrderService> logger)
@@ -51,6 +53,7 @@ namespace AgriIDMS.Application.Services
             _allocationRepo = allocationRepo;
             _inventoryTranRepo = inventoryTranRepo;
             _notificationService = notificationService;
+            _userRepo = userRepo;
             _uow = uow;
             _nearExpiryDiscountDays = int.TryParse(config["Pricing:NearExpiryDiscountDays"], out var days)
                 ? days
@@ -574,6 +577,7 @@ namespace AgriIDMS.Application.Services
                     .FirstOrDefault()?
                     .PaymentStatus
                     .ToString(),
+                Recipient = ToRecipientSnapshot(order),
                 Items = order.Details.Select(d => new OrderDetailItemDto
                 {
                     ProductVariantId = d.ProductVariantId,
@@ -696,7 +700,20 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId)
+        public async Task<OrderCheckoutDefaultsDto> GetOrderCheckoutDefaultsAsync(string userId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId)
+                ?? throw new NotFoundException("Không tìm thấy người dùng");
+
+            return new OrderCheckoutDefaultsDto
+            {
+                FullName = user.FullName?.Trim() ?? string.Empty,
+                Phone = user.PhoneNumber?.Trim() ?? string.Empty,
+                Address = user.Address?.Trim() ?? string.Empty
+            };
+        }
+
+        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartAsync(string userId, OrderRecipientCheckoutDto recipient)
         {
             _logger.LogInformation("Creating order from cart for user {UserId}", userId);
 
@@ -719,6 +736,7 @@ namespace AgriIDMS.Application.Services
                     Source = OrderSource.Online,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
+                ApplyRecipientToOrder(order, recipient);
 
                 foreach (var item in cart.Items)
                 {
@@ -768,6 +786,7 @@ namespace AgriIDMS.Application.Services
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
+                    Recipient = ToRecipientSnapshot(order),
                     Items = items,
                     AllocationSucceeded = false,
                     AllocationMessage = null
@@ -780,7 +799,10 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(string userId,IList<CreateOrderFromCartByVariantIdsRequest> requestItems)
+        public async Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(
+            string userId,
+            IList<CreateOrderFromCartByVariantIdsRequest> requestItems,
+            OrderRecipientCheckoutDto recipient)
         {
             _logger.LogInformation(
                 "Creating order from cart variants ({Count}) for user {UserId}",
@@ -827,6 +849,7 @@ namespace AgriIDMS.Application.Services
                     Source = OrderSource.Online,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
+                ApplyRecipientToOrder(order, recipient);
 
                 var orderItems = new List<OrderItemDto>();
 
@@ -921,6 +944,7 @@ namespace AgriIDMS.Application.Services
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
+                    Recipient = ToRecipientSnapshot(order),
                     Items = orderItems,
                     AllocationSucceeded = false,
                     AllocationMessage = null
@@ -955,7 +979,10 @@ namespace AgriIDMS.Application.Services
                     UserId = orderUserId,
                     CreatedAt = now,
                     Source = OrderSource.POS,
-                    Status = OrderStatus.AwaitingAllocation
+                    Status = OrderStatus.AwaitingAllocation,
+                    RecipientFullName = string.Empty,
+                    RecipientPhone = string.Empty,
+                    RecipientAddress = string.Empty
                 };
 
                 var responseItems = new List<OrderItemDto>();
@@ -1014,6 +1041,7 @@ namespace AgriIDMS.Application.Services
                 {
                     OrderId = order.Id,
                     TotalAmount = total,
+                    Recipient = ToRecipientSnapshot(order),
                     Items = responseItems,
                     AllocationSucceeded = false,
                     AllocationMessage = null
@@ -1824,6 +1852,21 @@ namespace AgriIDMS.Application.Services
 
             return allocations;
         }
+
+        private static void ApplyRecipientToOrder(Order order, OrderRecipientCheckoutDto recipient)
+        {
+            order.RecipientFullName = recipient.FullName.Trim();
+            order.RecipientPhone = recipient.Phone.Trim();
+            order.RecipientAddress = recipient.Address.Trim();
+        }
+
+        private static OrderRecipientSnapshotDto ToRecipientSnapshot(Order order) =>
+            new()
+            {
+                FullName = order.RecipientFullName,
+                Phone = order.RecipientPhone,
+                Address = order.RecipientAddress
+            };
 
     }
 }

@@ -153,25 +153,36 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("from-cart")]
+        /// <summary>Gợi ý họ tên, SĐT, địa chỉ từ tài khoản để màn checkout (khách có thể sửa trước khi đặt).</summary>
+        [HttpGet("checkout-defaults")]
         [Authorize(Roles = "Customer")]
-        public async Task<IActionResult> CreateFromCart()
+        public async Task<IActionResult> GetCheckoutDefaults()
         {
             var userId = GetCurrentUserId();
-            var result = await _orderService.CreateOrderFromCartAsync(userId);
+            var result = await _orderService.GetOrderCheckoutDefaultsAsync(userId);
+            return Ok(result);
+        }
+
+        /// <summary>Đặt hàng online: bắt buộc thông tin người nhận (checkout).</summary>
+        [HttpPost("from-cart")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> CreateFromCart([FromBody] OrderRecipientCheckoutDto recipient)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _orderService.CreateOrderFromCartAsync(userId, recipient);
             return Ok(result);
         }
 
         /// <summary>
         /// Tạo đơn theo danh sách ProductVariantId trong giỏ hàng.
-        /// Chỉ xóa các CartItem thuộc các ProductVariantId được chọn.
+        /// Chỉ xóa các CartItem thuộc các ProductVariantId được chọn. Kèm thông tin người nhận (checkout).
         /// </summary>
         [HttpPost("from-cart/variants")]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> CreateFromCartByVariants([FromBody] CreateOrderFromCartRequest request)
         {
             var userId = GetCurrentUserId();
-            var result = await _orderService.CreateOrderFromCartByVariantIdsAsync(userId, request.Items);
+            var result = await _orderService.CreateOrderFromCartByVariantIdsAsync(userId, request.Items, request.Recipient);
             return Ok(result);
         }
 

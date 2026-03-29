@@ -1,8 +1,33 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace AgriIDMS.Application.DTOs.Order
 {
+    /// <summary>Gợi ý điền form checkout từ thông tin tài khoản (khách có thể sửa trước khi đặt).</summary>
+    public class OrderCheckoutDefaultsDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+    }
+
+    /// <summary>Thông tin người nhận khi đặt đơn online.</summary>
+    public class OrderRecipientCheckoutDto
+    {
+        [Required(ErrorMessage = "Họ tên người nhận không được để trống")]
+        [MaxLength(200)]
+        public string FullName { get; set; } = null!;
+
+        [Required(ErrorMessage = "Số điện thoại không được để trống")]
+        [MaxLength(20)]
+        public string Phone { get; set; } = null!;
+
+        [Required(ErrorMessage = "Địa chỉ không được để trống")]
+        [MaxLength(500)]
+        public string Address { get; set; } = null!;
+    }
+
     /// <summary>Dòng sản phẩm trong đơn (hiển thị sau khi tạo đơn từ giỏ).</summary>
     public class OrderItemDto
     {
@@ -23,6 +48,7 @@ namespace AgriIDMS.Application.DTOs.Order
     {
         public int OrderId { get; set; }
         public decimal TotalAmount { get; set; }
+        public OrderRecipientSnapshotDto? Recipient { get; set; }
         public IList<OrderItemDto> Items { get; set; } = new List<OrderItemDto>();
         /// <summary>True chỉ sau khi gọi allocate thành công (đơn → Confirmed). Sau khi tạo đơn luôn false.</summary>
         public bool AllocationSucceeded { get; set; }
@@ -30,8 +56,19 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? AllocationMessage { get; set; }
     }
 
+    public class OrderRecipientSnapshotDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+    }
+
     public class CreateOrderFromCartRequest
     {
+        /// <summary>Bắt buộc cho đơn online: thông tin người nhận.</summary>
+        [Required]
+        public OrderRecipientCheckoutDto Recipient { get; set; } = null!;
+
         public List<CreateOrderFromCartByVariantIdsRequest> Items { get; set; } = new();
     }
 
@@ -165,6 +202,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Source { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public string? LatestPaymentStatus { get; set; }
+        public OrderRecipientSnapshotDto? Recipient { get; set; }
         public IList<OrderDetailItemDto> Items { get; set; } = new List<OrderDetailItemDto>();
     }
 
