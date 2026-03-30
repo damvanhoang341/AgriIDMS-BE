@@ -196,7 +196,8 @@ namespace AgriIDMS.Application.Services
                 await _inventoryTranRepo.AddRangeAsync(exportTransactions);
 
                 receipt.Status = ExportStatus.Approved;
-                receipt.Order.Status = OrderStatus.Shipping;
+                if (receipt.Order.FulfillmentType == FulfillmentType.Delivery)
+                    receipt.Order.Status = OrderStatus.Shipping;
 
                 await _uow.CommitAsync();
 
@@ -317,20 +318,18 @@ namespace AgriIDMS.Application.Services
         }
 
         /// <summary>
-        /// Xuất kho: đã thanh toán (Paid), hoặc COD thực tế (Confirmed + đã tạo COD Pending — thu tiền khi giao).
+        /// Xuất kho: đơn Confirmed và đã có payment phù hợp (online=Paid, COD=Pending/Paid).
         /// </summary>
         private static bool CanCreateExportReceipt(Order order)
         {
-            if (order.Status == OrderStatus.Paid)
-                return true;
-
             if (order.Status != OrderStatus.Confirmed)
                 return false;
 
             return order.Payments != null
                    && order.Payments.Any(p =>
                        (p.PaymentMethod == PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Pending)
-                       || (p.PaymentMethod != PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Success));
+                       || (p.PaymentMethod == PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Paid)
+                       || (p.PaymentMethod != PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Paid));
         }
 
         public async Task<IList<PendingApproveExportListItemDto>> GetPendingApproveExportsAsync(GetPendingApproveExportsQuery query)

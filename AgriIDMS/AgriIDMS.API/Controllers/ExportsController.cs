@@ -20,7 +20,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Tạo phiếu xuất: chỉ khi đơn <c>OrderStatus.Paid</c>, có allocation <c>Reserved</c>, và chưa có phiếu xuất đang hoạt động (trạng thái khác <c>Cancelled</c>).
+        /// Tạo phiếu xuất: chỉ khi đơn <c>OrderStatus.Confirmed</c>, payment hợp lệ (online đã Paid hoặc COD Pending/Paid), có allocation <c>Reserved</c>, và chưa có phiếu xuất đang hoạt động (trạng thái khác <c>Cancelled</c>).
         /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]

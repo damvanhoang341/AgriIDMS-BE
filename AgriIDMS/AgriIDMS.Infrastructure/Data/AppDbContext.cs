@@ -973,6 +973,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasDefaultValue(OrderSource.Online)
                   .IsRequired();
 
+            entity.Property(x => x.FulfillmentType)
+                  .HasConversion<string>()
+                  .HasMaxLength(20)
+                  .IsRequired();
+
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
 
@@ -1030,6 +1035,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.CustomerPhone);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.Source);
+            entity.HasIndex(x => x.FulfillmentType);
             entity.HasIndex(x => x.BackorderExpiryNotifiedAt);
             entity.HasIndex(x => x.DeliveredAt);
         });

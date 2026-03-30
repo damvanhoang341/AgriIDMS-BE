@@ -1,3 +1,4 @@
+using AgriIDMS.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -86,6 +87,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? CustomerUserId { get; set; }
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
+        public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.TakeAway;
         public List<CreatePosOrderItemRequest> Items { get; set; } = new();
     }
 

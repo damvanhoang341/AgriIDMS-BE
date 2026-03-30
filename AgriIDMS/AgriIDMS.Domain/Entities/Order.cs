@@ -18,6 +18,7 @@ namespace AgriIDMS.Domain.Entities
         public decimal TotalAmount { get; set; }
 
         public OrderSource Source { get; set; } = OrderSource.Online;
+        public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.Delivery;
 
         public OrderStatus Status { get; set; }
         public DateTime? DeliveredAt { get; set; }

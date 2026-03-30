@@ -599,6 +599,9 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Chỉ đơn Delivery mới được xác nhận delivered");
+
             // Idempotent: gọi nhiều lần không làm sai dữ liệu
             if (order.Status == OrderStatus.Delivered)
                 return;
@@ -618,16 +621,16 @@ namespace AgriIDMS.Application.Services
             {
                 if (latestPayment.PaymentStatus == PaymentStatus.Pending)
                 {
-                    latestPayment.PaymentStatus = PaymentStatus.Success;
+                    latestPayment.PaymentStatus = PaymentStatus.Paid;
                     latestPayment.PaidAt = DateTime.UtcNow;
                 }
-                else if (latestPayment.PaymentStatus != PaymentStatus.Success)
+                else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
                 {
                     throw new InvalidBusinessRuleException(
                         $"Không thể xác nhận Delivered khi COD có trạng thái thanh toán {latestPayment.PaymentStatus}");
                 }
             }
-            else if (latestPayment.PaymentStatus != PaymentStatus.Success)
+            else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
             {
                 throw new InvalidBusinessRuleException("Đơn thanh toán online chưa Paid, không thể xác nhận Delivered");
             }
@@ -641,6 +644,9 @@ namespace AgriIDMS.Application.Services
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Chỉ đơn Delivery mới được cập nhật failed delivery");
 
             if (order.Status == OrderStatus.FailedDelivery)
                 return;
@@ -657,6 +663,9 @@ namespace AgriIDMS.Application.Services
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Chỉ đơn Delivery mới được cập nhật returned");
 
             if (order.Status == OrderStatus.Returned)
                 return;
@@ -682,15 +691,22 @@ namespace AgriIDMS.Application.Services
             if (latestCodPayment == null)
                 throw new InvalidBusinessRuleException("Đơn không có thanh toán COD");
 
-            if (latestCodPayment.PaymentStatus == PaymentStatus.Success)
+            if (latestCodPayment.PaymentStatus == PaymentStatus.Paid)
                 return;
 
             if (latestCodPayment.PaymentStatus != PaymentStatus.Pending)
                 throw new InvalidBusinessRuleException(
                     $"Không thể xác nhận COD Paid từ trạng thái {latestCodPayment.PaymentStatus}");
 
-            latestCodPayment.PaymentStatus = PaymentStatus.Success;
+            latestCodPayment.PaymentStatus = PaymentStatus.Paid;
             latestCodPayment.PaidAt = DateTime.UtcNow;
+
+            if (IsTakeAway(order) && order.Status != OrderStatus.Delivered)
+            {
+                order.Status = OrderStatus.Delivered;
+                order.DeliveredAt = DateTime.UtcNow;
+            }
+
             await _uow.SaveChangesAsync();
         }
 
@@ -782,7 +798,7 @@ namespace AgriIDMS.Application.Services
                     $"Chỉ có thể hủy đơn khi chưa giữ hàng / chưa thanh toán thành công. Hiện tại: {order.Status}");
 
             if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Success ||
+                    p.PaymentStatus == PaymentStatus.Paid ||
                     p.PaymentStatus == PaymentStatus.Refunded))
             {
                 throw new InvalidBusinessRuleException("Không thể hủy đơn: đơn đã thanh toán thành công");
@@ -872,6 +888,7 @@ namespace AgriIDMS.Application.Services
                     UserId = userId,
                     CreatedAt = now,
                     Source = OrderSource.Online,
+                    FulfillmentType = FulfillmentType.Delivery,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
                 ApplyRecipientToOrder(order, recipient);
@@ -991,6 +1008,7 @@ namespace AgriIDMS.Application.Services
                     UserId = userId,
                     CreatedAt = now,
                     Source = OrderSource.Online,
+                    FulfillmentType = FulfillmentType.Delivery,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
                 ApplyRecipientToOrder(order, recipient);
@@ -1122,7 +1140,10 @@ namespace AgriIDMS.Application.Services
                     UserId = operatorUserId,
                     CreatedAt = now,
                     Source = OrderSource.POS,
-                    Status = OrderStatus.AwaitingAllocation,
+                    FulfillmentType = request.FulfillmentType,
+                    Status = request.FulfillmentType == FulfillmentType.TakeAway
+                        ? OrderStatus.Confirmed
+                        : OrderStatus.AwaitingAllocation,
                     CustomerUserId = posCustomer.CustomerUserId,
                     CustomerName = posCustomer.CustomerName,
                     CustomerPhone = posCustomer.CustomerPhone,
@@ -1188,6 +1209,9 @@ namespace AgriIDMS.Application.Services
                         UnitPrice = detail.UnitPrice
                     });
                 }
+
+                if (IsTakeAway(order))
+                    await ReserveStockImmediatelyForTakeAwayAsync(order, now);
 
                 order.TotalAmount = total;
                 await _orderRepo.AddAsync(order);
@@ -1406,7 +1430,7 @@ namespace AgriIDMS.Application.Services
                     $"Chỉ xử lý backorder khi đơn ở trạng thái BackorderWaiting. Hiện tại: {order.Status}");
 
             if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Success ||
+                    p.PaymentStatus == PaymentStatus.Paid ||
                     p.PaymentStatus == PaymentStatus.Refunded))
             {
                 throw new InvalidBusinessRuleException("Không thể allocate backorder: đơn đã thanh toán thành công");
@@ -1809,6 +1833,9 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Backorder chỉ áp dụng cho đơn Delivery");
+
             if (!skipCustomerOwnershipCheck && order.UserId != actorUserId)
                 throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
 
@@ -1820,7 +1847,7 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Đơn không còn thiếu hàng để chờ backorder");
 
             if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Success ||
+                    p.PaymentStatus == PaymentStatus.Paid ||
                     p.PaymentStatus == PaymentStatus.Refunded))
             {
                 throw new InvalidBusinessRuleException("Không thể backorder: đơn đã thanh toán thành công");
@@ -1837,6 +1864,9 @@ namespace AgriIDMS.Application.Services
         {
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Cancel shortage chỉ áp dụng cho đơn Delivery");
 
             if (!skipCustomerOwnershipCheck && order.UserId != actorUserId)
                 throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
@@ -1886,7 +1916,7 @@ namespace AgriIDMS.Application.Services
                     $"Chỉ có thể hủy đơn khi chưa vào bước shipping. Hiện tại: {order.Status}");
 
             if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Success ||
+                    p.PaymentStatus == PaymentStatus.Paid ||
                     p.PaymentStatus == PaymentStatus.Refunded))
             {
                 throw new InvalidBusinessRuleException("Không thể hủy đơn: đơn đã thanh toán thành công");
@@ -1964,6 +1994,9 @@ namespace AgriIDMS.Application.Services
         {
             if (!skipCustomerOwnershipCheck && order.UserId != operatorUserId)
                 throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
+
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Flow allocation nâng cao chỉ áp dụng cho đơn Delivery");
 
             var canAllocate =
                 order.Status == OrderStatus.AwaitingAllocation
@@ -2080,6 +2113,51 @@ namespace AgriIDMS.Application.Services
             return allocations;
         }
 
+        private async Task ReserveStockImmediatelyForTakeAwayAsync(Order order, DateTime nowUtc)
+        {
+            foreach (var detail in order.Details)
+            {
+                var neededBoxes = (int)detail.Quantity;
+                if (neededBoxes <= 0)
+                    continue;
+
+                var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(
+                    detail.ProductVariantId,
+                    includeOfflineOnly: true);
+
+                var selectedBoxes = availableBoxes
+                    .Where(b => b.IsPartial == detail.IsPartial && b.Weight == detail.BoxWeight)
+                    .OrderBy(b => b.Lot?.ExpiryDate ?? DateTime.MaxValue)
+                    .ThenBy(b => b.CreatedAt)
+                    .Take(neededBoxes)
+                    .ToList();
+
+                if (selectedBoxes.Count < neededBoxes)
+                    throw new InvalidBusinessRuleException(
+                        $"Không đủ tồn kho để giữ hàng ngay tại quầy cho biến thể #{detail.ProductVariantId}");
+
+                foreach (var box in selectedBoxes)
+                {
+                    box.Status = BoxStatus.Reserved;
+                    await _boxRepo.UpdateAsync(box);
+
+                    order.Allocations.Add(new OrderAllocation
+                    {
+                        Order = order,
+                        OrderDetail = detail,
+                        BoxId = box.Id,
+                        ReservedQuantity = box.Weight,
+                        Status = AllocationStatus.Reserved,
+                        ReservedAt = nowUtc,
+                        ExpiredAt = nowUtc.AddHours(AllocationExpirationHours)
+                    });
+                }
+
+                detail.FulfilledQuantity = detail.Quantity;
+                detail.ShortageQuantity = 0;
+            }
+        }
+
         private static void ApplyRecipientToOrder(Order order, OrderRecipientCheckoutDto recipient)
         {
             order.RecipientFullName = recipient.FullName.Trim();
@@ -2100,6 +2178,9 @@ namespace AgriIDMS.Application.Services
             string? CustomerName,
             string? CustomerPhone,
             bool IsGuest);
+
+        private static bool IsTakeAway(Order order) => order.FulfillmentType == FulfillmentType.TakeAway;
+        private static bool IsDelivery(Order order) => order.FulfillmentType == FulfillmentType.Delivery;
 
     }
 }

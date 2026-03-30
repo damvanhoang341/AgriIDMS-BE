@@ -119,7 +119,7 @@ namespace AgriIDMS.Application.Services
             if (payment.PaymentMethod != PaymentMethod.COD)
                 throw new InvalidBusinessRuleException("Chỉ áp dụng cho thanh toán COD");
 
-            if (payment.PaymentStatus == PaymentStatus.Success)
+            if (payment.PaymentStatus == PaymentStatus.Paid)
                 throw new InvalidBusinessRuleException("Payment này đã được xác nhận thành công rồi");
 
             if (payment.PaymentStatus != PaymentStatus.Pending)
@@ -129,18 +129,15 @@ namespace AgriIDMS.Application.Services
             var order = payment.Order
                 ?? throw new NotFoundException($"Order liên kết với payment #{paymentId} không tồn tại");
 
-            payment.PaymentStatus = PaymentStatus.Success;
+            payment.PaymentStatus = PaymentStatus.Paid;
             payment.PaidAt = DateTime.UtcNow;
 
-            // COD thu sau khi giao: khi đơn đang Shipping thì chốt sang Delivered.
-            // Nếu xác nhận sớm hơn bước giao, vẫn đưa đơn về Paid để tiếp tục luồng xuất.
-            if (order.Status == OrderStatus.Shipping)
+            // TakeAway: thanh toán thành công là hoàn tất giao tại quầy.
+            if (order.FulfillmentType == FulfillmentType.TakeAway && order.Status != OrderStatus.Delivered)
             {
                 order.Status = OrderStatus.Delivered;
                 order.DeliveredAt = DateTime.UtcNow;
             }
-            else if (order.Status != OrderStatus.Delivered)
-                order.Status = OrderStatus.Paid;
 
             await _uow.SaveChangesAsync();
 
@@ -301,16 +298,24 @@ namespace AgriIDMS.Application.Services
                 return;
             }
 
-            if (payment.PaymentStatus == PaymentStatus.Success)
+            if (payment.PaymentStatus == PaymentStatus.Paid)
             {
-                _logger.LogInformation("Payment {PaymentId} already Success, skipping webhook", payment.Id);
+                _logger.LogInformation("Payment {PaymentId} already Paid, skipping webhook", payment.Id);
                 return;
             }
 
             if (webhook.Success && webhook.Code == "00")
             {
-                payment.PaymentStatus = PaymentStatus.Success;
+                payment.PaymentStatus = PaymentStatus.Paid;
                 payment.PaidAt = DateTime.UtcNow;
+
+                if (payment.Order != null
+                    && payment.Order.FulfillmentType == FulfillmentType.TakeAway
+                    && payment.Order.Status != OrderStatus.Delivered)
+                {
+                    payment.Order.Status = OrderStatus.Delivered;
+                    payment.Order.DeliveredAt = DateTime.UtcNow;
+                }
 
                 _logger.LogInformation(
                     "Banking payment {PaymentId} succeeded. Order {OrderId} payment marked Paid",
@@ -326,7 +331,7 @@ namespace AgriIDMS.Application.Services
 
             await _uow.SaveChangesAsync();
 
-            if (payment.PaymentStatus == PaymentStatus.Success)
+            if (payment.PaymentStatus == PaymentStatus.Paid)
                 await _notificationService.NotifyOrderPaidAsync(payment.OrderId);
             else if (payment.PaymentStatus == PaymentStatus.Failed)
                 await _notificationService.NotifyOrderPaymentFailedAsync(payment.OrderId);

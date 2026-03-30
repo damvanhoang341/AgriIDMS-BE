@@ -12,11 +12,16 @@ namespace AgriIDMS.Domain.Enums
         POS = 1
     }
 
+    public enum FulfillmentType
+    {
+        TakeAway = 0,
+        Delivery = 1
+    }
+
     public enum OrderStatus
     {
         /// <summary>Đơn cũ: chờ thanh toán / giữ hàng trực tiếp. Đơn mới không còn dùng làm bước đầu.</summary>
         AwaitingPayment = 0,
-        Paid = 1,
         Confirmed = 2,
         InventoryFailed = 3,
         Shipping = 4,
@@ -53,7 +58,7 @@ namespace AgriIDMS.Domain.Enums
     {
         Pending = 0,      // vừa tạo, chưa thanh toán COD POS
         Processing = 1,   // đang chờ gateway xử lý POS
-        Success = 2,      // thanh toán thành công COD POS
+        Paid = 2,         // thanh toán thành công COD POS
         Failed = 3,       // thanh toán thất bại
         Cancelled = 4,    // user huỷ
         Refunded = 5      // hoàn tiền

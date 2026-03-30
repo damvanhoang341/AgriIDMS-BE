@@ -227,11 +227,10 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(o => o.ExportReceipts)
                 .Where(o => o.Allocations.Any(a => a.Status == AllocationStatus.Reserved))
                 .Where(o =>
-                    o.Status == OrderStatus.Paid
-                    || (o.Status == OrderStatus.Confirmed
-                        && o.Payments.Any(p =>
-                            p.PaymentMethod == PaymentMethod.COD
-                            && p.PaymentStatus == PaymentStatus.Pending)));
+                    o.Status == OrderStatus.Confirmed
+                    && o.Payments.Any(p =>
+                        (p.PaymentMethod == PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Pending)
+                        || p.PaymentStatus == PaymentStatus.Paid));
 
             if (orderId.HasValue)
                 query = query.Where(o => o.Id == orderId.Value);

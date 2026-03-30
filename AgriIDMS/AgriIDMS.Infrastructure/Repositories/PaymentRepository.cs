@@ -85,7 +85,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Payments
                 .AnyAsync(p => p.OrderId == orderId
-                            && p.PaymentStatus == PaymentStatus.Success);
+                            && p.PaymentStatus == PaymentStatus.Paid);
         }
 
         public async Task<bool> HasPendingCodPaymentAsync(int orderId)
