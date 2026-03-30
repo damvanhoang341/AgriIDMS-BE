@@ -19,9 +19,9 @@ namespace AgriIDMS.Domain.Interfaces
             string? customerUserId,
             int skip,
             int take);
-        Task<bool> HasSuccessPaymentAsync(int orderId);
+        Task<bool> HasPaidPaymentAsync(int orderId);
 
-        /// <summary>Đơn đã có thanh toán COD đang chờ thu (chưa Success).</summary>
+        /// <summary>Đơn đã có thanh toán COD đang chờ thu (chưa Paid).</summary>
         Task<bool> HasPendingCodPaymentAsync(int orderId);
     }
 }

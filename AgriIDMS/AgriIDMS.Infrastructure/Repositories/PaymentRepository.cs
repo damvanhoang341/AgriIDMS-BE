@@ -81,7 +81,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<bool> HasSuccessPaymentAsync(int orderId)
+        public async Task<bool> HasPaidPaymentAsync(int orderId)
         {
             return await _context.Payments
                 .AnyAsync(p => p.OrderId == orderId

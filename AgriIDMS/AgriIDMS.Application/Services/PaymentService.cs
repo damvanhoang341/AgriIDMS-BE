@@ -63,8 +63,8 @@ namespace AgriIDMS.Application.Services
             await _uow.BeginTransactionAsync();
             try
             {
-                var hasSuccess = await _paymentRepo.HasSuccessPaymentAsync(order.Id);
-                if (hasSuccess)
+                var hasPaid = await _paymentRepo.HasPaidPaymentAsync(order.Id);
+                if (hasPaid)
                     throw new InvalidBusinessRuleException("Đơn hàng đã được thanh toán thành công");
 
                 var result = request.PaymentMethod switch
