@@ -65,7 +65,10 @@ namespace AgriIDMS.Infrastructure.Services
                 .AsNoTracking()
                 .Where(l =>
                     (l.Status == LotStatus.Active || l.Status == LotStatus.Expired) &&
-                    l.RemainingQuantity > 0 &&
+                    // Only notify when there is usable stock: Stored/Reserved boxes with weight > 0.
+                    l.Boxes.Any(b =>
+                        (b.Status == BoxStatus.Stored || b.Status == BoxStatus.Reserved) &&
+                        b.Weight > 0m) &&
                     l.ExpiryDate <= deadline)
                 .Select(l => l.Id)
                 .ToListAsync(cancellationToken);

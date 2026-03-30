@@ -12,8 +12,13 @@ namespace AgriIDMS.Application.Interfaces
         Task NotifyOrderAllocationShortageAsync(int orderId);
         Task NotifyExportApprovedAsync(int exportReceiptId);
         Task NotifyStockCheckApprovedAsync(int stockCheckId);
+        Task NotifyStockCheckPendingManagerAsync(int stockCheckId);
+        Task NotifyGoodsReceiptPendingManagerAsync(int goodsReceiptId);
         Task NotifyBackorderExpiredForSalesAsync(int orderId);
         Task NotifyNearExpiryLotAsync(int lotId);
+        Task NotifyDisposalRequestPendingAdminAsync(int disposalRequestId);
+        Task NotifyDisposalRequestApprovedAsync(int disposalRequestId, string requestedByUserId);
+        Task NotifyDisposalRequestRejectedAsync(int disposalRequestId, string requestedByUserId);
 
         // User inbox
         Task<PagedNotificationResponse> GetMyNotificationsAsync(string userId, bool unreadOnly, int page, int pageSize);

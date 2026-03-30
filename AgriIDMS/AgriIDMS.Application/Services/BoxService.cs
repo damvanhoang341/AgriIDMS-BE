@@ -64,7 +64,8 @@ namespace AgriIDMS.Application.Services
                     b.SlotId == slot.Id &&
                     b.Weight > CapacityTolerance &&
                     b.Status != BoxStatus.Exported &&
-                    b.Status != BoxStatus.Expired)
+                    b.Status != BoxStatus.Expired &&
+                    b.Status != BoxStatus.Disposed)
                 .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                 .FirstOrDefault(v => v.HasValue && v.Value > 0);
 
@@ -157,7 +158,8 @@ namespace AgriIDMS.Application.Services
                     b.SlotId == slot.Id &&
                     b.Weight > CapacityTolerance &&
                     b.Status != BoxStatus.Exported &&
-                    b.Status != BoxStatus.Expired)
+                    b.Status != BoxStatus.Expired &&
+                    b.Status != BoxStatus.Disposed)
                 .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                 .FirstOrDefault(v => v.HasValue && v.Value > 0);
 
@@ -257,7 +259,8 @@ namespace AgriIDMS.Application.Services
                     b.SlotId == toSlot.Id &&
                     b.Weight > CapacityTolerance &&
                     b.Status != BoxStatus.Exported &&
-                    b.Status != BoxStatus.Expired)
+                    b.Status != BoxStatus.Expired &&
+                    b.Status != BoxStatus.Disposed)
                 .Select(b => b.Lot?.GoodsReceiptDetail?.ProductVariantId)
                 .FirstOrDefault(v => v.HasValue && v.Value > 0);
 
@@ -487,7 +490,7 @@ namespace AgriIDMS.Application.Services
                     }
 
                     box.SlotId = null;
-                    box.Status = BoxStatus.Expired;
+                    box.Status = BoxStatus.Disposed;
                     box.Weight = 0;
                     await _boxRepo.UpdateAsync(box);
 

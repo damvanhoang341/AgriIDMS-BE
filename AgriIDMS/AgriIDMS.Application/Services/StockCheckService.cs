@@ -179,6 +179,7 @@ namespace AgriIDMS.Application.Services
             await _stockCheckRepo.UpdateAsync(stockCheck);
             await _unitOfWork.SaveChangesAsync();
             _logger.LogInformation("StockCheck {Id} completed count (Counted)", stockCheckId);
+            await _notificationService.NotifyStockCheckPendingManagerAsync(stockCheckId);
         }
 
         public async Task ApproveAsync(int stockCheckId, string userId)
@@ -204,6 +205,10 @@ namespace AgriIDMS.Application.Services
 
                     var box = d.Box;
                     if (box == null) continue;
+
+                    // Keep previous values so we can update Lot.RemainingQuantity by delta.
+                    var oldStatus = box.Status;
+                    var oldWeight = box.Weight;
 
                     if (d.VarianceType == VarianceType.Match)
                         continue;
@@ -259,6 +264,22 @@ namespace AgriIDMS.Application.Services
 
                     if (d.VarianceType == VarianceType.Shortage && d.VarianceReason == VarianceReason.Damaged)
                         box.Status = BoxStatus.Damaged;
+
+                    // Keep Lot.RemainingQuantity consistent with what "còn lại" dashboard counts
+                    // (Stored/Reserved and weight > 0).
+                    if (box.Lot != null)
+                    {
+                        var oldIncluded =
+                            (oldStatus == BoxStatus.Stored || oldStatus == BoxStatus.Reserved) &&
+                            oldWeight > 0m;
+                        var newIncluded =
+                            (box.Status == BoxStatus.Stored || box.Status == BoxStatus.Reserved) &&
+                            box.Weight > 0m;
+
+                        var oldQty = oldIncluded ? oldWeight : 0m;
+                        var newQty = newIncluded ? box.Weight : 0m;
+                        box.Lot.RemainingQuantity = Math.Max(0m, box.Lot.RemainingQuantity + (newQty - oldQty));
+                    }
                     await _boxRepo.UpdateAsync(box);
                 }
 
@@ -439,9 +460,9 @@ namespace AgriIDMS.Application.Services
 
             if (!requestedReason.HasValue || requestedReason.Value == VarianceReason.None)
                 throw new InvalidBusinessRuleException(
-                    "Thiếu hàng (Shortage) bắt buộc chọn nguyên nhân (Damaged/Loss/MeasurementError).");
+                    "Thiếu hàng (Shortage) bắt buộc chọn nguyên nhân (Damaged/Loss/MeasurementError/Other).");
 
-            if (requestedReason is VarianceReason.Damaged or VarianceReason.Loss or VarianceReason.MeasurementError)
+            if (requestedReason is VarianceReason.Damaged or VarianceReason.Loss or VarianceReason.MeasurementError or VarianceReason.Other)
                 return requestedReason.Value;
 
             throw new InvalidBusinessRuleException("Nguyên nhân chênh lệch không hợp lệ.");
