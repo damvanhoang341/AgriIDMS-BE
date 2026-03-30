@@ -982,6 +982,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.DeliveredAt)
                   .IsRequired(false);
 
+            entity.Property(x => x.CustomerUserId)
+                  .HasMaxLength(450)
+                  .IsRequired(false);
+
+            entity.Property(x => x.CustomerName)
+                  .HasMaxLength(200)
+                  .IsRequired(false);
+
+            entity.Property(x => x.CustomerPhone)
+                  .HasMaxLength(20)
+                  .IsRequired(false);
+
+            entity.Property(x => x.IsGuest)
+                  .HasDefaultValue(false)
+                  .IsRequired();
+
             entity.Property(x => x.RecipientFullName)
                   .HasMaxLength(200)
                   .IsRequired();
@@ -999,12 +1015,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.UserId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne<ApplicationUser>()
+                  .WithMany()
+                  .HasForeignKey(x => x.CustomerUserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(x => x.Details)
                   .WithOne(d => d.Order)
                   .HasForeignKey(d => d.OrderId)
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => x.CustomerUserId);
+            entity.HasIndex(x => x.CustomerPhone);
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.Source);
             entity.HasIndex(x => x.BackorderExpiryNotifiedAt);

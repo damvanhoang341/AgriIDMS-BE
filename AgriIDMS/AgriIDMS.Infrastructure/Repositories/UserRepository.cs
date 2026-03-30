@@ -22,6 +22,11 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Users.FirstOrDefaultAsync(x => x.Id == id);
         }
 
+        public async Task<ApplicationUser?> GetByPhoneAsync(string phoneNumber)
+        {
+            return await _context.Users.FirstOrDefaultAsync(x => x.PhoneNumber == phoneNumber);
+        }
+
         public void UpdateUser(ApplicationUser user)
         {
             _context.Users.Update(user);

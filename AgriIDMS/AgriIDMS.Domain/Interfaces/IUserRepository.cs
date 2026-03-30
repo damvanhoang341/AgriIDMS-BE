@@ -10,6 +10,7 @@ namespace AgriIDMS.Domain.Interfaces
     public interface IUserRepository
     {
         Task<ApplicationUser?> GetByIdAsync(string id);
+        Task<ApplicationUser?> GetByPhoneAsync(string phoneNumber);
         void UpdateUser(ApplicationUser user);
         IQueryable<ApplicationUser> GetAll();
         Task<IList<string>> GetRolesAsync(ApplicationUser user);

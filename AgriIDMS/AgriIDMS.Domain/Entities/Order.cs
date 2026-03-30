@@ -22,6 +22,10 @@ namespace AgriIDMS.Domain.Entities
         public OrderStatus Status { get; set; }
         public DateTime? DeliveredAt { get; set; }
         public DateTime? BackorderExpiryNotifiedAt { get; set; }
+        public string? CustomerUserId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerPhone { get; set; }
+        public bool IsGuest { get; set; }
 
         /// <summary>Snapshot người nhận khi đặt online (có thể khác profile tài khoản).</summary>
         public string RecipientFullName { get; set; } = string.Empty;

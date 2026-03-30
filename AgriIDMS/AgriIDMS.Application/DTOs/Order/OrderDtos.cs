@@ -82,8 +82,10 @@ namespace AgriIDMS.Application.DTOs.Order
 
     public class CreatePosOrderRequest
     {
-        /// <summary>Khách hàng gắn với đơn POS (optional). Nếu null sẽ dùng chính staff tạo đơn.</summary>
+        /// <summary>Khách hàng đã có tài khoản (optional).</summary>
         public string? CustomerUserId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerPhone { get; set; }
         public List<CreatePosOrderItemRequest> Items { get; set; } = new();
     }
 

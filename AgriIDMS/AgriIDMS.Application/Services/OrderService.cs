@@ -1108,9 +1108,7 @@ namespace AgriIDMS.Application.Services
             if (request == null || request.Items == null || !request.Items.Any())
                 throw new InvalidBusinessRuleException("Đơn POS phải có ít nhất 1 dòng sản phẩm");
 
-            var orderUserId = string.IsNullOrWhiteSpace(request.CustomerUserId)
-                ? operatorUserId
-                : request.CustomerUserId.Trim();
+            var posCustomer = await ResolvePosCustomerAsync(request, operatorUserId);
 
             var now = DateTime.UtcNow;
             var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
@@ -1120,10 +1118,15 @@ namespace AgriIDMS.Application.Services
                 decimal total = 0m;
                 var order = new Order
                 {
-                    UserId = orderUserId,
+                    // POS order được tạo bởi staff; thông tin customer được lưu ở bộ field riêng.
+                    UserId = operatorUserId,
                     CreatedAt = now,
                     Source = OrderSource.POS,
                     Status = OrderStatus.AwaitingAllocation,
+                    CustomerUserId = posCustomer.CustomerUserId,
+                    CustomerName = posCustomer.CustomerName,
+                    CustomerPhone = posCustomer.CustomerPhone,
+                    IsGuest = posCustomer.IsGuest,
                     RecipientFullName = string.Empty,
                     RecipientPhone = string.Empty,
                     RecipientAddress = string.Empty
@@ -1205,6 +1208,62 @@ namespace AgriIDMS.Application.Services
                 await _uow.RollbackAsync();
                 throw;
             }
+        }
+
+        private async Task<PosCustomerInfo> ResolvePosCustomerAsync(CreatePosOrderRequest request, string operatorUserId)
+        {
+            if (!string.IsNullOrWhiteSpace(request.CustomerUserId))
+            {
+                var customerUserId = request.CustomerUserId.Trim();
+                var customer = await _userRepo.GetByIdAsync(customerUserId)
+                    ?? throw new NotFoundException($"Customer #{customerUserId} không tồn tại");
+
+                if (customer.Id == operatorUserId)
+                    throw new InvalidBusinessRuleException("Staff tạo đơn không được đồng thời là customer của đơn POS");
+
+                return new PosCustomerInfo(
+                    customer.Id,
+                    customer.FullName?.Trim(),
+                    customer.PhoneNumber?.Trim(),
+                    false);
+            }
+
+            var customerPhone = string.IsNullOrWhiteSpace(request.CustomerPhone)
+                ? null
+                : request.CustomerPhone.Trim();
+
+            var customerName = string.IsNullOrWhiteSpace(request.CustomerName)
+                ? null
+                : request.CustomerName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(customerPhone))
+            {
+                // Optional mapping: nếu SĐT đã tồn tại account thì tự gán CustomerUserId.
+                var matchedUser = await _userRepo.GetByPhoneAsync(customerPhone);
+                if (matchedUser != null)
+                {
+                    if (matchedUser.Id == operatorUserId)
+                        throw new InvalidBusinessRuleException("Staff tạo đơn không được đồng thời là customer của đơn POS");
+
+                    return new PosCustomerInfo(
+                        matchedUser.Id,
+                        matchedUser.FullName?.Trim(),
+                        matchedUser.PhoneNumber?.Trim(),
+                        false);
+                }
+
+                return new PosCustomerInfo(
+                    null,
+                    customerName,
+                    customerPhone,
+                    true);
+            }
+
+            return new PosCustomerInfo(
+                null,
+                null,
+                null,
+                true);
         }
 
         private async Task<decimal> ApplyNearExpiryDiscountIfEligibleAsync(
@@ -2035,6 +2094,12 @@ namespace AgriIDMS.Application.Services
                 Phone = order.RecipientPhone,
                 Address = order.RecipientAddress
             };
+
+        private sealed record PosCustomerInfo(
+            string? CustomerUserId,
+            string? CustomerName,
+            string? CustomerPhone,
+            bool IsGuest);
 
     }
 }
