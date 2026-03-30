@@ -1002,6 +1002,15 @@ namespace AgriIDMS.Application.Services
                     if (item.BoxWeight <= 0)
                         throw new InvalidBusinessRuleException("BoxWeight phải lớn hơn 0");
 
+                    var availableBoxes = await _boxRepo.GetAvailableBoxCountByVariantAndTypeAsync(
+                        item.ProductVariantId,
+                        item.IsPartial,
+                        item.BoxWeight,
+                        includeOfflineOnly: true);
+                    if (item.Quantity > availableBoxes)
+                        throw new InvalidBusinessRuleException(
+                            $"Số lượng ({item.Quantity} thùng) vượt quá tồn khả dụng ({availableBoxes} thùng) cho biến thể và loại thùng đã chọn.");
+
                     var variant = await _variantRepo.GetProductVariantByIdAsync(item.ProductVariantId)
                         ?? throw new NotFoundException($"ProductVariant #{item.ProductVariantId} không tồn tại");
 

@@ -225,7 +225,11 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .CountAsync();
         }
 
-        public async Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight)
+        public async Task<int> GetAvailableBoxCountByVariantAndTypeAsync(
+            int productVariantId,
+            bool isPartial,
+            decimal weight,
+            bool includeOfflineOnly = false)
         {
             var now = DateTime.UtcNow;
 
@@ -236,12 +240,17 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.IsPartial == isPartial &&
-                    b.Weight == weight &&
-                    !_context.StockCheckDetails.Any(d =>
-                        d.BoxId == b.Id &&
-                        d.StockCheck.Status == StockCheckStatus.Approved &&
-                        d.VarianceType.HasValue &&
-                        d.VarianceType != VarianceType.Match));
+                    b.Weight == weight)
+                .AsQueryable();
+
+            if (!includeOfflineOnly)
+            {
+                query = query.Where(b => !_context.StockCheckDetails.Any(d =>
+                    d.BoxId == b.Id &&
+                    d.StockCheck.Status == StockCheckStatus.Approved &&
+                    d.VarianceType.HasValue &&
+                    d.VarianceType != VarianceType.Match));
+            }
 
             // 1) Kiểm tra nhanh xem có box hết hạn / ExpiryDate <= now không
             bool hasExpired = await query.AnyAsync(b => b.Lot.ExpiryDate <= now);

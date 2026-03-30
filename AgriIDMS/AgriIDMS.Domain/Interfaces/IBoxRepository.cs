@@ -30,7 +30,8 @@ namespace AgriIDMS.Domain.Interfaces
         /// <summary>Lấy tổng hợp các loại box khả dụng (group theo IsPartial & Weight) cho 1 ProductVariant.</summary>
         Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId);
         /// <summary>Đếm số box khả dụng theo đúng loại box (full/partial + weight) cho 1 ProductVariant.</summary>
-        Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight);
+        /// <param name="includeOfflineOnly">true = POS: gồm cả box từng lệch kiểm kê (bán offline).</param>
+        Task<int> GetAvailableBoxCountByVariantAndTypeAsync(int productVariantId, bool isPartial, decimal weight, bool includeOfflineOnly = false);
 
         /// <summary>Tổng khối lượng box đã tạo cho 1 lot (dùng để chống tạo box vô hạn).</summary>
         Task<decimal> GetTotalBoxWeightByLotIdAsync(int lotId);
