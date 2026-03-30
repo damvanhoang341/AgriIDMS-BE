@@ -21,6 +21,8 @@ namespace AgriIDMS.Application.Interfaces
         Task ConfirmFailedDeliveryAsync(int orderId, string operatorUserId);
         Task ConfirmReturnedAsync(int orderId, string operatorUserId);
         Task ConfirmCODPaidAsync(int orderId, string operatorUserId);
+        Task<bool> CheckCanCompleteAsync(int orderId);
+        Task<int> AutoCompleteOrdersAsync();
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
 

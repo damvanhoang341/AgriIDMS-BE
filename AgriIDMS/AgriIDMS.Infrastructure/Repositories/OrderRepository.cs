@@ -269,6 +269,28 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Take(take)
                 .ToListAsync();
         }
+
+        public async Task<IList<Order>> GetDeliveredOrdersEligibleForCompletionAsync(DateTime deliveredBeforeUtc)
+        {
+            return await _context.Orders
+                .Where(o =>
+                    o.Status == OrderStatus.Delivered
+                    && o.DeliveredAt.HasValue
+                    && o.DeliveredAt.Value <= deliveredBeforeUtc
+                    && !_context.Complaints.Any(c =>
+                        c.OrderId == o.Id
+                        && !c.IsDeleted
+                        && c.Status == ComplaintStatus.Pending))
+                .ToListAsync();
+        }
+
+        public async Task<bool> HasPendingComplaintAsync(int orderId)
+        {
+            return await _context.Complaints.AnyAsync(c =>
+                c.OrderId == orderId
+                && !c.IsDeleted
+                && c.Status == ComplaintStatus.Pending);
+        }
     }
 }
 

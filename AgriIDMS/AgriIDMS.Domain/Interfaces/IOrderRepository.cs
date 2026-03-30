@@ -32,6 +32,8 @@ namespace AgriIDMS.Domain.Interfaces
 
         /// <summary>Danh sách đơn của customer có thể khiếu nại (Shipping/Completed).</summary>
         Task<IList<Order>> GetCustomerOrdersForComplaintAsync(string userId, int skip, int take);
+        Task<IList<Order>> GetDeliveredOrdersEligibleForCompletionAsync(DateTime deliveredBeforeUtc);
+        Task<bool> HasPendingComplaintAsync(int orderId);
     }
 }
 

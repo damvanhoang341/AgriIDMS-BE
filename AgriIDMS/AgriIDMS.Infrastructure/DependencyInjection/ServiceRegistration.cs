@@ -140,6 +140,7 @@ public static class ServiceRegistration
         // Background workers
         services.AddHostedService<BackorderExpiryScannerService>();
         services.AddHostedService<NearExpiryLotScannerService>();
+        services.AddHostedService<OrderAutoCompleteService>();
 
         // Cross-cutting services
         // PayOS client (singleton vì nội bộ dùng HttpClient)

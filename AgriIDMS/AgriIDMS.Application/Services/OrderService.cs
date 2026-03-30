@@ -30,6 +30,7 @@ namespace AgriIDMS.Application.Services
         private readonly int _nearExpiryDiscountDays;
         private readonly decimal _nearExpiryDiscountPercent;
         private const decimal PriceComparisonTolerance = 0.0001m;
+        private const int CompleteAfterDeliveredDays = 4;
 
         private const int AllocationExpirationHours = 24;
 
@@ -691,6 +692,40 @@ namespace AgriIDMS.Application.Services
             latestCodPayment.PaymentStatus = PaymentStatus.Success;
             latestCodPayment.PaidAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync();
+        }
+
+        public async Task<bool> CheckCanCompleteAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var hasPendingComplaint = await _orderRepo.HasPendingComplaintAsync(orderId);
+            return CheckCanComplete(order, hasPendingComplaint, DateTime.UtcNow);
+        }
+
+        public async Task<int> AutoCompleteOrdersAsync()
+        {
+            var thresholdUtc = DateTime.UtcNow.AddDays(-CompleteAfterDeliveredDays);
+            var candidates = await _orderRepo.GetDeliveredOrdersEligibleForCompletionAsync(thresholdUtc);
+
+            if (candidates.Count == 0)
+                return 0;
+
+            var completedCount = 0;
+            foreach (var order in candidates)
+            {
+                // Idempotent safety check in case data changed between query and update
+                if (order.Status != OrderStatus.Delivered)
+                    continue;
+
+                order.Status = OrderStatus.Completed;
+                completedCount++;
+            }
+
+            if (completedCount > 0)
+                await _uow.SaveChangesAsync();
+
+            return completedCount;
         }
 
         public async Task<IList<OverdueBackorderItemDto>> GetOverdueBackordersAsync()
@@ -1845,6 +1880,21 @@ namespace AgriIDMS.Application.Services
 
         private static bool IsOrderFullyReserved(Order order) =>
             order.Details.All(d => d.ShortageQuantity == 0);
+
+        private static bool CheckCanComplete(Order order, bool hasPendingComplaint, DateTime nowUtc)
+        {
+            if (order.Status != OrderStatus.Delivered)
+                return false;
+
+            if (!order.DeliveredAt.HasValue)
+                return false;
+
+            var completeAt = order.DeliveredAt.Value.AddDays(CompleteAfterDeliveredDays);
+            if (nowUtc < completeAt)
+                return false;
+
+            return !hasPendingComplaint;
+        }
 
         private static bool IsInitialAllocationStatus(OrderStatus status) =>
             status == OrderStatus.AwaitingAllocation
