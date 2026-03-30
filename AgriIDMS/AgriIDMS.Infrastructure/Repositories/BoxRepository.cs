@@ -146,6 +146,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
                     b.Lot.ExpiryDate <= now &&
                     b.Status != BoxStatus.Exported &&
+                    b.Status != BoxStatus.Disposed &&
                     b.Weight > 0)
                 .OrderBy(b => b.Lot.ExpiryDate)
                 .ThenBy(b => b.BoxCode)

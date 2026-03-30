@@ -52,6 +52,11 @@ namespace AgriIDMS.Application.DTOs.Lot
         public string WarehouseName { get; set; } = string.Empty;
 
         public string Status { get; set; } = string.Empty; // NearExpiry / Expired
+
+        /// <summary>
+        /// % giảm giá đề xuất theo rule cấu hình (không phải giá bán thực tế).
+        /// </summary>
+        public decimal SuggestedDiscountPercent { get; set; }
     }
 
     public class NearExpiryDashboardDto

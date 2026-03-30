@@ -27,6 +27,7 @@ namespace AgriIDMS.Application.Services
         private readonly IPurchaseOrderRepository _purchaseOrderRepo;
         private readonly IBoxRepository _boxRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
+        private readonly INotificationService _notificationService;
 
         public GoodsReceiptService(
             IGoodsReceiptRepository receiptRepo,
@@ -40,7 +41,8 @@ namespace AgriIDMS.Application.Services
             ILogger<GoodsReceiptService> logger,
             IPurchaseOrderRepository purchaseOrderRepo,
             IBoxRepository boxRepo,
-            IInventoryTransactionRepository inventoryTranRepo)
+            IInventoryTransactionRepository inventoryTranRepo,
+            INotificationService notificationService)
         {
             _receiptRepo = receiptRepo;
             _detailRepo = detailRepo;
@@ -54,6 +56,7 @@ namespace AgriIDMS.Application.Services
             _purchaseOrderRepo = purchaseOrderRepo;
             _boxRepo = boxRepo;
             _inventoryTranRepo = inventoryTranRepo;
+            _notificationService = notificationService;
         }
 
         // ===============================
@@ -119,6 +122,10 @@ namespace AgriIDMS.Application.Services
                 }
 
                 await _unitOfWork.CommitAsync();
+                if (!autoApproveWhenCreatedByManager)
+                {
+                    await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receipt.Id);
+                }
                 return receipt.Id;
             }
             catch
@@ -192,6 +199,7 @@ namespace AgriIDMS.Application.Services
 
                 receipt.PendingReason = reason;
                 await _unitOfWork.SaveChangesAsync();
+                await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receipt.Id);
             }
             else
             {

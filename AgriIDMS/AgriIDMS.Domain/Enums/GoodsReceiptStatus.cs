@@ -33,7 +33,8 @@ namespace AgriIDMS.Domain.Enums
         Picking,
         Exported,
         Damaged,
-        Expired
+        Expired,
+        Disposed
     }
 
     public enum QCResult

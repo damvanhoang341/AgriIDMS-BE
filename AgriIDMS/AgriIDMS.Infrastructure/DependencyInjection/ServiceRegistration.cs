@@ -96,6 +96,8 @@ public static class ServiceRegistration
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IBoxRepository, BoxRepository>();
         services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
+        services.AddScoped<INearExpiryDiscountRuleRepository, NearExpiryDiscountRuleRepository>();
+        services.AddScoped<IDisposalRequestRepository, DisposalRequestRepository>();
         services.AddScoped<IStockCheckRepository, StockCheckRepository>();
         services.AddScoped<IStockCheckDetailRepository, StockCheckDetailRepository>();
         services.AddScoped<IInventoryRequestRepository, InventoryRequestRepository>();
@@ -136,6 +138,7 @@ public static class ServiceRegistration
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IHomePageService, HomePageService>();
         services.AddScoped<ILotService, LotService>();
+        services.AddScoped<IDisposalRequestService, DisposalRequestService>();
 
         // Background workers
         services.AddHostedService<BackorderExpiryScannerService>();

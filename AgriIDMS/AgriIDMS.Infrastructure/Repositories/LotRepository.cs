@@ -121,8 +121,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                     .ThenInclude(b => b.Slot)
                 .Where(l =>
                     l.ExpiryDate <= deadline &&
-                    l.RemainingQuantity > 0 &&
-                    l.Status == LotStatus.Active);
+                    l.Status == LotStatus.Active &&
+                    // Use real box stock (Stored/Reserved, weight > 0) instead of Lot.RemainingQuantity
+                    // to avoid stale values after stock-check.
+                    l.Boxes.Any(b =>
+                        (b.Status == BoxStatus.Stored || b.Status == BoxStatus.Reserved) &&
+                        b.Weight > 0m));
 
             if (warehouseId.HasValue && warehouseId.Value > 0)
             {
