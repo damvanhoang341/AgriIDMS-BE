@@ -18,6 +18,7 @@ namespace AgriIDMS.Application.Services
         private readonly IUserNotificationRepository _userNotificationRepo;
         private readonly IUserRepository _userRepo;
         private readonly IOrderRepository _orderRepo;
+        private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly ILotRepository _lotRepo;
         private readonly IExportReceiptRepository _exportRepo;
         private readonly IStockCheckRepository _stockCheckRepo;
@@ -29,6 +30,7 @@ namespace AgriIDMS.Application.Services
             IUserNotificationRepository userNotificationRepo,
             IUserRepository userRepo,
             IOrderRepository orderRepo,
+            IGoodsReceiptRepository receiptRepo,
             ILotRepository lotRepo,
             IExportReceiptRepository exportRepo,
             IStockCheckRepository stockCheckRepo,
@@ -39,6 +41,7 @@ namespace AgriIDMS.Application.Services
             _userNotificationRepo = userNotificationRepo;
             _userRepo = userRepo;
             _orderRepo = orderRepo;
+            _receiptRepo = receiptRepo;
             _lotRepo = lotRepo;
             _exportRepo = exportRepo;
             _stockCheckRepo = stockCheckRepo;
@@ -168,6 +171,44 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: recipients);
         }
 
+        public async Task NotifyStockCheckPendingManagerAsync(int stockCheckId)
+        {
+            var stockCheck = await _stockCheckRepo.GetByIdAsync(stockCheckId)
+                ?? throw new NotFoundException($"Phiếu kiểm kê #{stockCheckId} không tồn tại");
+
+            var message = $"Phiếu kiểm kê #{stockCheckId} đã chốt đếm và đang chờ Quản lý duyệt.";
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("Admin", "Manager");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "StockCheck",
+                referenceId: stockCheckId,
+                recipientUserIds: recipients);
+        }
+
+        public async Task NotifyGoodsReceiptPendingManagerAsync(int goodsReceiptId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(goodsReceiptId)
+                ?? throw new NotFoundException($"Phiếu nhập #{goodsReceiptId} không tồn tại");
+
+            var statusText = receipt.Status switch
+            {
+                GoodsReceiptStatus.PendingManagerApprovalQc => "chờ Quản lý duyệt (định mức tối thiểu)",
+                GoodsReceiptStatus.PendingManagerApproval => "chờ Quản lý duyệt",
+                _ => $"mới tạo ở trạng thái {receipt.Status} và cần Quản lý theo dõi/duyệt",
+            };
+            var message = $"Phiếu nhập {receipt.ReceiptCode} đang {statusText}.";
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("Admin", "Manager");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "GoodsReceipt",
+                referenceId: receipt.Id,
+                recipientUserIds: recipients);
+        }
+
         public async Task NotifyBackorderExpiredForSalesAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
@@ -190,13 +231,12 @@ namespace AgriIDMS.Application.Services
             var lot = await _lotRepo.GetByIdWithDetailAndReceiptAsync(lotId)
                 ?? throw new NotFoundException($"Lot #{lotId} không tồn tại");
 
-            var now = DateTime.UtcNow;
-            var daysLeft = (int)Math.Ceiling((lot.ExpiryDate - now).TotalDays);
-            var isExpired = lot.ExpiryDate < now;
-            var overdueDays = isExpired
-                ? Math.Max(1, (int)Math.Ceiling((now - lot.ExpiryDate).TotalDays))
-                : 0;
-            if (daysLeft < 0) daysLeft = 0;
+            var todayUtc = DateTime.UtcNow.Date;
+            var expiryDateUtc = lot.ExpiryDate.Date;
+            var dayDiff = (expiryDateUtc - todayUtc).Days;
+            var isExpired = dayDiff < 0;
+            var overdueDays = isExpired ? Math.Abs(dayDiff) : 0;
+            var daysLeft = Math.Max(0, dayDiff);
 
             var variant = lot.GoodsReceiptDetail?.ProductVariant;
             var productName = variant?.Product?.Name ?? "N/A";
@@ -225,6 +265,42 @@ namespace AgriIDMS.Application.Services
                 referenceType: "NearExpiryLot",
                 referenceId: lot.Id,
                 recipientUserIds: recipients);
+        }
+
+        public async Task NotifyDisposalRequestPendingAdminAsync(int disposalRequestId)
+        {
+            var message = $"Có yêu cầu tiêu hủy hàng hóa #{disposalRequestId} đang chờ Quản lí duyệt.";
+            // Send to both Manager and Admin to avoid missing notifications if role mapping differs.
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("Manager", "Admin");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "DisposalRequest",
+                referenceId: disposalRequestId,
+                recipientUserIds: recipients);
+        }
+
+        public async Task NotifyDisposalRequestApprovedAsync(int disposalRequestId, string requestedByUserId)
+        {
+            var message = $"Yêu cầu tiêu hủy #{disposalRequestId} đã được Quản lí duyệt.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "DisposalRequest",
+                referenceId: disposalRequestId,
+                recipientUserIds: new[] { requestedByUserId });
+        }
+
+        public async Task NotifyDisposalRequestRejectedAsync(int disposalRequestId, string requestedByUserId)
+        {
+            var message = $"Yêu cầu tiêu hủy #{disposalRequestId} đã bị Quản lí từ chối.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "DisposalRequest",
+                referenceId: disposalRequestId,
+                recipientUserIds: new[] { requestedByUserId });
         }
 
         public async Task<PagedNotificationResponse> GetMyNotificationsAsync(string userId, bool unreadOnly, int page, int pageSize)

@@ -4,6 +4,7 @@ using AgriIDMS.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
 {
@@ -74,6 +75,23 @@ namespace AgriIDMS.API.Controllers
         {
             var dashboard = await _lotService.GetNearExpiryDashboardAsync(days, warehouseId);
             return Ok(dashboard);
+        }
+
+        [HttpGet("near-expiry-discount-rules")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetNearExpiryDiscountRules()
+        {
+            var rules = await _lotService.GetNearExpiryDiscountRulesAsync();
+            return Ok(rules);
+        }
+
+        [HttpPut("near-expiry-discount-rules")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> UpdateNearExpiryDiscountRules([FromBody] List<UpsertNearExpiryDiscountRuleDto> rules)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            await _lotService.UpdateNearExpiryDiscountRulesAsync(userId, rules ?? new List<UpsertNearExpiryDiscountRuleDto>());
+            return Ok(new { message = "Đã cập nhật cấu hình giảm giá gần hết hạn." });
         }
     }
 }

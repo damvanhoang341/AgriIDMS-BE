@@ -43,6 +43,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
+    public DbSet<NearExpiryDiscountRule> NearExpiryDiscountRules => Set<NearExpiryDiscountRule>();
+    public DbSet<DisposalRequest> DisposalRequests => Set<DisposalRequest>();
+    public DbSet<DisposalRequestItem> DisposalRequestItems => Set<DisposalRequestItem>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -135,6 +138,66 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(x => x.Name);
             entity.HasIndex(x => x.CategoryId);
+        });
+
+        // ===================== NearExpiryDiscountRule =====================
+        builder.Entity<NearExpiryDiscountRule>(entity =>
+        {
+            entity.ToTable("NearExpiryDiscountRules");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.MaxDaysLeft).IsRequired();
+            entity.Property(x => x.DiscountPercent)
+                .HasPrecision(5, 2)
+                .IsRequired();
+            entity.Property(x => x.IsActive)
+                .HasDefaultValue(true)
+                .IsRequired();
+            entity.Property(x => x.CreatedBy).HasMaxLength(450);
+            entity.Property(x => x.UpdatedBy).HasMaxLength(450);
+        });
+
+        // ===================== DisposalRequest =====================
+        builder.Entity<DisposalRequest>(entity =>
+        {
+            entity.ToTable("DisposalRequests");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasConversion<int>().IsRequired();
+            entity.Property(x => x.Reason).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.RequestedBy).IsRequired().HasMaxLength(450);
+            entity.Property(x => x.ReviewedBy).HasMaxLength(450);
+            entity.Property(x => x.ReviewNote).HasMaxLength(1000);
+
+            entity.HasOne(x => x.Warehouse)
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.RequestedUser)
+                .WithMany()
+                .HasForeignKey(x => x.RequestedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ReviewedUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReviewedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<DisposalRequestItem>(entity =>
+        {
+            entity.ToTable("DisposalRequestItems");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.DisposalRequestId, x.BoxId }).IsUnique();
+
+            entity.HasOne(x => x.DisposalRequest)
+                .WithMany(r => r.Items)
+                .HasForeignKey(x => x.DisposalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Box)
+                .WithMany()
+                .HasForeignKey(x => x.BoxId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ===================== ProductVariant =====================

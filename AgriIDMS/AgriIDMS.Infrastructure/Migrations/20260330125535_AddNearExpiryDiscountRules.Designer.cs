@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260330125535_AddNearExpiryDiscountRules")]
+    partial class AddNearExpiryDiscountRules
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -330,79 +333,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasIndex("VerifiedBy");
 
                     b.ToTable("Complaints", (string)null);
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.DisposalRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RequestedBy")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("ReviewNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReviewedBy")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("WarehouseId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RequestedBy");
-
-                    b.HasIndex("ReviewedBy");
-
-                    b.HasIndex("WarehouseId");
-
-                    b.ToTable("DisposalRequests", (string)null);
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.DisposalRequestItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BoxId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DisposalRequestId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoxId");
-
-                    b.HasIndex("DisposalRequestId", "BoxId")
-                        .IsUnique();
-
-                    b.ToTable("DisposalRequestItems", (string)null);
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportDetail", b =>
@@ -881,24 +811,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<DateTime?>("DeliveredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RecipientAddress")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("RecipientFullName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("RecipientPhone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<string>("Source")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -921,8 +833,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BackorderExpiryNotifiedAt");
-
-                    b.HasIndex("DeliveredAt");
 
                     b.HasIndex("Source");
 
@@ -1130,9 +1040,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
-
-                    b.Property<decimal?>("ManualNearExpiryDiscountPercent")
-                        .HasColumnType("decimal(5,2)");
 
                     b.Property<decimal?>("MinReceiptWeight")
                         .HasColumnType("decimal(18,2)");
@@ -1396,23 +1303,12 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<string>("CustomerId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Freshness")
-                        .HasColumnType("int");
-
                     b.Property<bool>("IsApproved")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
                     b.Property<int>("OrderDetailId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Packaging")
                         .HasColumnType("int");
 
                     b.Property<int>("ProductVariantId")
@@ -1423,8 +1319,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId");
-
                     b.HasIndex("IsApproved");
 
                     b.HasIndex("OrderDetailId")
@@ -1434,10 +1328,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.ToTable("Reviews", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Review_Freshness", "[Freshness] >= 1 AND [Freshness] <= 5");
-
-                            t.HasCheckConstraint("CK_Review_Packaging", "[Packaging] >= 1 AND [Packaging] <= 5");
-
                             t.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
                         });
                 });
@@ -1924,51 +1814,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.Navigation("VerifiedUser");
                 });
 
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.DisposalRequest", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "RequestedUser")
-                        .WithMany()
-                        .HasForeignKey("RequestedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "ReviewedUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("AgriIDMS.Domain.Entities.Warehouse", "Warehouse")
-                        .WithMany()
-                        .HasForeignKey("WarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("RequestedUser");
-
-                    b.Navigation("ReviewedUser");
-
-                    b.Navigation("Warehouse");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.DisposalRequestItem", b =>
-                {
-                    b.HasOne("AgriIDMS.Domain.Entities.Box", "Box")
-                        .WithMany()
-                        .HasForeignKey("BoxId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("AgriIDMS.Domain.Entities.DisposalRequest", "DisposalRequest")
-                        .WithMany("Items")
-                        .HasForeignKey("DisposalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Box");
-
-                    b.Navigation("DisposalRequest");
-                });
-
             modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportDetail", b =>
                 {
                     b.HasOne("AgriIDMS.Domain.Entities.Box", "Box")
@@ -2331,12 +2176,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Review", b =>
                 {
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("AgriIDMS.Domain.Entities.OrderDetail", "OrderDetail")
                         .WithOne("Review")
                         .HasForeignKey("AgriIDMS.Domain.Entities.Review", "OrderDetailId")
@@ -2348,8 +2187,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasForeignKey("ProductVariantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Customer");
 
                     b.Navigation("OrderDetail");
 
@@ -2525,11 +2362,6 @@ namespace AgriIDMS.Infrastructure.Migrations
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Complaint", b =>
                 {
                     b.Navigation("Refunds");
-                });
-
-            modelBuilder.Entity("AgriIDMS.Domain.Entities.DisposalRequest", b =>
-                {
-                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.ExportReceipt", b =>

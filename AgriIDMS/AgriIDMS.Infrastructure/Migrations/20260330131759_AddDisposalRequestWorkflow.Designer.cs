@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AgriIDMS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260330131759_AddDisposalRequestWorkflow")]
+    partial class AddDisposalRequestWorkflow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -881,24 +884,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<DateTime?>("DeliveredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RecipientAddress")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("RecipientFullName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("RecipientPhone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<string>("Source")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -921,8 +906,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BackorderExpiryNotifiedAt");
-
-                    b.HasIndex("DeliveredAt");
 
                     b.HasIndex("Source");
 
@@ -1130,9 +1113,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
-
-                    b.Property<decimal?>("ManualNearExpiryDiscountPercent")
-                        .HasColumnType("decimal(5,2)");
 
                     b.Property<decimal?>("MinReceiptWeight")
                         .HasColumnType("decimal(18,2)");
@@ -1396,23 +1376,12 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<string>("CustomerId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Freshness")
-                        .HasColumnType("int");
-
                     b.Property<bool>("IsApproved")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
                     b.Property<int>("OrderDetailId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Packaging")
                         .HasColumnType("int");
 
                     b.Property<int>("ProductVariantId")
@@ -1423,8 +1392,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId");
-
                     b.HasIndex("IsApproved");
 
                     b.HasIndex("OrderDetailId")
@@ -1434,10 +1401,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
                     b.ToTable("Reviews", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Review_Freshness", "[Freshness] >= 1 AND [Freshness] <= 5");
-
-                            t.HasCheckConstraint("CK_Review_Packaging", "[Packaging] >= 1 AND [Packaging] <= 5");
-
                             t.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
                         });
                 });
@@ -2331,12 +2294,6 @@ namespace AgriIDMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AgriIDMS.Domain.Entities.Review", b =>
                 {
-                    b.HasOne("AgriIDMS.Domain.Entities.ApplicationUser", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("AgriIDMS.Domain.Entities.OrderDetail", "OrderDetail")
                         .WithOne("Review")
                         .HasForeignKey("AgriIDMS.Domain.Entities.Review", "OrderDetailId")
@@ -2348,8 +2305,6 @@ namespace AgriIDMS.Infrastructure.Migrations
                         .HasForeignKey("ProductVariantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Customer");
 
                     b.Navigation("OrderDetail");
 

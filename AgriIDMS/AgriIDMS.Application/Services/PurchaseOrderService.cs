@@ -332,6 +332,14 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         foreach (var order in orders)
         {
+            const decimal EPS = 0.0001m;
+            // Hide PO that has no remaining weight to receive (all details fully received).
+            var hasRemaining =
+                order.Details != null &&
+                order.Details.Any(d => d.OrderedWeight > d.ReceivedWeight + EPS);
+            if (!hasRemaining)
+                continue;
+
             var peopleCreate = await _userRepository.GetByIdAsync(order.CreatedBy);
 
             result.Add(new PurchaseOrderGetAllResponse

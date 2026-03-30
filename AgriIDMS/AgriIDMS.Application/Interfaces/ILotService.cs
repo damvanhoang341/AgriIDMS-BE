@@ -16,5 +16,8 @@ namespace AgriIDMS.Application.Interfaces
         Task UpdateQrImageUrlAsync(int lotId, string qrImageUrl);
         Task<IEnumerable<NearExpiryLotDto>> GetNearExpiryLotsAsync();
         Task<NearExpiryDashboardDto> GetNearExpiryDashboardAsync(int days, int? warehouseId = null);
+
+        Task<List<NearExpiryDiscountRuleDto>> GetNearExpiryDiscountRulesAsync();
+        Task UpdateNearExpiryDiscountRulesAsync(string userId, List<UpsertNearExpiryDiscountRuleDto> rules);
     }
 }

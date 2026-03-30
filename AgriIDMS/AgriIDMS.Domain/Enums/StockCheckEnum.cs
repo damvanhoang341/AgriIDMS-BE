@@ -38,6 +38,7 @@ namespace AgriIDMS.Domain.Enums
         None = 0,
         Damaged = 1,
         Loss = 2,
-        MeasurementError = 3
+        MeasurementError = 3,
+        Other = 4
     }
 }
