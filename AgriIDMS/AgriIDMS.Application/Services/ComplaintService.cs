@@ -24,6 +24,7 @@ namespace AgriIDMS.Application.Services
         private static readonly OrderStatus[] AllowedOrderStatusesForComplaint =
         {
             OrderStatus.Shipping,
+            OrderStatus.Delivered,
             OrderStatus.Completed
         };
 
@@ -275,5 +276,6 @@ namespace AgriIDMS.Application.Services
                 BoxCode = boxCode
             };
         }
+
     }
 }

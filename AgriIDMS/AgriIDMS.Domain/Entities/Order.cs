@@ -20,6 +20,7 @@ namespace AgriIDMS.Domain.Entities
         public OrderSource Source { get; set; } = OrderSource.Online;
 
         public OrderStatus Status { get; set; }
+        public DateTime? DeliveredAt { get; set; }
         public DateTime? BackorderExpiryNotifiedAt { get; set; }
 
         /// <summary>Snapshot người nhận khi đặt online (có thể khác profile tài khoản).</summary>

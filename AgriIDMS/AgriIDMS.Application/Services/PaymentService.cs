@@ -132,8 +132,14 @@ namespace AgriIDMS.Application.Services
             payment.PaymentStatus = PaymentStatus.Success;
             payment.PaidAt = DateTime.UtcNow;
 
-            // COD thu sau khi giao: đơn có thể đã Shipping — không đổi trạng thái đơn, chỉ ghi nhận thu.
-            if (order.Status != OrderStatus.Shipping && order.Status != OrderStatus.Completed)
+            // COD thu sau khi giao: khi đơn đang Shipping thì chốt sang Delivered.
+            // Nếu xác nhận sớm hơn bước giao, vẫn đưa đơn về Paid để tiếp tục luồng xuất.
+            if (order.Status == OrderStatus.Shipping)
+            {
+                order.Status = OrderStatus.Delivered;
+                order.DeliveredAt = DateTime.UtcNow;
+            }
+            else if (order.Status != OrderStatus.Delivered)
                 order.Status = OrderStatus.Paid;
 
             await _uow.SaveChangesAsync();
@@ -306,11 +312,8 @@ namespace AgriIDMS.Application.Services
                 payment.PaymentStatus = PaymentStatus.Success;
                 payment.PaidAt = DateTime.UtcNow;
 
-                if (payment.Order != null)
-                    payment.Order.Status = OrderStatus.Paid;
-
                 _logger.LogInformation(
-                    "Banking payment {PaymentId} succeeded. Order {OrderId} → Paid",
+                    "Banking payment {PaymentId} succeeded. Order {OrderId} payment marked Paid",
                     payment.Id, payment.OrderId);
             }
             else

@@ -261,7 +261,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(o => o.Allocations)
                 .Where(o =>
                     o.UserId == userId
-                    && (o.Status == OrderStatus.Shipping || o.Status == OrderStatus.Completed));
+                    && (o.Status == OrderStatus.Shipping || o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Completed));
 
             return await query
                 .OrderByDescending(o => o.CreatedAt)

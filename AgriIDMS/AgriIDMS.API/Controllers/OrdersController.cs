@@ -138,7 +138,7 @@ namespace AgriIDMS.API.Controllers
 
             var query = new GetOrdersQuery
             {
-                Status = OrderStatus.Completed.ToString()
+                Status = OrderStatus.Delivered.ToString()
             };
 
             var result = await _orderService.GetMyOrdersAsync(userId, query);
@@ -291,6 +291,42 @@ namespace AgriIDMS.API.Controllers
             var operatorUserId = GetCurrentUserId();
             var result = await _orderService.ConfirmAllocationAsync(id, operatorUserId, skipCustomerOwnershipCheck: true);
             return Ok(result);
+        }
+
+        [HttpPatch("{id:int:min(1)}/delivery/confirm")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> ConfirmDelivered(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmDeliveredAsync(id, operatorUserId);
+            return Ok(new { Message = "Đã xác nhận giao hàng thành công", OrderId = id, Status = OrderStatus.Delivered.ToString() });
+        }
+
+        [HttpPatch("{id:int:min(1)}/delivery/failed")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> ConfirmFailedDelivery(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmFailedDeliveryAsync(id, operatorUserId);
+            return Ok(new { Message = "Đã xác nhận giao hàng thất bại", OrderId = id, Status = OrderStatus.FailedDelivery.ToString() });
+        }
+
+        [HttpPatch("{id:int:min(1)}/delivery/returned")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> ConfirmReturned(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmReturnedAsync(id, operatorUserId);
+            return Ok(new { Message = "Đã xác nhận hoàn hàng", OrderId = id, Status = OrderStatus.Returned.ToString() });
+        }
+
+        [HttpPatch("{id:int:min(1)}/payment/cod/confirm-paid")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> ConfirmCODPaid(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmCODPaidAsync(id, operatorUserId);
+            return Ok(new { Message = "Đã xác nhận COD thanh toán thành công", OrderId = id });
         }
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>

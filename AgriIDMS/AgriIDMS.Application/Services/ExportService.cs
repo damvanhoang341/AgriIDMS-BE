@@ -329,8 +329,8 @@ namespace AgriIDMS.Application.Services
 
             return order.Payments != null
                    && order.Payments.Any(p =>
-                       p.PaymentMethod == PaymentMethod.COD
-                       && p.PaymentStatus == PaymentStatus.Pending);
+                       (p.PaymentMethod == PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Pending)
+                       || (p.PaymentMethod != PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Success));
         }
 
         public async Task<IList<PendingApproveExportListItemDto>> GetPendingApproveExportsAsync(GetPendingApproveExportsQuery query)

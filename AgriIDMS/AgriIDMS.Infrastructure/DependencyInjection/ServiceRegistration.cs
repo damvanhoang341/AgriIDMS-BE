@@ -103,6 +103,7 @@ public static class ServiceRegistration
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IOrderAllocationRepository, OrderAllocationRepository>();
         services.AddScoped<IComplaintRepository, ComplaintRepository>();
+        services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IExportReceiptRepository, ExportReceiptRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
@@ -129,6 +130,7 @@ public static class ServiceRegistration
         services.AddScoped<ICartService, CartService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IComplaintService, ComplaintService>();
+        services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IExportService, ExportService>();
         services.AddScoped<INotificationService, NotificationService>();

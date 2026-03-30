@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,6 +10,9 @@ namespace AgriIDMS.Domain.Entities
     {
         public int Id { get; set; }
 
+        public string CustomerId { get; set; } = string.Empty;
+        public ApplicationUser? Customer { get; set; }
+
         public int OrderDetailId { get; set; }
         public OrderDetail OrderDetail { get; set; } = null!;
 
@@ -17,6 +20,8 @@ namespace AgriIDMS.Domain.Entities
         public ProductVariant ProductVariant { get; set; } = null!;
 
         public int Rating { get; set; } // 1-5
+        public int Freshness { get; set; } // 1-5
+        public int Packaging { get; set; } // 1-5
 
         public string? Comment { get; set; }
 

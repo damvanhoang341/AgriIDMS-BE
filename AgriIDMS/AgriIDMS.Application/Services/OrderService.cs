@@ -593,6 +593,106 @@ namespace AgriIDMS.Application.Services
             };
         }
 
+        public async Task ConfirmDeliveredAsync(int orderId, string operatorUserId)
+        {
+            var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            // Idempotent: gọi nhiều lần không làm sai dữ liệu
+            if (order.Status == OrderStatus.Delivered)
+                return;
+
+            if (order.Status != OrderStatus.Shipping)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ xác nhận giao thành công khi đơn ở trạng thái Shipping. Hiện tại: {order.Status}");
+
+            var latestPayment = order.Payments?
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefault();
+
+            if (latestPayment == null)
+                throw new InvalidBusinessRuleException("Không tìm thấy thông tin thanh toán của đơn hàng");
+
+            if (latestPayment.PaymentMethod == PaymentMethod.COD)
+            {
+                if (latestPayment.PaymentStatus == PaymentStatus.Pending)
+                {
+                    latestPayment.PaymentStatus = PaymentStatus.Success;
+                    latestPayment.PaidAt = DateTime.UtcNow;
+                }
+                else if (latestPayment.PaymentStatus != PaymentStatus.Success)
+                {
+                    throw new InvalidBusinessRuleException(
+                        $"Không thể xác nhận Delivered khi COD có trạng thái thanh toán {latestPayment.PaymentStatus}");
+                }
+            }
+            else if (latestPayment.PaymentStatus != PaymentStatus.Success)
+            {
+                throw new InvalidBusinessRuleException("Đơn thanh toán online chưa Paid, không thể xác nhận Delivered");
+            }
+
+            order.Status = OrderStatus.Delivered;
+            order.DeliveredAt = DateTime.UtcNow;
+            await _uow.SaveChangesAsync();
+        }
+
+        public async Task ConfirmFailedDeliveryAsync(int orderId, string operatorUserId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Status == OrderStatus.FailedDelivery)
+                return;
+
+            if (order.Status != OrderStatus.Shipping)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ đánh dấu giao thất bại khi đơn ở trạng thái Shipping. Hiện tại: {order.Status}");
+
+            order.Status = OrderStatus.FailedDelivery;
+            await _uow.SaveChangesAsync();
+        }
+
+        public async Task ConfirmReturnedAsync(int orderId, string operatorUserId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Status == OrderStatus.Returned)
+                return;
+
+            if (order.Status != OrderStatus.FailedDelivery && order.Status != OrderStatus.Shipping)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ đánh dấu Returned khi đơn ở trạng thái Shipping/FailedDelivery. Hiện tại: {order.Status}");
+
+            order.Status = OrderStatus.Returned;
+            await _uow.SaveChangesAsync();
+        }
+
+        public async Task ConfirmCODPaidAsync(int orderId, string operatorUserId)
+        {
+            var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var latestCodPayment = order.Payments?
+                .Where(p => p.PaymentMethod == PaymentMethod.COD)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefault();
+
+            if (latestCodPayment == null)
+                throw new InvalidBusinessRuleException("Đơn không có thanh toán COD");
+
+            if (latestCodPayment.PaymentStatus == PaymentStatus.Success)
+                return;
+
+            if (latestCodPayment.PaymentStatus != PaymentStatus.Pending)
+                throw new InvalidBusinessRuleException(
+                    $"Không thể xác nhận COD Paid từ trạng thái {latestCodPayment.PaymentStatus}");
+
+            latestCodPayment.PaymentStatus = PaymentStatus.Success;
+            latestCodPayment.PaidAt = DateTime.UtcNow;
+            await _uow.SaveChangesAsync();
+        }
+
         public async Task<IList<OverdueBackorderItemDto>> GetOverdueBackordersAsync()
         {
             var now = DateTime.UtcNow;

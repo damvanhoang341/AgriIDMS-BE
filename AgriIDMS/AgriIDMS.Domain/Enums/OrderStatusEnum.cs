@@ -37,7 +37,16 @@ namespace AgriIDMS.Domain.Enums
         PartiallyAllocated = 10,
 
         /// <summary>Khách chọn chờ backorder phần còn thiếu (đến hạn thì xử lý theo policy).</summary>
-        BackorderWaiting = 11
+        BackorderWaiting = 11,
+
+        /// <summary>Đơn đã giao thành công đến khách hàng (mốc bắt đầu cho customer review).</summary>
+        Delivered = 13,
+
+        /// <summary>Giao hàng thất bại (shipper không giao được).</summary>
+        FailedDelivery = 14,
+
+        /// <summary>Đơn bị hoàn trả sau giao thất bại hoặc khách từ chối nhận.</summary>
+        Returned = 15
     }
 
     public enum PaymentStatus

@@ -40,6 +40,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Refund> Refunds => Set<Refund>();
     public DbSet<Complaint> Complaints => Set<Complaint>();
+    public DbSet<Review> Reviews => Set<Review>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
     protected override void OnModelCreating(ModelBuilder builder)
@@ -978,6 +979,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.BackorderExpiryNotifiedAt)
                   .IsRequired(false);
 
+            entity.Property(x => x.DeliveredAt)
+                  .IsRequired(false);
+
             entity.Property(x => x.RecipientFullName)
                   .HasMaxLength(200)
                   .IsRequired();
@@ -1004,6 +1008,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.Status);
             entity.HasIndex(x => x.Source);
             entity.HasIndex(x => x.BackorderExpiryNotifiedAt);
+            entity.HasIndex(x => x.DeliveredAt);
         });
 
         // ===================== OrderDetail =====================
@@ -1324,8 +1329,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Rating)
                   .IsRequired();
 
-            // Giới hạn rating 1-5 (DB level constraint)
+            entity.Property(x => x.Freshness)
+                  .IsRequired();
+
+            entity.Property(x => x.Packaging)
+                  .IsRequired();
+
+            entity.Property(x => x.CustomerId)
+                  .IsRequired()
+                  .HasMaxLength(450);
+
+            // Giới hạn điểm 1-5 (DB level constraint)
             entity.HasCheckConstraint("CK_Review_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+            entity.HasCheckConstraint("CK_Review_Freshness", "[Freshness] >= 1 AND [Freshness] <= 5");
+            entity.HasCheckConstraint("CK_Review_Packaging", "[Packaging] >= 1 AND [Packaging] <= 5");
 
             // Comment
             entity.Property(x => x.Comment)
@@ -1355,6 +1372,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(x => x.ProductVariantId);
+
+            entity.HasOne(x => x.Customer)
+                  .WithMany()
+                  .HasForeignKey(x => x.CustomerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.CustomerId);
 
             // Optional: index cho admin filter
             entity.HasIndex(x => x.IsApproved);

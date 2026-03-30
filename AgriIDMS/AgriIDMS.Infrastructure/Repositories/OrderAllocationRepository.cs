@@ -55,6 +55,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.OrderAllocations
                 .Include(a => a.Box)
+                .Include(a => a.OrderDetail)
                 .FirstOrDefaultAsync(a => a.OrderId == orderId && a.BoxId == boxId);
         }
     }
