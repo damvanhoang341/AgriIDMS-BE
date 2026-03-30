@@ -3,6 +3,7 @@ using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using AgriIDMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -61,6 +62,18 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => (ComplaintStatus?)c.Status)
                 .FirstOrDefaultAsync();
+        }
+
+        public async Task<IList<Review>> GetApprovedByProductVariantAsync(int productVariantId, int skip, int take)
+        {
+            return await _context.Set<Review>()
+                .AsNoTracking()
+                .Include(r => r.Customer)
+                .Where(r => r.ProductVariantId == productVariantId && r.IsApproved)
+                .OrderByDescending(r => r.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
         }
     }
 }

@@ -8,5 +8,6 @@ namespace AgriIDMS.Application.Interfaces
         Task<ReviewResponseDto> CreateReviewAsync(CreateReviewRequest request, string customerId);
         Task ValidateReviewEligibility(int orderDetailId, string customerId);
         Task<bool> IsReviewableAsync(int orderDetailId, string customerId);
+        Task<ApprovedReviewListResponseDto> GetApprovedReviewsByProductVariantAsync(int productVariantId, int skip, int take);
     }
 }

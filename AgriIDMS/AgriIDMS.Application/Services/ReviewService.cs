@@ -85,6 +85,35 @@ namespace AgriIDMS.Application.Services
             }
         }
 
+        public async Task<ApprovedReviewListResponseDto> GetApprovedReviewsByProductVariantAsync(int productVariantId, int skip, int take)
+        {
+            var normalizedSkip = skip < 0 ? 0 : skip;
+            var normalizedTake = take <= 0 ? 10 : Math.Min(take, 100);
+
+            var reviews = await _reviewRepository.GetApprovedByProductVariantAsync(productVariantId, normalizedSkip, normalizedTake);
+            var items = reviews.Select(r => new ApprovedReviewItemDto
+            {
+                Id = r.Id,
+                ProductVariantId = r.ProductVariantId,
+                CustomerId = r.CustomerId,
+                CustomerName = r.Customer?.FullName,
+                Rating = r.Rating,
+                Freshness = r.Freshness,
+                Packaging = r.Packaging,
+                Comment = r.Comment,
+                CreatedAt = r.CreatedAt
+            }).ToList();
+
+            return new ApprovedReviewListResponseDto
+            {
+                ProductVariantId = productVariantId,
+                Skip = normalizedSkip,
+                Take = normalizedTake,
+                Count = items.Count,
+                Items = items
+            };
+        }
+
         public async Task ValidateReviewEligibility(int orderDetailId, string customerId)
         {
             var orderDetail = await _reviewRepository.GetOrderDetailForReviewAsync(orderDetailId)

@@ -40,5 +40,22 @@ namespace AgriIDMS.API.Controllers
             var isReviewable = await _reviewService.IsReviewableAsync(orderDetailId, customerId);
             return Ok(new { OrderDetailId = orderDetailId, IsReviewable = isReviewable });
         }
+
+        [HttpGet("product-variants/{productVariantId:int:min(1)}/approved")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetApprovedByProductVariant(
+            int productVariantId,
+            [FromQuery] GetApprovedReviewsQuery query)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _reviewService.GetApprovedReviewsByProductVariantAsync(
+                productVariantId,
+                query?.Skip ?? 0,
+                query?.Take ?? 10);
+
+            return Ok(result);
+        }
     }
 }

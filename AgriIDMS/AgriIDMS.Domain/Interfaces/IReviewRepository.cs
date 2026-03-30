@@ -1,5 +1,6 @@
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Interfaces
@@ -11,5 +12,6 @@ namespace AgriIDMS.Domain.Interfaces
         Task<OrderDetail?> GetOrderDetailForReviewAsync(int orderDetailId);
         Task<bool> HasNonResolvedComplaintAsync(int orderId, int orderDetailId);
         Task<ComplaintStatus?> GetLatestComplaintStatusAsync(int orderId, int orderDetailId);
+        Task<IList<Review>> GetApprovedByProductVariantAsync(int productVariantId, int skip, int take);
     }
 }

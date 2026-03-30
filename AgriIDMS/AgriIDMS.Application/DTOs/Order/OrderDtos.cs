@@ -212,6 +212,7 @@ namespace AgriIDMS.Application.DTOs.Order
 
     public class OrderDetailItemDto
     {
+        public int OrderDetailId { get; set; }
         public int ProductVariantId { get; set; }
         public string ProductName { get; set; } = null!;
         public string Grade { get; set; } = null!;

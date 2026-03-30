@@ -581,6 +581,7 @@ namespace AgriIDMS.Application.Services
                 Recipient = ToRecipientSnapshot(order),
                 Items = order.Details.Select(d => new OrderDetailItemDto
                 {
+                    OrderDetailId = d.Id,
                     ProductVariantId = d.ProductVariantId,
                     ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
                     Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
