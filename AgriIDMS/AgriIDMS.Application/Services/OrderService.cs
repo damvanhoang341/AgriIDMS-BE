@@ -2158,7 +2158,7 @@ namespace AgriIDMS.Application.Services
                 detail.ShortageQuantity = 0;
             }
         }
-        //
+        
         private static void ApplyRecipientToOrder(Order order, OrderRecipientCheckoutDto recipient)
         {
             order.RecipientFullName = recipient.FullName.Trim();
