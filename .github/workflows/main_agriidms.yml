@@ -20,13 +20,13 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Restore
-        run: dotnet restore ./src/AgriIDMS.API/AgriIDMS.API.csproj
+        run: dotnet restore ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj
 
       - name: Build
-        run: dotnet build ./src/AgriIDMS.API/AgriIDMS.API.csproj --configuration Release
+        run: dotnet build ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj --configuration Release
 
       - name: Publish
-        run: dotnet publish ./src/AgriIDMS.API/AgriIDMS.API.csproj -c Release -o ./publish
+        run: dotnet publish ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj -c Release -o ./publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -43,10 +43,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app
+          path: ./app
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'AgriIDMS'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: ./app
