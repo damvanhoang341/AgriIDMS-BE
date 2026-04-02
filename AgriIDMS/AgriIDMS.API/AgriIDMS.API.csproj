@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AgriIDMS.Application\AgriIDMS.Application.csproj" />
-    <ProjectReference Include="..\AgriIDMS.Infrastructure1\AgriIDMS.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
