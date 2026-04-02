@@ -1,5 +1,4 @@
 using AgriIDMS.API.Middleware;
-using AgriIDMS.Infrastructure;
 using AgriIDMS.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
