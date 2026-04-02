@@ -1,0 +1,53 @@
+name: Build and deploy ASP.Net Core app to Azure Web App - AgriIDMS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: Restore
+        run: dotnet restore ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj
+
+      - name: Build
+        run: dotnet build ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj --configuration Release
+
+      - name: Publish
+        run: dotnet publish ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj -c Release -o ./publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: ./publish
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: ./app
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'AgriIDMS'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./app
