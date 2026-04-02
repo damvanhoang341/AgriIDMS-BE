@@ -31,15 +31,12 @@ var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// Always enable Swagger (for testing / local + Azure)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    // Always enable Swagger (for testing / local + Azure)
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "AgriIDMS API V1");
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "AgriIDMS API V1");
+});
 
 // Seed Identity
 using (var scope = app.Services.CreateScope())
