@@ -25,8 +25,10 @@ jobs:
       - name: Build
         run: dotnet build ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj --configuration Release
 
+      # Azure App Service Free (F1) is 32-bit only — publish win-x86 so ANCM can start the process.
+      # Self-contained bundles the .NET runtime (host may not expose a usable x86 shared runtime).
       - name: Publish
-        run: dotnet publish ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj -c Release -o ./publish
+        run: dotnet publish ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj -c Release -o ./publish -r win-x86 --self-contained true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
