@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriIDMS.Application", "Agr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriIDMS.API", "AgriIDMS.API\AgriIDMS.API.csproj", "{2EE73BBA-A5CD-47BF-BF78-44C0D6AAF8A5}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{F90C27FA-D117-4874-A7C1-0D4056C60E48}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriIDMS.Infrastructure", "AgriIDMS.Infrastructure1\AgriIDMS.Infrastructure.csproj", "{9E09BAAF-8F92-4342-867C-3C58715B0F3A}"
 EndProject
 Global
