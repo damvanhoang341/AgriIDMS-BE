@@ -20,10 +20,10 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Restore
-        run: dotnet restore ./AgriIDMS/AgriIDMS.API/AgriIDMS.sln
+        run: dotnet restore ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj
 
       - name: Build
-        run: dotnet build ./AgriIDMS/AgriIDMS.API/AgriIDMS.sln --configuration Release
+        run: dotnet build ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj --configuration Release
 
       - name: Publish
         run: dotnet publish ./AgriIDMS/AgriIDMS.API/AgriIDMS.API.csproj -c Release -o ./publish
