@@ -427,5 +427,4 @@ AgriIDMS/**/Seeders/**
 AgriIDMS/**/*IdentitySeeder*.cs
 !AgriIDMS/AgriIDMS.Infrastructure/Identity/IdentitySeeder.cs
 /AgriIDMS/AgriIDMS.Infrastructure/Identity/IdentitySeeder.cs
-/AgriIDMS/AgriIDMS.Infrastructure/AgriIDMS.Infrastructure.csproj
 /AgriIDMS/AgriIDMS.API/appsettings.Development.json
