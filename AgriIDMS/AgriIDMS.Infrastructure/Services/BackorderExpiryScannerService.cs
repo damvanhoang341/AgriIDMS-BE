@@ -21,6 +21,7 @@ namespace AgriIDMS.Infrastructure.Services
             IServiceScopeFactory scopeFactory,
             ILogger<BackorderExpiryScannerService> logger)
         {
+            //
             _scopeFactory = scopeFactory;
             _logger = logger;
         }
