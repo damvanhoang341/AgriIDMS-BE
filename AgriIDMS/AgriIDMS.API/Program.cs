@@ -39,18 +39,18 @@ app.UseSwaggerUI(c =>
 });
 
 // Seed Identity
-using (var scope = app.Services.CreateScope())
-{
-    try
-    {
-        await IdentitySeeder.SeedAsync(scope.ServiceProvider);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Seed failed: " + ex);
-        throw; 
-    }
-}
+//using (var scope = app.Services.CreateScope())
+//{
+//    try
+//    {
+//        await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+//    }
+//    catch (Exception ex)
+//    {
+//        Console.WriteLine("Seed failed: " + ex);
+//        throw; 
+//    }
+//}
 
 app.UseHttpsRedirection();
 
