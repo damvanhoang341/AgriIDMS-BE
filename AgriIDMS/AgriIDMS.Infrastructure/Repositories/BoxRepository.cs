@@ -17,6 +17,24 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             _context = context;
         }
+
+        /// <summary>
+        /// Box đang được đơn khác giữ: Proposed / Reserved / Picked, hoặc SoftLocked còn hạn.
+        /// </summary>
+        private static IQueryable<Box> WhereNotBlockedByOrderAllocation(
+            IQueryable<Box> query,
+            AppDbContext ctx,
+            DateTime utcNow)
+        {
+            return query.Where(b => !ctx.OrderAllocations.Any(a =>
+                a.BoxId == b.Id &&
+                a.Status != AllocationStatus.Cancelled &&
+                (a.Status == AllocationStatus.Reserved ||
+                 a.Status == AllocationStatus.Picked ||
+                 a.Status == AllocationStatus.Proposed ||
+                 (a.Status == AllocationStatus.SoftLocked &&
+                  (!a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)))));
+        }
         public async Task CreateAsync(Box box)
         {
             await _context.Boxes.AddAsync(box);
@@ -198,6 +216,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                     d.VarianceType != VarianceType.Match));
             }
 
+            var utcNow = DateTime.UtcNow;
+            query = WhereNotBlockedByOrderAllocation(query, _context, utcNow);
+
             return await query
                 .OrderBy(b => b.Lot.ExpiryDate)
                 .ToListAsync();
@@ -215,15 +236,19 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<int> GetAvailableBoxCountByVariantIdAsync(int productVariantId)
         {
-            return await _context.Boxes
+            var utcNow = DateTime.UtcNow;
+            var query = _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                 .Where(b =>
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
-                    b.Lot.ExpiryDate > DateTime.UtcNow)
-                .CountAsync();
+                    b.Lot.ExpiryDate > utcNow);
+
+            query = WhereNotBlockedByOrderAllocation(query, _context, utcNow);
+
+            return await query.CountAsync();
         }
 
         public async Task<int> GetAvailableBoxCountByVariantAndTypeAsync(
@@ -252,6 +277,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                     d.VarianceType.HasValue &&
                     d.VarianceType != VarianceType.Match));
             }
+
+            query = WhereNotBlockedByOrderAllocation(query, _context, now);
 
             // 1) Kiểm tra nhanh xem có box hết hạn / ExpiryDate <= now không
             bool hasExpired = await query.AnyAsync(b => b.Lot.ExpiryDate <= now);
@@ -301,19 +328,24 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<List<BoxTypeSummary>> GetAvailableBoxTypeSummaryByVariantIdAsync(int productVariantId)
         {
-            return await _context.Boxes
+            var utcNow = DateTime.UtcNow;
+            var baseQuery = _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                 .Where(b =>
                     b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
-                    b.Lot.ExpiryDate > DateTime.UtcNow &&
+                    b.Lot.ExpiryDate > utcNow &&
                     !_context.StockCheckDetails.Any(d =>
                         d.BoxId == b.Id &&
                         d.StockCheck.Status == StockCheckStatus.Approved &&
                         d.VarianceType.HasValue &&
-                        d.VarianceType != VarianceType.Match))
+                        d.VarianceType != VarianceType.Match));
+
+            var query = WhereNotBlockedByOrderAllocation(baseQuery, _context, utcNow);
+
+            return await query
                 .GroupBy(b => new { b.IsPartial, b.Weight })
                 .Select(g => new BoxTypeSummary
                 {

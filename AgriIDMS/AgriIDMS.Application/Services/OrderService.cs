@@ -33,6 +33,7 @@ namespace AgriIDMS.Application.Services
         private const int CompleteAfterDeliveredDays = 4;
 
         private const int AllocationExpirationHours = 24;
+        private readonly TimeSpan _onlineOrderSoftLockDuration;
 
         public OrderService(
             ICartRepository cartRepo,
@@ -66,6 +67,10 @@ namespace AgriIDMS.Application.Services
                 out var percent)
                 ? percent
                 : 0m;
+            var softLockMinutes = 30;
+            if (int.TryParse(config["Ordering:OnlineSoftLockMinutes"], out var olm) && olm > 0)
+                softLockMinutes = Math.Min(olm, 7 * 24 * 60);
+            _onlineOrderSoftLockDuration = TimeSpan.FromMinutes(softLockMinutes);
             _logger = logger;
         }
 
@@ -838,6 +843,11 @@ namespace AgriIDMS.Application.Services
                                 alloc.Box.Status = BoxStatus.Stored;
                             }
                         }
+                        else if (alloc.Status == AllocationStatus.Proposed ||
+                                 alloc.Status == AllocationStatus.SoftLocked)
+                        {
+                            alloc.Status = AllocationStatus.Cancelled;
+                        }
                     }
                 }
 
@@ -932,11 +942,19 @@ namespace AgriIDMS.Application.Services
 
                 await _orderRepo.AddAsync(order);
                 await _cartRepo.ClearCartAsync(cart);
+                await _uow.SaveChangesAsync();
+
+                var softLocks = await BuildSoftLockedAllocationsForNewOnlineOrderAsync(order, now);
+                if (!SoftLockSetCoversNewOnlineOrder(order, softLocks))
+                    throw new InvalidBusinessRuleException(
+                        "Không đủ thùng khả dụng để đặt hàng (có thể đang được giữ bởi đơn khác). Vui lòng giảm số lượng hoặc thử lại sau.");
+
+                await _allocationRepo.AddRangeAsync(softLocks);
                 await _uow.CommitAsync();
 
                 _logger.LogInformation(
-                    "Order {OrderId} created from cart for user {UserId}, estimated total {Total}",
-                    order.Id, userId, estimatedTotal);
+                    "Order {OrderId} created from cart for user {UserId}, estimated total {Total}, softLockCount {SoftCount}",
+                    order.Id, userId, estimatedTotal, softLocks.Count);
 
                 return new CreateOrderFromCartResponse
                 {
@@ -944,8 +962,9 @@ namespace AgriIDMS.Application.Services
                     TotalAmount = estimatedTotal,
                     Recipient = ToRecipientSnapshot(order),
                     Items = items,
-                    AllocationSucceeded = false,
-                    AllocationMessage = null
+                    AllocationSucceeded = true,
+                    AllocationMessage =
+                        $"Đã tạm giữ {softLocks.Count} thùng trong {_onlineOrderSoftLockDuration.TotalMinutes:0} phút (chờ sale xác nhận)."
                 };
             }
             catch
@@ -1101,6 +1120,14 @@ namespace AgriIDMS.Application.Services
 
                 cart.UpdatedAt = DateTime.UtcNow;
 
+                await _uow.SaveChangesAsync();
+
+                var softLocks = await BuildSoftLockedAllocationsForNewOnlineOrderAsync(order, now);
+                if (!SoftLockSetCoversNewOnlineOrder(order, softLocks))
+                    throw new InvalidBusinessRuleException(
+                        "Không đủ thùng khả dụng để đặt hàng (có thể đang được giữ bởi đơn khác). Vui lòng giảm số lượng hoặc thử lại sau.");
+
+                await _allocationRepo.AddRangeAsync(softLocks);
                 await _uow.CommitAsync();
 
                 return new CreateOrderFromCartResponse
@@ -1109,8 +1136,9 @@ namespace AgriIDMS.Application.Services
                     TotalAmount = estimatedTotal,
                     Recipient = ToRecipientSnapshot(order),
                     Items = orderItems,
-                    AllocationSucceeded = false,
-                    AllocationMessage = null
+                    AllocationSucceeded = true,
+                    AllocationMessage =
+                        $"Đã tạm giữ {softLocks.Count} thùng trong {_onlineOrderSoftLockDuration.TotalMinutes:0} phút (chờ sale xác nhận)."
                 };
             }
             catch
@@ -1373,6 +1401,8 @@ namespace AgriIDMS.Application.Services
                 confirmedByUserId,
                 skipCustomerOwnershipCheck: true);
 
+            var orderAfter = await _orderRepo.GetByIdWithDetailsAsync(orderId) ?? order;
+
             _logger.LogInformation(
                 "Order {OrderId} sale-confirmed by {UserId}. Auto-propose result: {ProposalMessage}",
                 orderId, confirmedByUserId, proposalResult.Message);
@@ -1382,12 +1412,12 @@ namespace AgriIDMS.Application.Services
                 Message = $"Sale đã xác nhận đơn. {proposalResult.Message}",
                 Order = new OrderListItemDto
                 {
-                    OrderId = order.Id,
-                    TotalAmount = order.TotalAmount,
-                    Status = order.Status.ToString(),
-                    Source = order.Source.ToString(),
-                    CreatedAt = order.CreatedAt,
-                    ItemCount = order.Details?.Count ?? 0,
+                    OrderId = orderAfter.Id,
+                    TotalAmount = orderAfter.TotalAmount,
+                    Status = orderAfter.Status.ToString(),
+                    Source = orderAfter.Source.ToString(),
+                    CreatedAt = orderAfter.CreatedAt,
+                    ItemCount = orderAfter.Details?.Count ?? 0,
                     LatestPaymentStatus = null
                 }
             };
@@ -1464,6 +1494,59 @@ namespace AgriIDMS.Application.Services
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
             await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
+
+            var utcNow = DateTime.UtcNow;
+            var orderAllocationsSnapshot = await _allocationRepo.GetByOrderIdAsync(orderId);
+            foreach (var a in orderAllocationsSnapshot.Where(x =>
+                         x.Status == AllocationStatus.SoftLocked &&
+                         x.ExpiredAt.HasValue &&
+                         x.ExpiredAt <= utcNow))
+                a.Status = AllocationStatus.Cancelled;
+
+            var activeSoftLocks = orderAllocationsSnapshot
+                .Where(x =>
+                    x.Status == AllocationStatus.SoftLocked &&
+                    (!x.ExpiredAt.HasValue || x.ExpiredAt > utcNow))
+                .ToList();
+
+            if (activeSoftLocks.Count > 0)
+            {
+                if (SoftLockSetCoversNewOnlineOrder(order, activeSoftLocks))
+                {
+                    await _uow.BeginTransactionAsync();
+                    try
+                    {
+                        foreach (var a in activeSoftLocks)
+                        {
+                            a.Status = AllocationStatus.Proposed;
+                            a.ExpiredAt = null;
+                        }
+
+                        if (IsInitialAllocationStatus(order.Status))
+                            order.Status = OrderStatus.PendingWarehouseConfirm;
+
+                        await _uow.CommitAsync();
+
+                        return new AllocationProposalResultDto
+                        {
+                            OrderId = orderId,
+                            ProposedBoxCount = activeSoftLocks.Count,
+                            Message =
+                                "Đơn đã có thùng được tạm giữ từ lúc đặt hàng; đã chuyển sang đề xuất chờ kho xác nhận"
+                        };
+                    }
+                    catch
+                    {
+                        await _uow.RollbackAsync();
+                        throw;
+                    }
+                }
+
+                foreach (var a in activeSoftLocks)
+                    a.Status = AllocationStatus.Cancelled;
+
+                await _uow.SaveChangesAsync();
+            }
 
             var existingProposed = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
             if (existingProposed.Any())
@@ -1955,6 +2038,11 @@ namespace AgriIDMS.Application.Services
                                 alloc.Box.Status = BoxStatus.Stored;
                             }
                         }
+                        else if (alloc.Status == AllocationStatus.Proposed ||
+                                 alloc.Status == AllocationStatus.SoftLocked)
+                        {
+                            alloc.Status = AllocationStatus.Cancelled;
+                        }
                     }
                 }
 
@@ -2050,6 +2138,69 @@ namespace AgriIDMS.Application.Services
             return deadlines.Any() ? deadlines.Min() : null;
         }
 
+        private static bool SoftLockSetCoversNewOnlineOrder(Order order, List<OrderAllocation> allocations)
+        {
+            foreach (var d in order.Details)
+            {
+                var need = (int)d.Quantity;
+                if (need <= 0)
+                    continue;
+                var have = allocations.Count(a =>
+                    a.OrderDetailId == d.Id && a.Status == AllocationStatus.SoftLocked);
+                if (have != need)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private async Task<List<OrderAllocation>> BuildSoftLockedAllocationsForNewOnlineOrderAsync(
+            Order order,
+            DateTime nowUtc)
+        {
+            var allocations = new List<OrderAllocation>();
+            var selectedBoxIds = new HashSet<int>();
+            var expiresAt = nowUtc.Add(_onlineOrderSoftLockDuration);
+
+            foreach (var detail in order.Details)
+            {
+                var boxesNeeded = (int)detail.Quantity;
+                if (boxesNeeded <= 0)
+                    continue;
+
+                var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(
+                    detail.ProductVariantId,
+                    includeOfflineOnly: false);
+                boxes = boxes
+                    .Where(b =>
+                        b.IsPartial == detail.IsPartial
+                        && b.Weight == detail.BoxWeight
+                        && !selectedBoxIds.Contains(b.Id))
+                    .ToList();
+
+                var allocated = 0;
+                foreach (var box in boxes)
+                {
+                    if (allocated >= boxesNeeded) break;
+                    selectedBoxIds.Add(box.Id);
+
+                    allocations.Add(new OrderAllocation
+                    {
+                        OrderId = order.Id,
+                        OrderDetailId = detail.Id,
+                        BoxId = box.Id,
+                        ReservedQuantity = box.Weight,
+                        Status = AllocationStatus.SoftLocked,
+                        ReservedAt = nowUtc,
+                        ExpiredAt = expiresAt
+                    });
+                    allocated++;
+                }
+            }
+
+            return allocations;
+        }
+
         private async Task<List<OrderAllocation>> BuildProposedAllocationsAsync(Order order)
         {
             var now = DateTime.UtcNow;
@@ -2062,7 +2213,8 @@ namespace AgriIDMS.Application.Services
             {
                 AllocationStatus.Proposed,
                 AllocationStatus.Reserved,
-                AllocationStatus.Picked
+                AllocationStatus.Picked,
+                AllocationStatus.SoftLocked
             };
             var allocatedBoxByDetail = existingAllocations
                 .Where(x => activeAllocationStatuses.Contains(x.Status))

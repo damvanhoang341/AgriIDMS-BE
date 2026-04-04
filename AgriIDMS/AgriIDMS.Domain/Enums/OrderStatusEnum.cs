@@ -85,6 +85,9 @@ namespace AgriIDMS.Domain.Enums
         Proposed,
         Reserved,
         Picked,
-        Cancelled
+        Cancelled,
+
+        /// <summary>Tạm giữ box khi khách vừa đặt đơn online; chưa chiếm trạng thái kho cứng. Hết hạn thì box lại khả dụng cho đơn khác.</summary>
+        SoftLocked
     }
 }
