@@ -24,7 +24,15 @@ public static class ServiceRegistration
     {
         // DbContext
         services.AddDbContext<AppDbContext>(opt =>
-            opt.UseSqlServer(config.GetConnectionString("DefaultConnection")));
+    opt.UseSqlServer(
+        config.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        }));
 
         // Identity (đầy đủ Cookie + SignInManager + Lockout)
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
