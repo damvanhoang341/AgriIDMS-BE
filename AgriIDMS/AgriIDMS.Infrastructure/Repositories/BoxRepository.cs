@@ -19,7 +19,8 @@ namespace AgriIDMS.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Box đang được đơn khác giữ: Proposed / Reserved / Picked, hoặc SoftLocked còn hạn.
+        /// Box <see cref="BoxStatus.Stored"/> nhưng đã được gán trong allocation (đơn khác): Proposed, hoặc SoftLocked còn hạn (legacy).
+        /// Box Reserved/Picking/Exported đã bị loại bởi điều kiện <c>Status == Stored</c> ở query gọi hàm này.
         /// </summary>
         private static IQueryable<Box> WhereNotBlockedByOrderAllocation(
             IQueryable<Box> query,
@@ -29,9 +30,7 @@ namespace AgriIDMS.Infrastructure.Repositories
             return query.Where(b => !ctx.OrderAllocations.Any(a =>
                 a.BoxId == b.Id &&
                 a.Status != AllocationStatus.Cancelled &&
-                (a.Status == AllocationStatus.Reserved ||
-                 a.Status == AllocationStatus.Picked ||
-                 a.Status == AllocationStatus.Proposed ||
+                (a.Status == AllocationStatus.Proposed ||
                  (a.Status == AllocationStatus.SoftLocked &&
                   (!a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)))));
         }

@@ -122,6 +122,27 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: recipients);
         }
 
+        public async Task NotifyOnlineOrderPendingSaleConfirmAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.Online)
+                return;
+
+            var message =
+                $"Đơn online #{orderId} vừa được đặt (chờ sale xác nhận). Vui lòng liên hệ khách để chốt đặt hàng hoặc hủy đơn nếu khách không mua.";
+
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("SalesStaff", "Manager", "Admin");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Order,
+                message,
+                referenceType: "OrderPendingSaleConfirm",
+                referenceId: orderId,
+                recipientUserIds: recipients);
+        }
+
         public async Task NotifyExportApprovedAsync(int exportReceiptId)
         {
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)

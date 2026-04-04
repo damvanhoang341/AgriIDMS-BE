@@ -10,6 +10,8 @@ namespace AgriIDMS.Application.Interfaces
         Task NotifyOrderPaymentFailedAsync(int orderId);
         Task NotifyOrderPaymentCancelledAsync(int orderId);
         Task NotifyOrderAllocationShortageAsync(int orderId);
+        /// <summary>Đơn online mới (chờ sale xác nhận / liên hệ khách đặt hay hủy).</summary>
+        Task NotifyOnlineOrderPendingSaleConfirmAsync(int orderId);
         Task NotifyExportApprovedAsync(int exportReceiptId);
         Task NotifyStockCheckApprovedAsync(int stockCheckId);
         Task NotifyStockCheckPendingManagerAsync(int stockCheckId);
