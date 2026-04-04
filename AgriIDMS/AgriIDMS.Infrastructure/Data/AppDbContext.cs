@@ -1041,6 +1041,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(20)
                   .IsRequired();
 
+            entity.Property(x => x.PaymentTiming)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .IsRequired();
+
             entity.Property(x => x.PosCheckoutTiming)
                   .HasConversion<string>()
                   .HasMaxLength(30)
@@ -1155,6 +1160,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.ToTable("Payments");
 
             entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.PaymentMethod)
+                  .HasConversion<int>()
+                  .IsRequired();
 
             entity.Property(x => x.PaymentStatus)
                   .HasConversion<int>()

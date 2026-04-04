@@ -38,7 +38,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Đơn sẵn sàng xuất kho: đã Paid, hoặc Confirmed + COD chờ thu; còn allocation Reserved (cùng điều kiện tạo phiếu xuất).
+        /// Đơn sẵn sàng xuất kho: theo PaymentTiming (PayBefore cần Paid; PayAfter cho phép tiền mặt Pending); còn allocation Reserved.
         /// Trả về kèm phiếu xuất đang hoạt động (không Cancelled) nếu có.
         /// Query: skip, take, sort (paidAtDesc mặc định, paidAtAsc, createdAtDesc, createdAtAsc), orderId, source (Online|POS).
         /// </summary>
@@ -207,7 +207,7 @@ namespace AgriIDMS.API.Controllers
 
         /// <summary>
         /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve FEFO ngay, Confirmed.
-        /// <see cref="CreatePosOrderRequest.PosCheckoutTiming"/>: PickBeforePay (mặc định) = có thể xuất kho khi COD Pending, Delivered khi thu tiền;
+        /// <see cref="CreatePosOrderRequest.PosCheckoutTiming"/>: PickBeforePay = PayAfter, có thể xuất khi tiền mặt Pending; Delivered khi đã thu;
         /// PayBeforePick = phải Paid mới tạo phiếu xuất, Delivered khi duyệt xuất. Delivery: AwaitingAllocation như cũ.
         /// </summary>
         [HttpPost("pos")]
@@ -324,14 +324,19 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { Message = "Đã xác nhận hoàn hàng", OrderId = id, Status = OrderStatus.Returned.ToString() });
         }
 
-        [HttpPatch("{id:int:min(1)}/payment/cod/confirm-paid")]
+        [HttpPatch("{id:int:min(1)}/payment/cash/confirm-paid")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
-        public async Task<IActionResult> ConfirmCODPaid(int id)
+        public async Task<IActionResult> ConfirmCashPaidForOrder(int id)
         {
             var operatorUserId = GetCurrentUserId();
-            await _orderService.ConfirmCODPaidAsync(id, operatorUserId);
-            return Ok(new { Message = "Đã xác nhận COD thanh toán thành công", OrderId = id });
+            await _orderService.ConfirmCashPaidForOrderAsync(id, operatorUserId);
+            return Ok(new { Message = "Đã xác nhận thu tiền mặt thành công", OrderId = id });
         }
+
+        /// <summary>Alias URL cũ (COD) — cùng hành vi với payment/cash/confirm-paid.</summary>
+        [HttpPatch("{id:int:min(1)}/payment/cod/confirm-paid")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
+        public Task<IActionResult> ConfirmCashPaidForOrderLegacy(int id) => ConfirmCashPaidForOrder(id);
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
         [HttpPatch("{id:int:min(1)}/backorder/wait")]

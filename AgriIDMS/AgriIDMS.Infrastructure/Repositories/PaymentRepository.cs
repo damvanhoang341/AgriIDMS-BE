@@ -88,12 +88,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                             && p.PaymentStatus == PaymentStatus.Paid);
         }
 
-        public async Task<bool> HasPendingCodPaymentAsync(int orderId)
+        public async Task<bool> HasPendingCashPaymentAsync(int orderId)
         {
             return await _context.Payments
                 .AnyAsync(p =>
                     p.OrderId == orderId
-                    && p.PaymentMethod == PaymentMethod.COD
+                    && p.PaymentMethod == PaymentMethod.Cash
                     && p.PaymentStatus == PaymentStatus.Pending);
         }
     }

@@ -21,7 +21,7 @@ namespace AgriIDMS.Domain.Interfaces
             int take);
         Task<bool> HasPaidPaymentAsync(int orderId);
 
-        /// <summary>Đơn đã có thanh toán COD đang chờ thu (chưa Paid).</summary>
-        Task<bool> HasPendingCodPaymentAsync(int orderId);
+        /// <summary>Đơn đã có thanh toán tiền mặt (<see cref="PaymentMethod.Cash"/>) đang Pending.</summary>
+        Task<bool> HasPendingCashPaymentAsync(int orderId);
     }
 }

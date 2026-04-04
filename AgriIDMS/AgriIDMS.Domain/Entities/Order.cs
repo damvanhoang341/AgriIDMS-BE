@@ -21,6 +21,11 @@ namespace AgriIDMS.Domain.Entities
         public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.Delivery;
 
         /// <summary>
+        /// Trả trước / trả sau (COD theo nghĩa nghiệp vụ). Online Delivery mặc định <see cref="PaymentTiming.PayAfter"/>; POS TakeAway map theo <see cref="PosCheckoutTiming"/>.
+        /// </summary>
+        public PaymentTiming PaymentTiming { get; set; } = PaymentTiming.PayAfter;
+
+        /// <summary>
         /// Chỉ dùng khi <see cref="Source"/> là POS và <see cref="FulfillmentType"/> là TakeAway; null = coi như <see cref="PosCheckoutTiming.PickBeforePay"/>.
         /// </summary>
         public PosCheckoutTiming? PosCheckoutTiming { get; set; }

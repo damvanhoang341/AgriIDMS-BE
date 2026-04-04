@@ -36,21 +36,32 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        [HttpGet("staff/pending-cod")]
+        [HttpGet("staff/pending-cash")]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
-        public async Task<IActionResult> GetPendingCodPayments([FromQuery] GetPendingCodPaymentsQuery query)
+        public async Task<IActionResult> GetPendingCashPayments([FromQuery] GetPendingCashPaymentsQuery query)
         {
-            var result = await _paymentService.GetPendingCodPaymentsAsync(query);
+            var result = await _paymentService.GetPendingCashPaymentsAsync(query);
             return Ok(result);
         }
 
-        [HttpPatch("{paymentId:int:min(1)}/confirm-cod")]
+        /// <summary>Alias URL cũ.</summary>
+        [HttpGet("staff/pending-cod")]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
-        public async Task<IActionResult> ConfirmCODPaid(int paymentId)
+        public Task<IActionResult> GetPendingCashPaymentsLegacy([FromQuery] GetPendingCashPaymentsQuery query) =>
+            GetPendingCashPayments(query);
+
+        [HttpPatch("{paymentId:int:min(1)}/confirm-cash")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
+        public async Task<IActionResult> ConfirmCashPaymentPaid(int paymentId)
         {
-            var result = await _paymentService.ConfirmCODPaidAsync(paymentId);
+            var result = await _paymentService.ConfirmCashPaymentPaidAsync(paymentId);
             return Ok(result);
         }
+
+        /// <summary>Alias URL cũ.</summary>
+        [HttpPatch("{paymentId:int:min(1)}/confirm-cod")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
+        public Task<IActionResult> ConfirmCashPaymentPaidLegacy(int paymentId) => ConfirmCashPaymentPaid(paymentId);
 
         [HttpPost("payos-webhook")]
         [AllowAnonymous]

@@ -69,10 +69,10 @@ namespace AgriIDMS.Application.Services
 
                 var result = request.PaymentMethod switch
                 {
-                    PaymentMethod.COD => await ProcessCODAsync(order),
+                    PaymentMethod.Cash => await ProcessCashPaymentAsync(order),
                     PaymentMethod.Banking => await ProcessBankingAsync(order),
                     _ => throw new InvalidBusinessRuleException(
-                        $"Phương thức thanh toán '{request.PaymentMethod}' chưa được hỗ trợ. Chỉ hỗ trợ COD hoặc Banking.")
+                        $"Phương thức thanh toán '{request.PaymentMethod}' chưa được hỗ trợ. Chỉ hỗ trợ Cash hoặc Banking.")
                 };
 
                 await _uow.CommitAsync();
@@ -85,19 +85,19 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        // ===================== COD =====================
+        // ===================== Cash (tiền mặt) =====================
 
-        private async Task<PaymentResponseDto> ProcessCODAsync(Order order)
+        private async Task<PaymentResponseDto> ProcessCashPaymentAsync(Order order)
         {
-            _logger.LogInformation("Creating COD payment for order {OrderId}", order.Id);
+            _logger.LogInformation("Creating Cash payment for order {OrderId}", order.Id);
 
-            if (await _paymentRepo.HasPendingCodPaymentAsync(order.Id))
-                throw new InvalidBusinessRuleException("Đơn đã có thanh toán COD đang chờ thu. Không tạo trùng.");
+            if (await _paymentRepo.HasPendingCashPaymentAsync(order.Id))
+                throw new InvalidBusinessRuleException("Đơn đã có thanh toán tiền mặt đang chờ xác nhận. Không tạo trùng.");
 
             var payment = new Payment
             {
                 OrderId = order.Id,
-                PaymentMethod = PaymentMethod.COD,
+                PaymentMethod = PaymentMethod.Cash,
                 PaymentStatus = PaymentStatus.Pending,
                 Amount = order.TotalAmount,
                 CreatedAt = DateTime.UtcNow
@@ -106,18 +106,18 @@ namespace AgriIDMS.Application.Services
             await _paymentRepo.AddAsync(payment);
             await _uow.SaveChangesAsync();
 
-            _logger.LogInformation("COD payment {PaymentId} created for order {OrderId}", payment.Id, order.Id);
+            _logger.LogInformation("Cash payment {PaymentId} created for order {OrderId}", payment.Id, order.Id);
 
             return MapToDto(payment);
         }
 
-        public async Task<PaymentResponseDto> ConfirmCODPaidAsync(int paymentId)
+        public async Task<PaymentResponseDto> ConfirmCashPaymentPaidAsync(int paymentId)
         {
             var payment = await _paymentRepo.GetByIdAsync(paymentId)
                 ?? throw new NotFoundException($"Payment #{paymentId} không tồn tại");
 
-            if (payment.PaymentMethod != PaymentMethod.COD)
-                throw new InvalidBusinessRuleException("Chỉ áp dụng cho thanh toán COD");
+            if (payment.PaymentMethod != PaymentMethod.Cash)
+                throw new InvalidBusinessRuleException("Chỉ áp dụng cho thanh toán tiền mặt (Cash)");
 
             if (payment.PaymentStatus == PaymentStatus.Paid)
                 throw new InvalidBusinessRuleException("Payment này đã được xác nhận thành công rồi");
@@ -132,12 +132,10 @@ namespace AgriIDMS.Application.Services
             payment.PaymentStatus = PaymentStatus.Paid;
             payment.PaidAt = DateTime.UtcNow;
 
-            // TakeAway: mặc định thanh toán xong = hoàn tất tại quầy. POS PayBeforePick: chờ pick/xuất rồi mới Delivered.
+            // TakeAway: mặc định thanh toán xong = hoàn tất tại quầy. PayBefore (thu trước pick): chờ xuất kho rồi mới Delivered.
             if (order.FulfillmentType == FulfillmentType.TakeAway && order.Status != OrderStatus.Delivered)
             {
-                var payBeforePick = order.Source == OrderSource.POS
-                                    && order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick;
-                if (!payBeforePick)
+                if (!DeferTakeAwayDeliveredUntilAfterExport(order))
                 {
                     order.Status = OrderStatus.Delivered;
                     order.DeliveredAt = DateTime.UtcNow;
@@ -147,13 +145,19 @@ namespace AgriIDMS.Application.Services
             await _uow.SaveChangesAsync();
 
             _logger.LogInformation(
-                "COD payment {PaymentId} confirmed. Order {OrderId} status {Status}",
+                "Cash payment {PaymentId} confirmed. Order {OrderId} status {Status}",
                 payment.Id, order.Id, order.Status);
 
             await _notificationService.NotifyOrderPaidAsync(order.Id);
 
             return MapToDto(payment);
         }
+
+        /// <summary>POS TakeAway + trả trước pick: không chuyển Delivered khi vừa xác nhận tiền mặt.</summary>
+        private static bool DeferTakeAwayDeliveredUntilAfterExport(Order order) =>
+            order.Source == OrderSource.POS
+            && order.FulfillmentType == FulfillmentType.TakeAway
+            && order.PaymentTiming == PaymentTiming.PayBefore;
 
         // ===================== Banking (PayOS) =====================
 
@@ -235,21 +239,21 @@ namespace AgriIDMS.Application.Services
             return MapToDto(payment);
         }
 
-        public async Task<IList<PendingCodPaymentItemDto>> GetPendingCodPaymentsAsync(GetPendingCodPaymentsQuery query)
+        public async Task<IList<PendingCashPaymentItemDto>> GetPendingCashPaymentsAsync(GetPendingCashPaymentsQuery query)
         {
-            query ??= new GetPendingCodPaymentsQuery();
+            query ??= new GetPendingCashPaymentsQuery();
             var skip = Math.Max(0, query.Skip);
             var take = Math.Clamp(query.Take, 1, 200);
 
             var payments = await _paymentRepo.GetPaymentsByMethodAndStatusAsync(
-                PaymentMethod.COD,
+                PaymentMethod.Cash,
                 PaymentStatus.Pending,
                 query.OrderId,
                 query.CustomerUserId,
                 skip,
                 take);
 
-            return payments.Select(p => new PendingCodPaymentItemDto
+            return payments.Select(p => new PendingCashPaymentItemDto
             {
                 PaymentId = p.Id,
                 OrderId = p.OrderId,
@@ -318,9 +322,7 @@ namespace AgriIDMS.Application.Services
                     && payment.Order.FulfillmentType == FulfillmentType.TakeAway
                     && payment.Order.Status != OrderStatus.Delivered)
                 {
-                    var payBeforePick = payment.Order.Source == OrderSource.POS
-                                        && payment.Order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick;
-                    if (!payBeforePick)
+                    if (!DeferTakeAwayDeliveredUntilAfterExport(payment.Order))
                     {
                         payment.Order.Status = OrderStatus.Delivered;
                         payment.Order.DeliveredAt = DateTime.UtcNow;

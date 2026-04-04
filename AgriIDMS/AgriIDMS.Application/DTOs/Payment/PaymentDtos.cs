@@ -1,6 +1,8 @@
+using AgriIDMS.Application.Serialization;
 using AgriIDMS.Domain.Enums;
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace AgriIDMS.Application.DTOs.Payment
 {
@@ -10,8 +12,12 @@ namespace AgriIDMS.Application.DTOs.Payment
         [Range(1, int.MaxValue, ErrorMessage = "OrderId phải lớn hơn 0")]
         public int OrderId { get; set; }
 
+        /// <summary>
+        /// <see cref="PaymentMethod.Cash"/> = tiền mặt; <see cref="PaymentMethod.Banking"/> = QR / PayOS.
+        /// JSON có thể gửi "COD" (legacy) — được map sang Cash.
+        /// </summary>
         [Required]
-        [EnumDataType(typeof(PaymentMethod), ErrorMessage = "PaymentMethod không hợp lệ")]
+        [JsonConverter(typeof(PaymentMethodCompatJsonConverter))]
         public PaymentMethod PaymentMethod { get; set; }
     }
 
@@ -28,7 +34,7 @@ namespace AgriIDMS.Application.DTOs.Payment
         public string? CheckoutUrl { get; set; }
     }
 
-    public class GetPendingCodPaymentsQuery
+    public class GetPendingCashPaymentsQuery
     {
         public int? OrderId { get; set; }
         public string? CustomerUserId { get; set; }
@@ -36,7 +42,7 @@ namespace AgriIDMS.Application.DTOs.Payment
         public int Take { get; set; } = 50;
     }
 
-    public class PendingCodPaymentItemDto
+    public class PendingCashPaymentItemDto
     {
         public int PaymentId { get; set; }
         public int OrderId { get; set; }

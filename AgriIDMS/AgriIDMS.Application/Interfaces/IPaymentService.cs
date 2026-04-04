@@ -10,9 +10,10 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<PaymentResponseDto> GetLatestPaymentAsync(int orderId, string userId);
 
-        Task<IList<PendingCodPaymentItemDto>> GetPendingCodPaymentsAsync(GetPendingCodPaymentsQuery query);
+        Task<IList<PendingCashPaymentItemDto>> GetPendingCashPaymentsAsync(GetPendingCashPaymentsQuery query);
 
-        Task<PaymentResponseDto> ConfirmCODPaidAsync(int paymentId);
+        /// <summary>Xác nhận đã thu tiền mặt (Cash) — Pending → Paid.</summary>
+        Task<PaymentResponseDto> ConfirmCashPaymentPaidAsync(int paymentId);
 
         Task HandlePayOSWebhookAsync(string webhookBody);
 

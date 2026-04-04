@@ -20,7 +20,8 @@ namespace AgriIDMS.Application.Interfaces
         Task ConfirmDeliveredAsync(int orderId, string operatorUserId);
         Task ConfirmFailedDeliveryAsync(int orderId, string operatorUserId);
         Task ConfirmReturnedAsync(int orderId, string operatorUserId);
-        Task ConfirmCODPaidAsync(int orderId, string operatorUserId);
+        /// <summary>Xác nhận đã thu tiền mặt cho đơn (theo payment Cash Pending mới nhất).</summary>
+        Task ConfirmCashPaidForOrderAsync(int orderId, string operatorUserId);
         Task<bool> CheckCanCompleteAsync(int orderId);
         Task<int> AutoCompleteOrdersAsync();
 

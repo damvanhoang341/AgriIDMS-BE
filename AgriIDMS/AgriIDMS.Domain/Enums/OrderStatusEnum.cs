@@ -68,19 +68,40 @@ namespace AgriIDMS.Domain.Enums
 
     public enum PaymentStatus
     {
-        Pending = 0,      // vừa tạo, chưa thanh toán COD POS
-        Processing = 1,   // đang chờ gateway xử lý POS
-        Paid = 2,         // thanh toán thành công COD POS
-        Failed = 3,       // thanh toán thất bại
-        Cancelled = 4,    // user huỷ
-        Refunded = 5      // hoàn tiền
+        /// <summary>Chưa quyết toán (tiền mặt chờ xác nhận thu, hoặc chưa hoàn tất bước thanh toán).</summary>
+        Pending = 0,
+        /// <summary>Đang chờ cổng thanh toán (ví dụ QR PayOS).</summary>
+        Processing = 1,
+        /// <summary>Đã quyết toán thành công.</summary>
+        Paid = 2,
+        /// <summary>Thanh toán thất bại.</summary>
+        Failed = 3,
+        /// <summary>Đã hủy (ví dụ user hủy link QR).</summary>
+        Cancelled = 4,
+        /// <summary>Hoàn tiền.</summary>
+        Refunded = 5
     }
 
+    /// <summary>
+    /// Thời điểm quyết toán tiền so với giao hàng / xuất kho (khác với <see cref="PaymentMethod"/> — cách trả tiền).
+    /// </summary>
+    public enum PaymentTiming
+    {
+        /// <summary>Trả trước: phải Paid (hoặc đủ điều kiện thanh toán trước) trước khi hoàn tất xuất/pick theo rule.</summary>
+        PayBefore = 0,
+
+        /// <summary>Trả sau (thu khi giao / sau khi xuất tùy flow): cho phép tiền mặt <see cref="PaymentMethod.Cash"/> ở Pending khi tạo phiếu xuất; có thể ghi nhận Paid khi Delivered.</summary>
+        PayAfter = 1
+    }
+
+    /// <summary>Cách thanh toán (tiền mặt, ví, cổng…). Giá trị int lưu DB; 0 = Cash (tương thích bản ghi cũ từng dùng tên COD).</summary>
     public enum PaymentMethod
     {
-        COD = 0,
+        /// <summary>Tiền mặt tại quầy hoặc thu khi giao — tạo bản ghi Pending, xác nhận → Paid.</summary>
+        Cash = 0,
         VNPay = 1,
         Momo = 2,
+        /// <summary>QR / chuyển khoản (PayOS).</summary>
         Banking = 3
     }
     public enum RefundStatus

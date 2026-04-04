@@ -57,6 +57,8 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? AllocationMessage { get; set; }
         /// <summary>Chỉ khi tạo đơn POS mang về: PickBeforePay hoặc PayBeforePick.</summary>
         public string? PosCheckoutTiming { get; set; }
+        /// <summary>Trả trước / trả sau (theo đơn). Có trên response tạo đơn POS.</summary>
+        public string? PaymentTiming { get; set; }
     }
 
     public class OrderRecipientSnapshotDto
@@ -92,8 +94,8 @@ namespace AgriIDMS.Application.DTOs.Order
         public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.TakeAway;
         /// <summary>
         /// Chỉ áp dụng khi <see cref="FulfillmentType"/> là TakeAway.
-        /// PickBeforePay: có thể xuất kho khi COD Pending hoặc đã Paid; thanh toán xong mới Delivered.
-        /// PayBeforePick: phải Paid mới tạo phiếu xuất; Delivered khi duyệt xuất (sau pick).
+        /// PickBeforePay: <see cref="PaymentTiming.PayAfter"/> — có thể xuất khi tiền mặt Pending; thu xong mới Delivered.
+        /// PayBeforePick: <see cref="PaymentTiming.PayBefore"/> — phải Paid mới tạo phiếu xuất; Delivered khi duyệt xuất.
         /// </summary>
         public PosCheckoutTiming? PosCheckoutTiming { get; set; }
         public List<CreatePosOrderItemRequest> Items { get; set; } = new();
@@ -214,6 +216,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Source { get; set; } = null!;
         public string? FulfillmentType { get; set; }
         public string? PosCheckoutTiming { get; set; }
+        public string? PaymentTiming { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? LatestPaymentStatus { get; set; }
         public OrderRecipientSnapshotDto? Recipient { get; set; }
@@ -377,6 +380,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Source { get; set; } = null!;
         /// <summary>POS TakeAway: PickBeforePay / PayBeforePick (null nếu không áp dụng).</summary>
         public string? PosCheckoutTiming { get; set; }
+        public string PaymentTiming { get; set; } = null!;
         public bool HasExportReceipt { get; set; }
         public int? ExportReceiptId { get; set; }
         public string? ExportStatus { get; set; }
