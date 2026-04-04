@@ -27,6 +27,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.ExportReceipts
                 .Include(e => e.Order)
+                    .ThenInclude(o => o.Payments)
                 .Include(e => e.Details)
                     .ThenInclude(d => d.Box)
                         .ThenInclude(b => b.Slot)

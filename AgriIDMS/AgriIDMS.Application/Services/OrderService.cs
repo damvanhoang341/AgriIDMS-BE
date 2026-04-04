@@ -173,6 +173,7 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = o.CreatedAt,
                     ItemCount = o.Details?.Count ?? 0,
                     Source = o.Source.ToString(),
+                    PosCheckoutTiming = o.PosCheckoutTiming?.ToString(),
                     HasExportReceipt = activeExport != null,
                     ExportReceiptId = activeExport?.Id,
                     ExportStatus = activeExport?.Status.ToString(),
@@ -578,6 +579,8 @@ namespace AgriIDMS.Application.Services
                 TotalAmount = order.TotalAmount,
                 Status = order.Status.ToString(),
                 Source = order.Source.ToString(),
+                FulfillmentType = order.FulfillmentType.ToString(),
+                PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
                 CreatedAt = order.CreatedAt,
                 LatestPaymentStatus = order.Payments?
                     .OrderByDescending(p => p.CreatedAt)
@@ -710,8 +713,13 @@ namespace AgriIDMS.Application.Services
 
             if (IsTakeAway(order) && order.Status != OrderStatus.Delivered)
             {
-                order.Status = OrderStatus.Delivered;
-                order.DeliveredAt = DateTime.UtcNow;
+                var payBeforePick = order.Source == OrderSource.POS
+                                    && order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick;
+                if (!payBeforePick)
+                {
+                    order.Status = OrderStatus.Delivered;
+                    order.DeliveredAt = DateTime.UtcNow;
+                }
             }
 
             await _uow.SaveChangesAsync();
@@ -1187,6 +1195,11 @@ namespace AgriIDMS.Application.Services
                     RecipientAddress = string.Empty
                 };
 
+                if (request.FulfillmentType == FulfillmentType.TakeAway)
+                {
+                    order.PosCheckoutTiming = request.PosCheckoutTiming ?? PosCheckoutTiming.PickBeforePay;
+                }
+
                 var responseItems = new List<OrderItemDto>();
                 foreach (var item in request.Items)
                 {
@@ -1258,7 +1271,8 @@ namespace AgriIDMS.Application.Services
                     Recipient = ToRecipientSnapshot(order),
                     Items = responseItems,
                     AllocationSucceeded = false,
-                    AllocationMessage = null
+                    AllocationMessage = null,
+                    PosCheckoutTiming = order.PosCheckoutTiming?.ToString()
                 };
             }
             catch

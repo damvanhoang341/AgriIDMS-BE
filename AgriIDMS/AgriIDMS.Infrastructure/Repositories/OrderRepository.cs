@@ -230,7 +230,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                     o.Status == OrderStatus.Confirmed
                     && o.Payments.Any(p =>
                         (p.PaymentMethod == PaymentMethod.COD && p.PaymentStatus == PaymentStatus.Pending)
-                        || p.PaymentStatus == PaymentStatus.Paid));
+                        || p.PaymentStatus == PaymentStatus.Paid))
+                .Where(o =>
+                    !(o.Source == OrderSource.POS
+                      && o.FulfillmentType == FulfillmentType.TakeAway
+                      && o.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick)
+                    || o.Payments.Any(p => p.PaymentStatus == PaymentStatus.Paid));
 
             if (orderId.HasValue)
                 query = query.Where(o => o.Id == orderId.Value);

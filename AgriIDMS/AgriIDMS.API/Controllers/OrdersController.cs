@@ -205,7 +205,11 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Tạo đơn bán trực tiếp (POS) và đi thẳng trạng thái AwaitingAllocation.</summary>
+        /// <summary>
+        /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve FEFO ngay, Confirmed.
+        /// <see cref="CreatePosOrderRequest.PosCheckoutTiming"/>: PickBeforePay (mặc định) = có thể xuất kho khi COD Pending, Delivered khi thu tiền;
+        /// PayBeforePick = phải Paid mới tạo phiếu xuất, Delivered khi duyệt xuất. Delivery: AwaitingAllocation như cũ.
+        /// </summary>
         [HttpPost("pos")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreatePosOrder([FromBody] CreatePosOrderRequest request)

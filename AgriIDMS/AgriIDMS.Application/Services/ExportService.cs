@@ -196,14 +196,26 @@ namespace AgriIDMS.Application.Services
                 await _inventoryTranRepo.AddRangeAsync(exportTransactions);
 
                 receipt.Status = ExportStatus.Approved;
-                if (receipt.Order.FulfillmentType == FulfillmentType.Delivery)
-                    receipt.Order.Status = OrderStatus.Shipping;
+                var ord = receipt.Order;
+                if (ord.FulfillmentType == FulfillmentType.Delivery)
+                    ord.Status = OrderStatus.Shipping;
+                else if (ord.Source == OrderSource.POS
+                         && ord.FulfillmentType == FulfillmentType.TakeAway
+                         && ord.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick
+                         && ord.Payments != null
+                         && ord.Payments.Any(p => p.PaymentStatus == PaymentStatus.Paid)
+                         && ord.Status != OrderStatus.Delivered)
+                {
+                    // Thu tiền trước → pick/xuất xong = hoàn tất tại quầy.
+                    ord.Status = OrderStatus.Delivered;
+                    ord.DeliveredAt = DateTime.UtcNow;
+                }
 
                 await _uow.CommitAsync();
 
                 _logger.LogInformation(
-                    "ExportReceipt {ExportId} approved. {Count} boxes exported. Order {OrderId} → Shipping",
-                    exportId, receipt.Details.Count, receipt.OrderId);
+                    "ExportReceipt {ExportId} approved. {Count} boxes exported. Order {OrderId} status {OrderStatus}",
+                    exportId, receipt.Details.Count, receipt.OrderId, ord.Status);
 
                 await _notificationService.NotifyExportApprovedAsync(receipt.Id);
 
@@ -318,12 +330,22 @@ namespace AgriIDMS.Application.Services
         }
 
         /// <summary>
-        /// Xuất kho: đơn Confirmed và đã có payment phù hợp (online=Paid, COD=Pending/Paid).
+        /// Xuất kho: đơn Confirmed và đã có payment phù hợp.
+        /// POS TakeAway PayBeforePick: bắt buộc đã Paid (không tạo phiếu xuất khi COD chỉ Pending).
+        /// Các trường hợp khác: COD Pending hoặc Paid hoặc banking Paid.
         /// </summary>
         private static bool CanCreateExportReceipt(Order order)
         {
             if (order.Status != OrderStatus.Confirmed)
                 return false;
+
+            if (order.Source == OrderSource.POS
+                && order.FulfillmentType == FulfillmentType.TakeAway
+                && order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick)
+            {
+                return order.Payments != null
+                       && order.Payments.Any(p => p.PaymentStatus == PaymentStatus.Paid);
+            }
 
             return order.Payments != null
                    && order.Payments.Any(p =>

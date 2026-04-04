@@ -20,6 +20,11 @@ namespace AgriIDMS.Domain.Entities
         public OrderSource Source { get; set; } = OrderSource.Online;
         public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.Delivery;
 
+        /// <summary>
+        /// Chỉ dùng khi <see cref="Source"/> là POS và <see cref="FulfillmentType"/> là TakeAway; null = coi như <see cref="PosCheckoutTiming.PickBeforePay"/>.
+        /// </summary>
+        public PosCheckoutTiming? PosCheckoutTiming { get; set; }
+
         public OrderStatus Status { get; set; }
         public DateTime? DeliveredAt { get; set; }
         public DateTime? BackorderExpiryNotifiedAt { get; set; }

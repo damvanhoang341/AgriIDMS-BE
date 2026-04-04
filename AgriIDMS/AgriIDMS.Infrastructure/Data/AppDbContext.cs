@@ -1041,6 +1041,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(20)
                   .IsRequired();
 
+            entity.Property(x => x.PosCheckoutTiming)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .IsRequired(false);
+
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
 

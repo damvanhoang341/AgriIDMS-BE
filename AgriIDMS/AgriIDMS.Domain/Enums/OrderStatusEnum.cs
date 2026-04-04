@@ -18,6 +18,18 @@ namespace AgriIDMS.Domain.Enums
         Delivery = 1
     }
 
+    /// <summary>
+    /// Thứ tự thanh toán vs pick/xuất kho cho đơn POS mang về (TakeAway).
+    /// </summary>
+    public enum PosCheckoutTiming
+    {
+        /// <summary>Pick/xuất kho (hoặc chuẩn bị hàng) trước, thu tiền sau — mặc định, tương thích đơn cũ.</summary>
+        PickBeforePay = 0,
+
+        /// <summary>Thu tiền (đã Paid) trước, sau đó mới được tạo phiếu xuất/pick; hoàn tất khi duyệt xuất.</summary>
+        PayBeforePick = 1
+    }
+
     public enum OrderStatus
     {
         /// <summary>Đơn cũ: chờ thanh toán / giữ hàng trực tiếp. Đơn mới không còn dùng làm bước đầu.</summary>

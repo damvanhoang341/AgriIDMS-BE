@@ -132,11 +132,16 @@ namespace AgriIDMS.Application.Services
             payment.PaymentStatus = PaymentStatus.Paid;
             payment.PaidAt = DateTime.UtcNow;
 
-            // TakeAway: thanh toán thành công là hoàn tất giao tại quầy.
+            // TakeAway: mặc định thanh toán xong = hoàn tất tại quầy. POS PayBeforePick: chờ pick/xuất rồi mới Delivered.
             if (order.FulfillmentType == FulfillmentType.TakeAway && order.Status != OrderStatus.Delivered)
             {
-                order.Status = OrderStatus.Delivered;
-                order.DeliveredAt = DateTime.UtcNow;
+                var payBeforePick = order.Source == OrderSource.POS
+                                    && order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick;
+                if (!payBeforePick)
+                {
+                    order.Status = OrderStatus.Delivered;
+                    order.DeliveredAt = DateTime.UtcNow;
+                }
             }
 
             await _uow.SaveChangesAsync();
@@ -313,8 +318,13 @@ namespace AgriIDMS.Application.Services
                     && payment.Order.FulfillmentType == FulfillmentType.TakeAway
                     && payment.Order.Status != OrderStatus.Delivered)
                 {
-                    payment.Order.Status = OrderStatus.Delivered;
-                    payment.Order.DeliveredAt = DateTime.UtcNow;
+                    var payBeforePick = payment.Order.Source == OrderSource.POS
+                                        && payment.Order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick;
+                    if (!payBeforePick)
+                    {
+                        payment.Order.Status = OrderStatus.Delivered;
+                        payment.Order.DeliveredAt = DateTime.UtcNow;
+                    }
                 }
 
                 _logger.LogInformation(
