@@ -50,7 +50,7 @@ namespace AgriIDMS.Application.Interfaces
             OrderRecipientCheckoutDto recipient);
         Task<CreateOrderFromCartResponse> CreatePosOrderAsync(string operatorUserId, CreatePosOrderRequest request);
 
-        /// <summary>Sale xác nhận đơn hợp lệ → chuyển sang chờ giữ hàng (AwaitingAllocation).</summary>
+        /// <summary>Đơn online PendingSaleConfirmation: sale xác nhận → Confirmed, gia hạn giữ thùng (Reserved), chờ khách chọn PayBefore/PayAfter.</summary>
         Task<SaleConfirmOrderResponseDto> SaleConfirmOrderAsync(int orderId, string confirmedByUserId);
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace AgriIDMS.Application.Interfaces
         /// </summary>
         Task<SaleRejectOrderResponseDto> SaleRejectOrderAsync(int orderId, string rejectedByUserId);
 
-        /// <summary>Giữ hàng (allocate): chỉ khi đơn đã AwaitingAllocation (hoặc AwaitingPayment — đơn cũ). Nên bật phân quyền staff khi <paramref name="skipCustomerOwnershipCheck"/> = true.</summary>
+        /// <summary>Auto-propose FEFO + confirm allocate một lần. Dùng cho POS Delivery (AwaitingAllocation), thiếu hàng/backorder, hoặc staff <c>allocate/staff</c> — không phải bước chuẩn của đơn online từ giỏ.</summary>
         Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
         Task<AllocationProposalResultDto> AutoProposeAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
         Task<AllocationProposalResultDto> ReProposeAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);

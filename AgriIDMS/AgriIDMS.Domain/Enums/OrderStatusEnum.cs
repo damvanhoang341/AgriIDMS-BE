@@ -32,9 +32,10 @@ namespace AgriIDMS.Domain.Enums
 
     public enum OrderStatus
     {
-        /// <summary>Đơn cũ: chờ thanh toán / giữ hàng trực tiếp. Đơn mới không còn dùng làm bước đầu.</summary>
+        /// <summary>Giá trị legacy (DB cũ); luồng hiện tại không gán trạng thái này.</summary>
         AwaitingPayment = 0,
         Confirmed = 2,
+        /// <summary>Giá trị legacy; luồng hiện tại không gán.</summary>
         InventoryFailed = 3,
 
         /// <summary>Đơn Delivery: đã duyệt xuất kho, chờ lấy hàng / vận chuyển (trước đây tên <c>Shipping</c>).</summary>
@@ -47,7 +48,7 @@ namespace AgriIDMS.Domain.Enums
         /// <summary>Vừa tạo từ giỏ — chờ sale xác nhận trước khi được giữ hàng.</summary>
         PendingSaleConfirmation = 8,
 
-        /// <summary>Sale đã xác nhận — chờ bước allocate (giữ tồn).</summary>
+        /// <summary>Chờ giữ tồn FEFO (chủ yếu POS Delivery); đơn online từ giỏ thường Confirmed ngay sau sale-confirm.</summary>
         AwaitingAllocation = 9,
 
         /// <summary>Hệ thống đã đề xuất allocate FEFO, chờ kho xác nhận giữ hàng.</summary>

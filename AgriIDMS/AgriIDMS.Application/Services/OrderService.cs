@@ -906,9 +906,7 @@ namespace AgriIDMS.Application.Services
                 || order.Status == OrderStatus.AwaitingAllocation
                 || order.Status == OrderStatus.PendingWarehouseConfirm
                 || order.Status == OrderStatus.PartiallyAllocated
-                || order.Status == OrderStatus.AwaitingPayment
-                || order.Status == OrderStatus.BackorderWaiting
-                || order.Status == OrderStatus.InventoryFailed;
+                || order.Status == OrderStatus.BackorderWaiting;
 
             var canCancelConfirmedOnline =
                 order.Status == OrderStatus.Confirmed
@@ -2039,7 +2037,7 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        /// <summary>Tương thích endpoint cũ: propose FEFO rồi xác nhận ngay.</summary>
+        /// <summary>Propose FEFO + confirm allocate trong một lần (POS / thiếu hàng / staff allocate).</summary>
         public async Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
         {
             await AutoProposeAllocationAsync(orderId, operatorUserId, skipCustomerOwnershipCheck);
@@ -2125,9 +2123,7 @@ namespace AgriIDMS.Application.Services
                 || order.Status == OrderStatus.AwaitingAllocation
                 || order.Status == OrderStatus.PendingWarehouseConfirm
                 || order.Status == OrderStatus.PartiallyAllocated
-                || order.Status == OrderStatus.AwaitingPayment
-                || order.Status == OrderStatus.BackorderWaiting
-                || order.Status == OrderStatus.InventoryFailed;
+                || order.Status == OrderStatus.BackorderWaiting;
 
             if (!canCancelBeforeAllocation)
                 throw new InvalidBusinessRuleException(
@@ -2211,7 +2207,6 @@ namespace AgriIDMS.Application.Services
 
         private static bool IsInitialAllocationStatus(OrderStatus status) =>
             status == OrderStatus.AwaitingAllocation
-            || status == OrderStatus.AwaitingPayment
             || status == OrderStatus.PendingWarehouseConfirm;
 
         private async Task ValidateAllocationRequestAsync(Order order, string operatorUserId, bool skipCustomerOwnershipCheck)
@@ -2225,7 +2220,6 @@ namespace AgriIDMS.Application.Services
             var canAllocate =
                 order.Status == OrderStatus.AwaitingAllocation
                 || order.Status == OrderStatus.PendingWarehouseConfirm
-                || order.Status == OrderStatus.AwaitingPayment
                 || order.Status == OrderStatus.PartiallyAllocated
                 || order.Status == OrderStatus.BackorderWaiting;
 

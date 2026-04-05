@@ -256,21 +256,7 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Giữ hàng: chỉ chủ đơn (khách), sau khi sale đã xác nhận.</summary>
-        [HttpPatch("{id:int:min(1)}/ConfirmOrder")]
-        [Authorize(Roles = "Customer")]
-        public async Task<IActionResult> ConfirmOrder(int id)
-        {
-            var userId = GetCurrentUserId();
-            await _orderService.ConfirmOrderAsync(id, userId, skipCustomerOwnershipCheck: false);
-            return Ok(new
-            {
-                Message = "Đã kiểm tra và giữ hàng cho đơn hàng",
-                OrderId = id
-            });
-        }
-
-        /// <summary>Giữ hàng thay mặt kho/sale (operator không phải chủ đơn). Nên bật Authorize role khi deploy.</summary>
+        /// <summary>Giữ hàng FEFO thay khách: POS/đơn ở AwaitingAllocation (hoặc backorder allocate). Đơn online mới dùng sale-confirm rồi payment-timing, không qua endpoint này.</summary>
         [HttpPatch("{id:int:min(1)}/allocate/staff")]
         [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> AllocateAsStaff(int id)
