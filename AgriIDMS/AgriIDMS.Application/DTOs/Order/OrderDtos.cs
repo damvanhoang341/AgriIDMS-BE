@@ -57,8 +57,15 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? AllocationMessage { get; set; }
         /// <summary>Chỉ khi tạo đơn POS mang về: PickBeforePay hoặc PayBeforePick.</summary>
         public string? PosCheckoutTiming { get; set; }
-        /// <summary>Trả trước / trả sau (theo đơn). Có trên response tạo đơn POS.</summary>
+        /// <summary>Trả trước / trả sau. Đơn online: null cho đến khi khách chọn sau sale-confirm; POS luôn có giá trị.</summary>
         public string? PaymentTiming { get; set; }
+    }
+
+    /// <summary>Sau khi sale xác nhận đơn online: khách chọn PayBefore (trả trước) hoặc PayAfter (trả sau). Chỉ gọi một lần.</summary>
+    public class SetOnlineOrderPaymentTimingRequest
+    {
+        [Required]
+        public PaymentTiming PaymentTiming { get; set; }
     }
 
     public class OrderRecipientSnapshotDto
@@ -200,6 +207,8 @@ namespace AgriIDMS.Application.DTOs.Order
         public DateTime CreatedAt { get; set; }
         public int ItemCount { get; set; }
         public string? LatestPaymentStatus { get; set; }
+        /// <summary>Null nếu đơn online chưa chọn trả trước/trả sau (sau sale-confirm).</summary>
+        public string? PaymentTiming { get; set; }
     }
 
     public class SaleConfirmOrderResponseDto
@@ -380,7 +389,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Source { get; set; } = null!;
         /// <summary>POS TakeAway: PickBeforePay / PayBeforePick (null nếu không áp dụng).</summary>
         public string? PosCheckoutTiming { get; set; }
-        public string PaymentTiming { get; set; } = null!;
+        public string? PaymentTiming { get; set; }
         public bool HasExportReceipt { get; set; }
         public int? ExportReceiptId { get; set; }
         public string? ExportStatus { get; set; }

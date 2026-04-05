@@ -60,6 +60,10 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Chỉ có thể thanh toán đơn hàng ở trạng thái Confirmed. Hiện tại: {order.Status}");
 
+            if (!order.PaymentTiming.HasValue)
+                throw new InvalidBusinessRuleException(
+                    "Vui lòng chọn hình thức thanh toán (trả trước hoặc trả sau) trước khi thanh toán.");
+
             await _uow.BeginTransactionAsync();
             try
             {

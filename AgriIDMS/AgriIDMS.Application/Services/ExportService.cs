@@ -54,8 +54,8 @@ namespace AgriIDMS.Application.Services
 
             if (!CanCreateExportReceipt(order))
                 throw new InvalidBusinessRuleException(
-                    "Chỉ tạo phiếu xuất khi đơn Confirmed và thanh toán đủ điều kiện: "
-                    + "PayBefore phải đã Paid; PayAfter cho phép tiền mặt (Cash) Pending hoặc đã Paid / Banking Paid. "
+                    "Chỉ tạo phiếu xuất khi đơn Confirmed, khách đã chọn trả trước/trả sau, và thanh toán đủ điều kiện: "
+                    + "PayBefore phải đã Paid; PayAfter cho phép chưa thanh toán, hoặc Cash Pending, hoặc đã Paid. "
                     + $"Hiện tại trạng thái đơn: {order.Status}.");
 
             var alreadyExists = await _exportRepo.ExistsForOrderAsync(orderId);

@@ -97,7 +97,8 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefault()?
                     .PaymentStatus
-                    .ToString()
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
 
@@ -124,7 +125,8 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefault()?
                     .PaymentStatus
-                    .ToString()
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
 
@@ -174,7 +176,7 @@ namespace AgriIDMS.Application.Services
                     ItemCount = o.Details?.Count ?? 0,
                     Source = o.Source.ToString(),
                     PosCheckoutTiming = o.PosCheckoutTiming?.ToString(),
-                    PaymentTiming = o.PaymentTiming.ToString(),
+                    PaymentTiming = o.PaymentTiming?.ToString(),
                     HasExportReceipt = activeExport != null,
                     ExportReceiptId = activeExport?.Id,
                     ExportStatus = activeExport?.Status.ToString(),
@@ -215,7 +217,8 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefault()?
                     .PaymentStatus
-                    .ToString()
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
 
@@ -251,7 +254,8 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefault()?
                     .PaymentStatus
-                    .ToString()
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
 
@@ -287,7 +291,8 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefault()?
                     .PaymentStatus
-                    .ToString()
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
 
@@ -457,7 +462,8 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefault()?
                     .PaymentStatus
-                    .ToString()
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
 
@@ -582,7 +588,7 @@ namespace AgriIDMS.Application.Services
                 Source = order.Source.ToString(),
                 FulfillmentType = order.FulfillmentType.ToString(),
                 PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
-                PaymentTiming = order.PaymentTiming.ToString(),
+                PaymentTiming = order.PaymentTiming?.ToString(),
                 CreatedAt = order.CreatedAt,
                 LatestPaymentStatus = order.Payments?
                     .OrderByDescending(p => p.CreatedAt)
@@ -606,6 +612,33 @@ namespace AgriIDMS.Application.Services
             };
         }
 
+        public async Task<OrderDetailDto> SetOnlineOrderPaymentTimingAsync(int orderId, string userId, PaymentTiming paymentTiming)
+        {
+            if (paymentTiming != PaymentTiming.PayBefore && paymentTiming != PaymentTiming.PayAfter)
+                throw new InvalidBusinessRuleException("Chỉ được chọn PayBefore (trả trước) hoặc PayAfter (trả sau).");
+
+            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.UserId != userId)
+                throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
+
+            if (order.Source != OrderSource.Online)
+                throw new InvalidBusinessRuleException("Chỉ đơn online mới chọn hình thức thanh toán qua bước này.");
+
+            if (order.Status != OrderStatus.Confirmed)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ chọn trả trước/trả sau khi đơn đã được sale xác nhận (Confirmed). Hiện tại: {order.Status}");
+
+            if (order.PaymentTiming.HasValue)
+                throw new InvalidBusinessRuleException("Đơn đã chọn hình thức thanh toán, không thể đổi.");
+
+            order.PaymentTiming = paymentTiming;
+            await _uow.SaveChangesAsync();
+
+            return await GetMyOrderByIdAsync(orderId, userId);
+        }
+
         public async Task ConfirmDeliveredAsync(int orderId, string operatorUserId)
         {
             var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
@@ -627,7 +660,12 @@ namespace AgriIDMS.Application.Services
                 .FirstOrDefault();
 
             if (latestPayment == null)
+            {
+                if (order.PaymentTiming == PaymentTiming.PayAfter)
+                    throw new InvalidBusinessRuleException(
+                        "Đơn trả sau: vui lòng ghi nhận thanh toán (ví dụ tạo thanh toán tiền mặt và xác nhận đã thu) trước khi xác nhận đã giao.");
                 throw new InvalidBusinessRuleException("Không tìm thấy thông tin thanh toán của đơn hàng");
+            }
 
             if (order.PaymentTiming == PaymentTiming.PayAfter && latestPayment.PaymentMethod == PaymentMethod.Cash)
             {
@@ -912,7 +950,6 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = now,
                     Source = OrderSource.Online,
                     FulfillmentType = FulfillmentType.Delivery,
-                    PaymentTiming = PaymentTiming.PayAfter,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
                 ApplyRecipientToOrder(order, recipient);
@@ -980,7 +1017,7 @@ namespace AgriIDMS.Application.Services
                     AllocationSucceeded = true,
                     AllocationMessage =
                         $"Đã giữ cứng (Reserved) {reservedAllocations.Count} thùng trong {_onlineOrderSoftLockDuration.TotalMinutes:0} phút — chờ sale xác nhận với khách.",
-                    PaymentTiming = order.PaymentTiming.ToString()
+                    PaymentTiming = order.PaymentTiming?.ToString()
                 };
             }
             catch
@@ -1045,7 +1082,6 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = now,
                     Source = OrderSource.Online,
                     FulfillmentType = FulfillmentType.Delivery,
-                    PaymentTiming = PaymentTiming.PayAfter,
                     Status = OrderStatus.PendingSaleConfirmation
                 };
                 ApplyRecipientToOrder(order, recipient);
@@ -1158,7 +1194,7 @@ namespace AgriIDMS.Application.Services
                     AllocationSucceeded = true,
                     AllocationMessage =
                         $"Đã giữ cứng (Reserved) {reservedAllocations.Count} thùng trong {_onlineOrderSoftLockDuration.TotalMinutes:0} phút — chờ sale xác nhận với khách.",
-                    PaymentTiming = order.PaymentTiming.ToString()
+                    PaymentTiming = order.PaymentTiming?.ToString()
                 };
             }
             catch
@@ -1287,7 +1323,7 @@ namespace AgriIDMS.Application.Services
                     AllocationSucceeded = false,
                     AllocationMessage = null,
                     PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
-                    PaymentTiming = order.PaymentTiming.ToString()
+                    PaymentTiming = order.PaymentTiming!.ToString()
                 };
             }
             catch
@@ -1451,7 +1487,7 @@ namespace AgriIDMS.Application.Services
             return new SaleConfirmOrderResponseDto
             {
                 Message =
-                    "Sale đã xác nhận đơn. Thùng vẫn giữ (Reserved), hạn giữ đã gia hạn cho bước thanh toán / xuất kho. Đơn ở trạng thái Confirmed.",
+                    "Sale đã xác nhận đơn. Khách chọn trả trước hoặc trả sau trên app; nếu trả trước thì phải thanh toán thành công trước khi xuất kho.",
                 Order = new OrderListItemDto
                 {
                     OrderId = orderAfter.Id,
@@ -1460,7 +1496,8 @@ namespace AgriIDMS.Application.Services
                     Source = orderAfter.Source.ToString(),
                     CreatedAt = orderAfter.CreatedAt,
                     ItemCount = orderAfter.Details?.Count ?? 0,
-                    LatestPaymentStatus = null
+                    LatestPaymentStatus = null,
+                    PaymentTiming = orderAfter.PaymentTiming?.ToString()
                 }
             };
         }

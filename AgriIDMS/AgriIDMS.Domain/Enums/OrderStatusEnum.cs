@@ -90,7 +90,7 @@ namespace AgriIDMS.Domain.Enums
         /// <summary>Trả trước: phải Paid (hoặc đủ điều kiện thanh toán trước) trước khi hoàn tất xuất/pick theo rule.</summary>
         PayBefore = 0,
 
-        /// <summary>Trả sau (thu khi giao / sau khi xuất tùy flow): cho phép tiền mặt <see cref="PaymentMethod.Cash"/> ở Pending khi tạo phiếu xuất; có thể ghi nhận Paid khi Delivered.</summary>
+        /// <summary>Trả sau: đơn online có thể xuất kho khi chưa thanh toán; tiền mặt Pending vẫn cho phép xuất; quyết toán khi giao (Delivered) hoặc xác nhận thu.</summary>
         PayAfter = 1
     }
 

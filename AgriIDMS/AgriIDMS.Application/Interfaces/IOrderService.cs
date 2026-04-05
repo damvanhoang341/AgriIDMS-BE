@@ -1,4 +1,5 @@
 using AgriIDMS.Application.DTOs.Order;
+using AgriIDMS.Domain.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -26,6 +27,9 @@ namespace AgriIDMS.Application.Interfaces
         Task<int> AutoCompleteOrdersAsync();
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
+
+        /// <summary>Đơn online đã Confirmed: khách chọn trả trước / trả sau (một lần).</summary>
+        Task<OrderDetailDto> SetOnlineOrderPaymentTimingAsync(int orderId, string userId, PaymentTiming paymentTiming);
 
         /// <summary>Hủy đơn trước khi vào bước shipping (tức là chỉ cho phép khi đơn chưa được thanh toán).</summary>
         Task CancelOrderAsync(int orderId, string userId);

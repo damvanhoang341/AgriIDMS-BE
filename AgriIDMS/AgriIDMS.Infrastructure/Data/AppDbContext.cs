@@ -1044,7 +1044,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.PaymentTiming)
                   .HasConversion<string>()
                   .HasMaxLength(30)
-                  .IsRequired();
+                  .IsRequired(false);
 
             entity.Property(x => x.PosCheckoutTiming)
                   .HasConversion<string>()

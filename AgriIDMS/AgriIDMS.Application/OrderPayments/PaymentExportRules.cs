@@ -9,12 +9,21 @@ namespace AgriIDMS.Application.OrderPayments
     {
         public static bool OrderHasExportEligiblePayments(Order order)
         {
-            var payments = order.Payments;
-            if (payments == null || payments.Count == 0)
+            if (!order.PaymentTiming.HasValue)
                 return false;
 
+            var payments = order.Payments;
+
             if (order.PaymentTiming == PaymentTiming.PayBefore)
+            {
+                if (payments == null || payments.Count == 0)
+                    return false;
                 return payments.Any(p => p.PaymentStatus == PaymentStatus.Paid);
+            }
+
+            // PayAfter: được xuất khi chưa có thanh toán; hoặc đã Paid; hoặc tiền mặt Pending.
+            if (payments == null || payments.Count == 0)
+                return true;
 
             return payments.Any(p => p.PaymentStatus == PaymentStatus.Paid)
                    || payments.Any(p =>

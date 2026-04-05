@@ -38,7 +38,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Đơn sẵn sàng xuất kho: theo PaymentTiming (PayBefore cần Paid; PayAfter cho phép tiền mặt Pending); còn allocation Reserved.
+        /// Đơn sẵn sàng xuất kho: đã chọn PaymentTiming; PayBefore cần Paid; PayAfter cho phép chưa thanh toán hoặc Cash Pending; còn allocation Reserved.
         /// Trả về kèm phiếu xuất đang hoạt động (không Cancelled) nếu có.
         /// Query: skip, take, sort (paidAtDesc mặc định, paidAtAsc, createdAtDesc, createdAtAsc), orderId, source (Online|POS).
         /// </summary>
@@ -127,6 +127,21 @@ namespace AgriIDMS.API.Controllers
         {
             var userId = GetCurrentUserId();
             var result = await _orderService.GetMyOrderByIdAsync(id, userId);
+            return Ok(result);
+        }
+
+        /// <summary>Sau khi sale xác nhận (Confirmed): khách chọn PayBefore (trả trước) hoặc PayAfter (trả sau). Chỉ gọi một lần.</summary>
+        [HttpPatch("{id:int:min(1)}/online/payment-timing")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> SetOnlineOrderPaymentTiming(int id, [FromBody] SetOnlineOrderPaymentTimingRequest? request)
+        {
+            if (request == null)
+                return BadRequest(new { message = "Thiếu body JSON." });
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = GetCurrentUserId();
+            var result = await _orderService.SetOnlineOrderPaymentTimingAsync(id, userId, request.PaymentTiming);
             return Ok(result);
         }
 
