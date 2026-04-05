@@ -31,6 +31,10 @@ namespace AgriIDMS.Domain.Entities
         public PosCheckoutTiming? PosCheckoutTiming { get; set; }
 
         public OrderStatus Status { get; set; }
+
+        /// <summary>Tiến trình vận chuyển; TakeAway thường <see cref="ShippingStatus.None"/> tới khi hoàn tất → <see cref="ShippingStatus.DeliveredShip"/>.</summary>
+        public ShippingStatus ShippingStatus { get; set; } = ShippingStatus.None;
+
         public DateTime? DeliveredAt { get; set; }
         public DateTime? BackorderExpiryNotifiedAt { get; set; }
 

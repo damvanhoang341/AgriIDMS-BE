@@ -324,6 +324,19 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Đơn Delivery đã ApprovedExport: chuyển ShippingPendingPickup → ShippingInProgress (shipper bắt đầu giao).
+        /// Body: { "shippingStatus": "ShippingInProgress" } (enum name, JSON number cũng được).
+        /// </summary>
+        [HttpPatch("{id:int:min(1)}/shipping/status")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> UpdateShippingStatusAsStaff(int id, [FromBody] UpdateOrderShippingStatusRequest body)
+        {
+            var operatorUserId = GetCurrentUserId();
+            var detail = await _orderService.UpdateOrderShippingStatusAsStaffAsync(id, body.ShippingStatus, operatorUserId);
+            return Ok(detail);
+        }
+
         [HttpPatch("{id:int:min(1)}/delivery/confirm")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> ConfirmDelivered(int id)

@@ -199,6 +199,7 @@ namespace AgriIDMS.Application.Services
                 {
                     order.Status = OrderStatus.Delivered;
                     order.DeliveredAt = DateTime.UtcNow;
+                    order.ShippingStatus = ShippingStatus.DeliveredShip;
                 }
             }
 
@@ -386,6 +387,7 @@ namespace AgriIDMS.Application.Services
                     {
                         payment.Order.Status = OrderStatus.Delivered;
                         payment.Order.DeliveredAt = DateTime.UtcNow;
+                        payment.Order.ShippingStatus = ShippingStatus.DeliveredShip;
                     }
                 }
 

@@ -1030,6 +1030,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(30)
                   .IsRequired();
 
+            entity.Property(x => x.ShippingStatus)
+                  .HasConversion<string>()
+                  .HasMaxLength(30)
+                  .HasDefaultValue(ShippingStatus.None)
+                  .IsRequired();
+
             entity.Property(x => x.Source)
                   .HasConversion<string>()
                   .HasMaxLength(20)

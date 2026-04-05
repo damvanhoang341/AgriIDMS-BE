@@ -200,7 +200,10 @@ namespace AgriIDMS.Application.Services
                 receipt.Status = ExportStatus.Approved;
                 var ord = receipt.Order;
                 if (ord.FulfillmentType == FulfillmentType.Delivery)
-                    ord.Status = OrderStatus.Shipping;
+                {
+                    ord.Status = OrderStatus.ApprovedExport;
+                    ord.ShippingStatus = ShippingStatus.ShippingPendingPickup;
+                }
                 else if (ord.Source == OrderSource.POS
                          && ord.FulfillmentType == FulfillmentType.TakeAway
                          && ord.PaymentTiming == PaymentTiming.PayBefore
@@ -211,6 +214,7 @@ namespace AgriIDMS.Application.Services
                     // Trả trước pick (PayBefore): duyệt xuất xong = hoàn tất tại quầy.
                     ord.Status = OrderStatus.Delivered;
                     ord.DeliveredAt = DateTime.UtcNow;
+                    ord.ShippingStatus = ShippingStatus.DeliveredShip;
                 }
 
                 await _uow.CommitAsync();

@@ -86,7 +86,7 @@ namespace AgriIDMS.Application.Services
             var orders = await _orderRepo.GetByUserIdWithDetailsAndPaymentsAsync(userId);
 
             if (!string.IsNullOrWhiteSpace(query?.Status)
-                && Enum.TryParse<OrderStatus>(query.Status, true, out var parsedStatus))
+                && TryParseLegacyOrderStatusForFilter(query.Status, out var parsedStatus))
             {
                 orders = orders.Where(o => o.Status == parsedStatus).ToList();
             }
@@ -96,6 +96,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
@@ -124,6 +125,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
@@ -176,6 +178,7 @@ namespace AgriIDMS.Application.Services
                 {
                     OrderId = o.Id,
                     Status = o.Status.ToString(),
+                    ShippingStatus = o.ShippingStatus.ToString(),
                     TotalAmount = o.TotalAmount,
                     PaidAt = paidAt,
                     CreatedAt = o.CreatedAt,
@@ -216,6 +219,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
@@ -253,6 +257,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
@@ -290,6 +295,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
@@ -461,6 +467,7 @@ namespace AgriIDMS.Application.Services
                 OrderId = o.Id,
                 TotalAmount = o.TotalAmount,
                 Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
@@ -586,36 +593,43 @@ namespace AgriIDMS.Application.Services
             if (order.UserId != userId)
                 throw new ForbiddenException("Bạn không có quyền xem đơn hàng này");
 
-            return new OrderDetailDto
+            return MapOrderToDetailDto(order);
+        }
+
+        public async Task<OrderDetailDto> UpdateOrderShippingStatusAsStaffAsync(int orderId, ShippingStatus newShippingStatus, string operatorUserId)
+        {
+            _ = operatorUserId;
+
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (!IsDelivery(order))
+                throw new InvalidBusinessRuleException("Chỉ đơn giao hàng (Delivery) mới cập nhật ShippingStatus.");
+
+            if (order.Status != OrderStatus.ApprovedExport)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ cập nhật vận chuyển khi đơn ở ApprovedExport. Hiện tại: {order.Status}");
+
+            if (newShippingStatus == ShippingStatus.ShippingInProgress)
             {
-                OrderId = order.Id,
-                TotalAmount = order.TotalAmount,
-                Status = order.Status.ToString(),
-                Source = order.Source.ToString(),
-                FulfillmentType = order.FulfillmentType.ToString(),
-                PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
-                PaymentTiming = order.PaymentTiming?.ToString(),
-                CreatedAt = order.CreatedAt,
-                LatestPaymentStatus = order.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
-                Recipient = ToRecipientSnapshot(order),
-                Items = order.Details.Select(d => new OrderDetailItemDto
-                {
-                    OrderDetailId = d.Id,
-                    ProductVariantId = d.ProductVariantId,
-                    ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
-                    Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
-                    BoxWeight = d.BoxWeight,
-                    IsPartial = d.IsPartial,
-                    Quantity = d.Quantity,
-                    UnitPrice = d.UnitPrice,
-                    FulfilledQuantity = d.FulfilledQuantity,
-                    ShortageQuantity = d.ShortageQuantity
-                }).ToList()
-            };
+                if (order.ShippingStatus != ShippingStatus.ShippingPendingPickup)
+                    throw new InvalidBusinessRuleException(
+                        $"Chỉ chuyển sang đang giao khi đang chờ lấy hàng (ShippingPendingPickup). Hiện tại: {order.ShippingStatus}");
+                order.ShippingStatus = ShippingStatus.ShippingInProgress;
+            }
+            else if (newShippingStatus == ShippingStatus.ShippingPendingPickup)
+            {
+                throw new InvalidBusinessRuleException("Không hỗ trợ đặt lại ShippingPendingPickup qua API này.");
+            }
+            else
+            {
+                throw new InvalidBusinessRuleException(
+                    "Chỉ hỗ trợ chuyển ShippingPendingPickup → ShippingInProgress. Kết thúc giao dùng delivery/confirm hoặc delivery/failed.");
+            }
+
+            await _uow.SaveChangesAsync();
+
+            return MapOrderToDetailDto(order);
         }
 
         public async Task<OrderDetailDto> SetOnlineOrderPaymentTimingAsync(int orderId, string userId, PaymentTiming paymentTiming)
@@ -657,9 +671,9 @@ namespace AgriIDMS.Application.Services
             if (order.Status == OrderStatus.Delivered)
                 return;
 
-            if (order.Status != OrderStatus.Shipping)
+            if (order.Status != OrderStatus.ApprovedExport)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ xác nhận giao thành công khi đơn ở trạng thái Shipping. Hiện tại: {order.Status}");
+                    $"Chỉ xác nhận giao thành công khi đơn đã duyệt xuất và đang trong luồng vận chuyển (ApprovedExport). Hiện tại: {order.Status}");
 
             var latestPayment = order.Payments?
                 .OrderByDescending(p => p.CreatedAt)
@@ -692,6 +706,7 @@ namespace AgriIDMS.Application.Services
             }
 
             order.Status = OrderStatus.Delivered;
+            order.ShippingStatus = ShippingStatus.DeliveredShip;
             order.DeliveredAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync();
         }
@@ -707,11 +722,12 @@ namespace AgriIDMS.Application.Services
             if (order.Status == OrderStatus.FailedDelivery)
                 return;
 
-            if (order.Status != OrderStatus.Shipping)
+            if (order.Status != OrderStatus.ApprovedExport)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ đánh dấu giao thất bại khi đơn ở trạng thái Shipping. Hiện tại: {order.Status}");
+                    $"Chỉ đánh dấu giao thất bại khi đơn đang trong luồng vận chuyển (ApprovedExport). Hiện tại: {order.Status}");
 
             order.Status = OrderStatus.FailedDelivery;
+            order.ShippingStatus = ShippingStatus.ShippingFailed;
             await _uow.SaveChangesAsync();
         }
 
@@ -726,11 +742,12 @@ namespace AgriIDMS.Application.Services
             if (order.Status == OrderStatus.Returned)
                 return;
 
-            if (order.Status != OrderStatus.FailedDelivery && order.Status != OrderStatus.Shipping)
+            if (order.Status != OrderStatus.FailedDelivery && order.Status != OrderStatus.ApprovedExport)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ đánh dấu Returned khi đơn ở trạng thái Shipping/FailedDelivery. Hiện tại: {order.Status}");
+                    $"Chỉ đánh dấu Returned khi đơn ở trạng thái ApprovedExport hoặc FailedDelivery. Hiện tại: {order.Status}");
 
             order.Status = OrderStatus.Returned;
+            order.ShippingStatus = ShippingStatus.None;
             await _uow.SaveChangesAsync();
         }
 
@@ -934,6 +951,7 @@ namespace AgriIDMS.Application.Services
                     }
                 }
 
+                order.ShippingStatus = ShippingStatus.None;
                 order.Status = OrderStatus.Cancelled;
 
                 await _uow.CommitAsync();
@@ -1526,6 +1544,7 @@ namespace AgriIDMS.Application.Services
                     OrderId = orderAfter.Id,
                     TotalAmount = orderAfter.TotalAmount,
                     Status = orderAfter.Status.ToString(),
+                    ShippingStatus = orderAfter.ShippingStatus.ToString(),
                     Source = orderAfter.Source.ToString(),
                     CreatedAt = orderAfter.CreatedAt,
                     ItemCount = orderAfter.Details?.Count ?? 0,
@@ -2105,6 +2124,7 @@ namespace AgriIDMS.Application.Services
                     }
                 }
 
+                order.ShippingStatus = ShippingStatus.None;
                 order.Status = OrderStatus.Cancelled;
                 await _uow.CommitAsync();
             }
@@ -2523,6 +2543,54 @@ namespace AgriIDMS.Application.Services
             }
         }
         
+        private OrderDetailDto MapOrderToDetailDto(Order order)
+        {
+            return new OrderDetailDto
+            {
+                OrderId = order.Id,
+                TotalAmount = order.TotalAmount,
+                Status = order.Status.ToString(),
+                ShippingStatus = order.ShippingStatus.ToString(),
+                Source = order.Source.ToString(),
+                FulfillmentType = order.FulfillmentType.ToString(),
+                PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
+                PaymentTiming = order.PaymentTiming?.ToString(),
+                CreatedAt = order.CreatedAt,
+                LatestPaymentStatus = order.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString(),
+                Recipient = ToRecipientSnapshot(order),
+                Items = order.Details.Select(d => new OrderDetailItemDto
+                {
+                    OrderDetailId = d.Id,
+                    ProductVariantId = d.ProductVariantId,
+                    ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                    Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
+                    BoxWeight = d.BoxWeight,
+                    IsPartial = d.IsPartial,
+                    Quantity = d.Quantity,
+                    UnitPrice = d.UnitPrice,
+                    FulfilledQuantity = d.FulfilledQuantity,
+                    ShortageQuantity = d.ShortageQuantity
+                }).ToList()
+            };
+        }
+
+        private static bool TryParseLegacyOrderStatusForFilter(string status, out OrderStatus parsed)
+        {
+            parsed = default;
+            var s = status.Trim();
+            if (string.Equals(s, "Shipping", StringComparison.OrdinalIgnoreCase))
+            {
+                parsed = OrderStatus.ApprovedExport;
+                return true;
+            }
+
+            return Enum.TryParse<OrderStatus>(s, true, out parsed);
+        }
+
         private static void ApplyRecipientToOrder(Order order, OrderRecipientCheckoutDto recipient)
         {
             order.RecipientFullName = recipient.FullName.Trim();

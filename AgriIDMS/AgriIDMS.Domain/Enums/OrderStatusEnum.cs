@@ -36,7 +36,10 @@ namespace AgriIDMS.Domain.Enums
         AwaitingPayment = 0,
         Confirmed = 2,
         InventoryFailed = 3,
-        Shipping = 4,
+
+        /// <summary>Đơn Delivery: đã duyệt xuất kho, chờ lấy hàng / vận chuyển (trước đây tên <c>Shipping</c>).</summary>
+        ApprovedExport = 4,
+
         Completed = 5,
         Cancelled = 6,
         Refunded = 7,
@@ -64,6 +67,16 @@ namespace AgriIDMS.Domain.Enums
 
         /// <summary>Đơn bị hoàn trả sau giao thất bại hoặc khách từ chối nhận.</summary>
         Returned = 15
+    }
+
+    /// <summary>Tiến trình giao hàng (chủ yếu đơn <see cref="FulfillmentType.Delivery"/>). POS TakeAway dùng <see cref="None"/> hoặc <see cref="DeliveredShip"/> khi hoàn tất.</summary>
+    public enum ShippingStatus
+    {
+        None = 0,
+        ShippingPendingPickup = 1,
+        ShippingInProgress = 2,
+        DeliveredShip = 3,
+        ShippingFailed = 4
     }
 
     public enum PaymentStatus

@@ -68,6 +68,13 @@ namespace AgriIDMS.Application.DTOs.Order
         public PaymentTiming PaymentTiming { get; set; }
     }
 
+    /// <summary>Staff cập nhật tiến trình vận chuyển đơn Delivery đang <c>ApprovedExport</c>.</summary>
+    public class UpdateOrderShippingStatusRequest
+    {
+        [Required]
+        public ShippingStatus ShippingStatus { get; set; }
+    }
+
     public class OrderRecipientSnapshotDto
     {
         public string FullName { get; set; } = string.Empty;
@@ -203,6 +210,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public int OrderId { get; set; }
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = null!;
+        public string ShippingStatus { get; set; } = null!;
         public string Source { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public int ItemCount { get; set; }
@@ -230,6 +238,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public int OrderId { get; set; }
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = null!;
+        public string ShippingStatus { get; set; } = null!;
         public string Source { get; set; } = null!;
         public string? FulfillmentType { get; set; }
         public string? PosCheckoutTiming { get; set; }
@@ -390,6 +399,7 @@ namespace AgriIDMS.Application.DTOs.Order
     {
         public int OrderId { get; set; }
         public string Status { get; set; } = null!;
+        public string ShippingStatus { get; set; } = null!;
         public decimal TotalAmount { get; set; }
         public DateTime? PaidAt { get; set; }
         public DateTime CreatedAt { get; set; }

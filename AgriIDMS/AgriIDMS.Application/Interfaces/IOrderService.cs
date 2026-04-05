@@ -21,6 +21,11 @@ namespace AgriIDMS.Application.Interfaces
         Task ConfirmDeliveredAsync(int orderId, string operatorUserId);
         Task ConfirmFailedDeliveryAsync(int orderId, string operatorUserId);
         Task ConfirmReturnedAsync(int orderId, string operatorUserId);
+
+        /// <summary>
+        /// Sale/staff cập nhật tiến trình vận chuyển (Delivery, ApprovedExport): ví dụ ShippingPendingPickup → ShippingInProgress.
+        /// </summary>
+        Task<OrderDetailDto> UpdateOrderShippingStatusAsStaffAsync(int orderId, ShippingStatus newShippingStatus, string operatorUserId);
         /// <summary>Xác nhận đã thu tiền mặt cho đơn (theo payment Cash Pending mới nhất).</summary>
         Task ConfirmCashPaidForOrderAsync(int orderId, string operatorUserId);
         Task<bool> CheckCanCompleteAsync(int orderId);

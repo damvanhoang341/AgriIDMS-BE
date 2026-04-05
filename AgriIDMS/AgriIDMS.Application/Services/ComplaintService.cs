@@ -23,7 +23,7 @@ namespace AgriIDMS.Application.Services
 
         private static readonly OrderStatus[] AllowedOrderStatusesForComplaint =
         {
-            OrderStatus.Shipping,
+            OrderStatus.ApprovedExport,
             OrderStatus.Delivered,
             OrderStatus.Completed
         };
@@ -52,7 +52,7 @@ namespace AgriIDMS.Application.Services
 
             if (!AllowedOrderStatusesForComplaint.Contains(order.Status))
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ được khiếu nại khi đơn đang giao hoặc đã hoàn thành (Shipping/Completed). Hiện tại: {order.Status}");
+                    $"Chỉ được khiếu nại khi đơn đang trong luồng giao (ApprovedExport) hoặc đã hoàn thành (Delivered/Completed). Hiện tại: {order.Status}");
 
             var allocation = await _allocationRepo.GetByOrderIdAndBoxIdAsync(request.OrderId, request.BoxId);
             if (allocation == null)
@@ -105,7 +105,7 @@ namespace AgriIDMS.Application.Services
 
             if (!AllowedOrderStatusesForComplaint.Contains(order.Status))
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ được khiếu nại khi đơn đang giao hoặc đã hoàn thành (Shipping/Completed). Hiện tại: {order.Status}");
+                    $"Chỉ được khiếu nại khi đơn đang trong luồng giao (ApprovedExport) hoặc đã hoàn thành (Delivered/Completed). Hiện tại: {order.Status}");
 
             // Lấy toàn bộ allocation thuộc đơn (reserved/picked...), chỉ loại trừ allocation bị cancel.
             var allocations = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, status: null);
