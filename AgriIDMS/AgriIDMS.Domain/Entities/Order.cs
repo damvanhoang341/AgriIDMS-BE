@@ -33,6 +33,11 @@ namespace AgriIDMS.Domain.Entities
         public OrderStatus Status { get; set; }
         public DateTime? DeliveredAt { get; set; }
         public DateTime? BackorderExpiryNotifiedAt { get; set; }
+
+        /// <summary>
+        /// Đơn online PayBefore: đã gửi thông báo cho sale khi quá hạn giữ hàng (allocation ExpiredAt) mà chưa thanh toán.
+        /// </summary>
+        public DateTime? PaymentDeadlineNotifiedAt { get; set; }
         public string? CustomerUserId { get; set; }
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }

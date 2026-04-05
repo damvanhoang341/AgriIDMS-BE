@@ -143,6 +143,27 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: recipients);
         }
 
+        public async Task NotifyOnlineOrderPayBeforeDeadlineOverdueAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.Online)
+                return;
+
+            var message =
+                $"Đơn online #{orderId} (trả trước) đã quá hạn thanh toán 24h sau khi sale xác nhận. Vui lòng liên hệ khách: nếu đồng ý thanh toán thì tạo thanh toán/xác nhận thu; nếu không thì hủy đơn và nhả hàng.";
+
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("SalesStaff", "Manager", "Admin");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "OrderPayBeforeDeadlineOverdue",
+                referenceId: orderId,
+                recipientUserIds: recipients);
+        }
+
         public async Task NotifyExportApprovedAsync(int exportReceiptId)
         {
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)

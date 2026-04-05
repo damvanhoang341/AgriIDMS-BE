@@ -8,6 +8,11 @@ namespace AgriIDMS.Application.Interfaces
     {
         Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentRequest request, string userId);
 
+        /// <summary>
+        /// Sale/kho tạo thanh toán cho đơn online PayBefore sau khi thống nhất với khách (bỏ qua chặn quá hạn 24h của khách tự thanh toán).
+        /// </summary>
+        Task<PaymentResponseDto> CreateStaffOnlinePayBeforePaymentAsync(CreatePaymentRequest request, string staffUserId);
+
         Task<PaymentResponseDto> GetLatestPaymentAsync(int orderId, string userId);
 
         Task<IList<PendingCashPaymentItemDto>> GetPendingCashPaymentsAsync(GetPendingCashPaymentsQuery query);

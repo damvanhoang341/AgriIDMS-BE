@@ -1057,6 +1057,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.BackorderExpiryNotifiedAt)
                   .IsRequired(false);
 
+            entity.Property(x => x.PaymentDeadlineNotifiedAt)
+                  .IsRequired(false);
+
             entity.Property(x => x.DeliveredAt)
                   .IsRequired(false);
 
@@ -1110,6 +1113,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.Source);
             entity.HasIndex(x => x.FulfillmentType);
             entity.HasIndex(x => x.BackorderExpiryNotifiedAt);
+            entity.HasIndex(x => x.PaymentDeadlineNotifiedAt);
             entity.HasIndex(x => x.DeliveredAt);
         });
 

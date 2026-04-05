@@ -28,6 +28,18 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Đơn online PayBefore quá hạn 24h: khách không tự tạo thanh toán; sale tạo Cash/Banking sau khi thống nhất với khách.
+        /// </summary>
+        [HttpPost("staff/online-paybefore")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
+        public async Task<IActionResult> CreateStaffOnlinePayBeforePayment([FromBody] CreatePaymentRequest request)
+        {
+            var staffUserId = GetCurrentUserId();
+            var result = await _paymentService.CreateStaffOnlinePayBeforePaymentAsync(request, staffUserId);
+            return Ok(result);
+        }
+
         [HttpGet("order/{orderId:int:min(1)}")]
         public async Task<IActionResult> GetLatestPayment(int orderId)
         {

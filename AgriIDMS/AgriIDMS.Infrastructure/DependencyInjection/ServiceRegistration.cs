@@ -150,6 +150,7 @@ public static class ServiceRegistration
 
         // Background workers
         services.AddHostedService<BackorderExpiryScannerService>();
+        services.AddHostedService<PayBeforeDeadlineScannerService>();
         services.AddHostedService<NearExpiryLotScannerService>();
         services.AddHostedService<OrderAutoCompleteService>();
 

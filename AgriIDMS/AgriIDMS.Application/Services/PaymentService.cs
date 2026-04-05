@@ -22,6 +22,7 @@ namespace AgriIDMS.Application.Services
     {
         private readonly IPaymentRepository _paymentRepo;
         private readonly IOrderRepository _orderRepo;
+        private readonly IOrderAllocationRepository _allocationRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<PaymentService> _logger;
         private readonly INotificationService _notificationService;
@@ -32,6 +33,7 @@ namespace AgriIDMS.Application.Services
         public PaymentService(
             IPaymentRepository paymentRepo,
             IOrderRepository orderRepo,
+            IOrderAllocationRepository allocationRepo,
             IUnitOfWork uow,
             ILogger<PaymentService> logger,
             INotificationService notificationService,
@@ -40,6 +42,7 @@ namespace AgriIDMS.Application.Services
         {
             _paymentRepo = paymentRepo;
             _orderRepo = orderRepo;
+            _allocationRepo = allocationRepo;
             _uow = uow;
             _logger = logger;
             _notificationService = notificationService;
@@ -48,13 +51,28 @@ namespace AgriIDMS.Application.Services
             _cancelUrl = config["PayOS:CancelUrl"]!;
         }
 
-        public async Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentRequest request, string userId)
+        public Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentRequest request, string userId) =>
+            CreatePaymentCoreAsync(request, userId, forCustomer: true);
+
+        public Task<PaymentResponseDto> CreateStaffOnlinePayBeforePaymentAsync(CreatePaymentRequest request, string staffUserId) =>
+            CreatePaymentCoreAsync(request, staffUserId, forCustomer: false);
+
+        private async Task<PaymentResponseDto> CreatePaymentCoreAsync(CreatePaymentRequest request, string actorUserId, bool forCustomer)
         {
             var order = await _orderRepo.GetByIdWithPaymentsAsync(request.OrderId)
                 ?? throw new NotFoundException($"Order #{request.OrderId} không tồn tại");
 
-            if (order.UserId != userId)
-                throw new ForbiddenException("Bạn không có quyền thanh toán đơn hàng này");
+            if (forCustomer)
+            {
+                if (order.UserId != actorUserId)
+                    throw new ForbiddenException("Bạn không có quyền thanh toán đơn hàng này");
+            }
+            else
+            {
+                if (order.Source != OrderSource.Online || order.PaymentTiming != PaymentTiming.PayBefore)
+                    throw new InvalidBusinessRuleException(
+                        "Chỉ dùng API này cho đơn online trả trước (PayBefore), sau khi sale đã thống nhất với khách.");
+            }
 
             if (order.Status != OrderStatus.Confirmed)
                 throw new InvalidBusinessRuleException(
@@ -70,6 +88,25 @@ namespace AgriIDMS.Application.Services
                 var hasPaid = await _paymentRepo.HasPaidPaymentAsync(order.Id);
                 if (hasPaid)
                     throw new InvalidBusinessRuleException("Đơn hàng đã được thanh toán thành công");
+
+                if (forCustomer
+                    && order.Source == OrderSource.Online
+                    && order.PaymentTiming == PaymentTiming.PayBefore)
+                {
+                    var reserved = await _allocationRepo.GetByOrderIdAsync(order.Id, AllocationStatus.Reserved);
+                    if (IsOnlinePayBeforePaymentDeadlinePassed(reserved, DateTime.UtcNow))
+                    {
+                        throw new InvalidBusinessRuleException(
+                            "Đã quá thời hạn thanh toán (24h kể từ khi sale xác nhận đơn). Vui lòng liên hệ sale để được hỗ trợ thanh toán hoặc hủy đơn.");
+                    }
+                }
+
+                if (!forCustomer)
+                {
+                    _logger.LogInformation(
+                        "Staff {StaffUserId} creating PayBefore payment for online order {OrderId}, method {Method}",
+                        actorUserId, order.Id, request.PaymentMethod);
+                }
 
                 var result = request.PaymentMethod switch
                 {
@@ -87,6 +124,25 @@ namespace AgriIDMS.Application.Services
                 await _uow.RollbackAsync();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Hạn thanh toán PayBefore online = min(ExpiredAt) của allocation Reserved (sale confirm đã set +24h).
+        /// </summary>
+        private static bool IsOnlinePayBeforePaymentDeadlinePassed(IReadOnlyList<OrderAllocation> reserved, DateTime utcNow)
+        {
+            if (reserved == null || reserved.Count == 0)
+                return false;
+
+            var expiries = reserved
+                .Where(a => a.ExpiredAt.HasValue)
+                .Select(a => a.ExpiredAt!.Value)
+                .ToList();
+
+            if (expiries.Count == 0)
+                return false;
+
+            return expiries.Min() <= utcNow;
         }
 
         // ===================== Cash (tiền mặt) =====================
