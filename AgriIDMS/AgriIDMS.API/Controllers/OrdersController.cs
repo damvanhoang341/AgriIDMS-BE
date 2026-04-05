@@ -145,17 +145,21 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        // Gợi ý FE call: GET /api/orders/history?statusOrder=complete
+        /// <summary>Lịch sử đơn theo bộ lọc trạng thái (mặc định Delivered). Ví dụ <c>?statusOrder=complete</c> hoặc tên enum.</summary>
         [HttpGet("history")]
         public async Task<IActionResult> GetHistoryOrders([FromQuery] string? statusOrder)
         {
             var userId = GetCurrentUserId();
 
-            var query = new GetOrdersQuery
-            {
-                Status = OrderStatus.Delivered.ToString()
-            };
+            string statusFilter;
+            if (string.IsNullOrWhiteSpace(statusOrder))
+                statusFilter = OrderStatus.Delivered.ToString();
+            else if (string.Equals(statusOrder.Trim(), "complete", StringComparison.OrdinalIgnoreCase))
+                statusFilter = OrderStatus.Delivered.ToString();
+            else
+                statusFilter = statusOrder.Trim();
 
+            var query = new GetOrdersQuery { Status = statusFilter };
             var result = await _orderService.GetMyOrdersAsync(userId, query);
             return Ok(result);
         }
@@ -322,7 +326,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Xác nhận giao thành công (Delivery, ApprovedExport). Đơn online trả sau: đồng thời quyết toán tiền
+        /// Xác nhận giao thành công (Delivery, ApprovedExport). Đơn trả sau: đồng thời quyết toán tiền
         /// (tạo thanh toán tiền mặt Paid nếu chưa có; Cash/Banking Pending hoặc Processing → Paid).
         /// </summary>
         [HttpPatch("{id:int:min(1)}/delivery/confirm")]
@@ -360,11 +364,6 @@ namespace AgriIDMS.API.Controllers
             await _orderService.ConfirmCashPaidForOrderAsync(id, operatorUserId);
             return Ok(new { Message = "Đã xác nhận thu tiền mặt thành công", OrderId = id });
         }
-
-        /// <summary>Alias URL cũ (COD) — cùng hành vi với payment/cash/confirm-paid.</summary>
-        [HttpPatch("{id:int:min(1)}/payment/cod/confirm-paid")]
-        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
-        public Task<IActionResult> ConfirmCashPaidForOrderLegacy(int id) => ConfirmCashPaidForOrder(id);
 
         /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
         [HttpPatch("{id:int:min(1)}/backorder/wait")]
