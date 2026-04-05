@@ -48,6 +48,11 @@ namespace AgriIDMS.Application.Interfaces
         /// <summary>Sale xác nhận đơn hợp lệ → chuyển sang chờ giữ hàng (AwaitingAllocation).</summary>
         Task<SaleConfirmOrderResponseDto> SaleConfirmOrderAsync(int orderId, string confirmedByUserId);
 
+        /// <summary>
+        /// Nhánh ELSE sau khi khách đặt đơn: không chốt được với khách — đơn online PendingSaleConfirmation → Cancelled + nhả thùng.
+        /// </summary>
+        Task<SaleRejectOrderResponseDto> SaleRejectOrderAsync(int orderId, string rejectedByUserId);
+
         /// <summary>Giữ hàng (allocate): chỉ khi đơn đã AwaitingAllocation (hoặc AwaitingPayment — đơn cũ). Nên bật phân quyền staff khi <paramref name="skipCustomerOwnershipCheck"/> = true.</summary>
         Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);
         Task<AllocationProposalResultDto> AutoProposeAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false);

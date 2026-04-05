@@ -23,6 +23,7 @@ namespace AgriIDMS.Application.Services
         private readonly IProductVariantRepository _variantRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
+        private readonly IExportReceiptRepository _exportRepo;
         private readonly INotificationService _notificationService;
         private readonly IUserRepository _userRepo;
         private readonly IUnitOfWork _uow;
@@ -43,6 +44,7 @@ namespace AgriIDMS.Application.Services
             IProductVariantRepository variantRepo,
             IOrderAllocationRepository allocationRepo,
             IInventoryTransactionRepository inventoryTranRepo,
+            IExportReceiptRepository exportRepo,
             INotificationService notificationService,
             IUserRepository userRepo,
             IUnitOfWork uow,
@@ -55,6 +57,7 @@ namespace AgriIDMS.Application.Services
             _variantRepo = variantRepo;
             _allocationRepo = allocationRepo;
             _inventoryTranRepo = inventoryTranRepo;
+            _exportRepo = exportRepo;
             _notificationService = notificationService;
             _userRepo = userRepo;
             _uow = uow;
@@ -839,8 +842,7 @@ namespace AgriIDMS.Application.Services
             if (order.UserId != userId)
                 throw new ForbiddenException("Bạn không có quyền hủy đơn hàng này");
 
-            // Chưa giữ hàng: chờ sale, chờ allocate, hoặc allocate thất bại (chưa thanh toán).
-            var canCancelBeforeAllocation =
+            var canCancelBeforeShip =
                 order.Status == OrderStatus.PendingSaleConfirmation
                 || order.Status == OrderStatus.AwaitingAllocation
                 || order.Status == OrderStatus.PendingWarehouseConfirm
@@ -849,9 +851,14 @@ namespace AgriIDMS.Application.Services
                 || order.Status == OrderStatus.BackorderWaiting
                 || order.Status == OrderStatus.InventoryFailed;
 
-            if (!canCancelBeforeAllocation)
+            var canCancelConfirmedOnline =
+                order.Status == OrderStatus.Confirmed
+                && order.Source == OrderSource.Online
+                && order.FulfillmentType == FulfillmentType.Delivery;
+
+            if (!canCancelBeforeShip && !canCancelConfirmedOnline)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể hủy đơn khi chưa giữ hàng / chưa thanh toán thành công. Hiện tại: {order.Status}");
+                    $"Chỉ hủy được khi chưa thanh toán thành công và (đơn chưa ship / đơn online giao hàng đã Confirmed nhưng chưa có phiếu xuất). Hiện tại: {order.Status}");
 
             if (order.Payments != null && order.Payments.Any(p =>
                     p.PaymentStatus == PaymentStatus.Paid ||
@@ -860,10 +867,51 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Không thể hủy đơn: đơn đã thanh toán thành công");
             }
 
+            if (canCancelConfirmedOnline && await _exportRepo.ExistsForOrderAsync(orderId))
+                throw new InvalidBusinessRuleException(
+                    "Không thể hủy: đơn đã có phiếu xuất kho. Vui lòng liên hệ cửa hàng.");
+
+            await CommitCancelOrderReleaseStockAsync(order);
+        }
+
+        /// <summary>ELSE: sale không chốt được với khách — hủy đơn PendingSaleConfirmation + nhả thùng.</summary>
+        public async Task<SaleRejectOrderResponseDto> SaleRejectOrderAsync(int orderId, string rejectedByUserId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.Online)
+                throw new InvalidBusinessRuleException("Chỉ áp dụng cho đơn online.");
+
+            if (order.Status != OrderStatus.PendingSaleConfirmation)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ dùng khi đơn đang chờ sale xác nhận (PendingSaleConfirmation). Hiện tại: {order.Status}");
+
+            if (order.Payments != null && order.Payments.Any(p =>
+                    p.PaymentStatus == PaymentStatus.Paid ||
+                    p.PaymentStatus == PaymentStatus.Refunded))
+                throw new InvalidBusinessRuleException("Không thể hủy: đơn đã thanh toán thành công");
+
+            await CommitCancelOrderReleaseStockAsync(order);
+
+            _logger.LogInformation(
+                "Order {OrderId} sale-reject (ELSE: not confirmed with customer) by {UserId}",
+                orderId, rejectedByUserId);
+
+            return new SaleRejectOrderResponseDto
+            {
+                Message = "Không chốt được với khách: đơn đã hủy và thùng đã được nhả (Release box).",
+                OrderId = orderId,
+                Status = OrderStatus.Cancelled.ToString()
+            };
+        }
+
+        private async Task CommitCancelOrderReleaseStockAsync(Order order)
+        {
+            var orderId = order.Id;
             await _uow.BeginTransactionAsync();
             try
             {
-                // Nếu có payment đang Pending/Processing thì chuyển sang Cancelled (tránh dữ liệu treo).
                 if (order.Payments != null)
                 {
                     foreach (var p in order.Payments)
@@ -876,7 +924,6 @@ namespace AgriIDMS.Application.Services
                     }
                 }
 
-                // Revert các allocation/box nếu có (dự phòng).
                 var allocations = await _allocationRepo.GetByOrderIdAsync(orderId);
                 if (allocations != null && allocations.Any())
                 {

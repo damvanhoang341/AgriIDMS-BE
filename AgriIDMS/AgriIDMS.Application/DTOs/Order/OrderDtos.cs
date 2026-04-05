@@ -217,6 +217,14 @@ namespace AgriIDMS.Application.DTOs.Order
         public OrderListItemDto Order { get; set; } = null!;
     }
 
+    /// <summary>Nhánh ELSE: sale không chốt được với khách (PendingSaleConfirmation) — đơn Cancelled, đã nhả thùng.</summary>
+    public class SaleRejectOrderResponseDto
+    {
+        public string Message { get; set; } = null!;
+        public int OrderId { get; set; }
+        public string Status { get; set; } = null!;
+    }
+
     public class OrderDetailDto
     {
         public int OrderId { get; set; }

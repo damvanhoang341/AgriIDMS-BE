@@ -234,13 +234,25 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Sale xác nhận đơn (sau bước này đơn mới được phép giữ hàng / allocate).</summary>
+        /// <summary>Sale xác nhận đơn (IF OK → Confirmed).</summary>
         [HttpPatch("{id:int:min(1)}/sale-confirm")]
         [Authorize(Roles = "SalesStaff,Admin,Manager")]
         public async Task<IActionResult> SaleConfirm(int id)
         {
             var staffUserId = GetCurrentUserId();
             var result = await _orderService.SaleConfirmOrderAsync(id, staffUserId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// ELSE: không chốt được với khách — đơn online đang PendingSaleConfirmation → hủy đơn và nhả thùng (Release box).
+        /// </summary>
+        [HttpPatch("{id:int:min(1)}/sale-reject")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> SaleReject(int id)
+        {
+            var staffUserId = GetCurrentUserId();
+            var result = await _orderService.SaleRejectOrderAsync(id, staffUserId);
             return Ok(result);
         }
 
@@ -426,6 +438,9 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
+        /// <summary>
+        /// Khách hủy đơn: gồm PendingSaleConfirmation và đơn online giao hàng đã Confirmed (chưa paid, chưa có phiếu xuất) — nhả thùng.
+        /// </summary>
         [HttpPatch("{id:int:min(1)}/cancel")]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> Cancel(int id)
