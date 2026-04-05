@@ -1345,10 +1345,9 @@ namespace AgriIDMS.Application.Services
 
                 if (request.FulfillmentType == FulfillmentType.TakeAway)
                 {
-                    order.PosCheckoutTiming = request.PosCheckoutTiming ?? PosCheckoutTiming.PickBeforePay;
-                    order.PaymentTiming = order.PosCheckoutTiming == PosCheckoutTiming.PayBeforePick
-                        ? PaymentTiming.PayBefore
-                        : PaymentTiming.PayAfter;
+                    // TakeAway: chỉ trả trước — thu đủ (Paid) mới được tạo/xử lý phiếu xuất; Delivered khi duyệt xuất.
+                    order.PosCheckoutTiming = PosCheckoutTiming.PayBeforePick;
+                    order.PaymentTiming = PaymentTiming.PayBefore;
                 }
                 else
                 {

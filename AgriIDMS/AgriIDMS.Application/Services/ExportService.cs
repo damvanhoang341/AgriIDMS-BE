@@ -206,15 +206,14 @@ namespace AgriIDMS.Application.Services
                 }
                 else if (ord.Source == OrderSource.POS
                          && ord.FulfillmentType == FulfillmentType.TakeAway
-                         && ord.PaymentTiming == PaymentTiming.PayBefore
                          && ord.Payments != null
                          && ord.Payments.Any(p => p.PaymentStatus == PaymentStatus.Paid)
                          && ord.Status != OrderStatus.Delivered)
                 {
-                    // Trả trước pick (PayBefore): duyệt xuất xong = hoàn tất tại quầy.
+                    // TakeAway POS: đã Paid mới xuất được; hoàn tất tại quầy — không dùng tiến trình ship (khách tự mang).
                     ord.Status = OrderStatus.Delivered;
                     ord.DeliveredAt = DateTime.UtcNow;
-                    ord.ShippingStatus = ShippingStatus.DeliveredShip;
+                    ord.ShippingStatus = ShippingStatus.None;
                 }
 
                 await _uow.CommitAsync();

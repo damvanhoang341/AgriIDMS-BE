@@ -18,15 +18,13 @@ namespace AgriIDMS.Domain.Enums
         Delivery = 1
     }
 
-    /// <summary>
-    /// Thứ tự thanh toán vs pick/xuất kho cho đơn POS mang về (TakeAway).
-    /// </summary>
+    /// <summary>POS TakeAway: đơn mới chỉ <see cref="PayBeforePick"/>. <see cref="PickBeforePay"/> = dữ liệu legacy.</summary>
     public enum PosCheckoutTiming
     {
-        /// <summary>Pick/xuất kho (hoặc chuẩn bị hàng) trước, thu tiền sau — mặc định, tương thích đơn cũ.</summary>
+        /// <summary>Legacy (trước đây gắn PayAfter).</summary>
         PickBeforePay = 0,
 
-        /// <summary>Thu tiền (đã Paid) trước, sau đó mới được tạo phiếu xuất/pick; hoàn tất khi duyệt xuất.</summary>
+        /// <summary>Trả trước: Paid mới tạo phiếu xuất; Delivered khi duyệt xuất.</summary>
         PayBeforePick = 1
     }
 
@@ -70,7 +68,7 @@ namespace AgriIDMS.Domain.Enums
         Returned = 15
     }
 
-    /// <summary>Tiến trình giao hàng (chủ yếu đơn <see cref="FulfillmentType.Delivery"/>). POS TakeAway dùng <see cref="None"/> hoặc <see cref="DeliveredShip"/> khi hoàn tất.</summary>
+    /// <summary>Tiến trình giao bên thứ ba (<see cref="FulfillmentType.Delivery"/>). <see cref="FulfillmentType.TakeAway"/> luôn <see cref="None"/> (khách tự mang).</summary>
     public enum ShippingStatus
     {
         None = 0,

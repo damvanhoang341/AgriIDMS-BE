@@ -14,6 +14,14 @@ namespace AgriIDMS.Application.OrderPayments
 
             var payments = order.Payments;
 
+            // TakeAway: luôn phải Paid mới xuất (kể cả bản ghi cũ từng PayAfter).
+            if (order.FulfillmentType == FulfillmentType.TakeAway)
+            {
+                if (payments == null || payments.Count == 0)
+                    return false;
+                return payments.Any(p => p.PaymentStatus == PaymentStatus.Paid);
+            }
+
             if (order.PaymentTiming == PaymentTiming.PayBefore)
             {
                 if (payments == null || payments.Count == 0)

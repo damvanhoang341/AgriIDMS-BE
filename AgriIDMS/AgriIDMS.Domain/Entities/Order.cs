@@ -26,13 +26,13 @@ namespace AgriIDMS.Domain.Entities
         public PaymentTiming? PaymentTiming { get; set; }
 
         /// <summary>
-        /// Chỉ dùng khi <see cref="Source"/> là POS và <see cref="FulfillmentType"/> là TakeAway; null = coi như <see cref="PosCheckoutTiming.PickBeforePay"/>.
+        /// POS TakeAway: bản ghi mới luôn <see cref="PosCheckoutTiming.PayBeforePick"/>; null = bản ghi cũ.
         /// </summary>
         public PosCheckoutTiming? PosCheckoutTiming { get; set; }
 
         public OrderStatus Status { get; set; }
 
-        /// <summary>Tiến trình vận chuyển; TakeAway thường <see cref="ShippingStatus.None"/> tới khi hoàn tất → <see cref="ShippingStatus.DeliveredShip"/>.</summary>
+        /// <summary>TakeAway: luôn <see cref="ShippingStatus.None"/>. Delivery: các bước shipper / giao.</summary>
         public ShippingStatus ShippingStatus { get; set; } = ShippingStatus.None;
 
         public DateTime? DeliveredAt { get; set; }

@@ -192,14 +192,14 @@ namespace AgriIDMS.Application.Services
             payment.PaymentStatus = PaymentStatus.Paid;
             payment.PaidAt = DateTime.UtcNow;
 
-            // TakeAway: mặc định thanh toán xong = hoàn tất tại quầy. PayBefore (thu trước pick): chờ xuất kho rồi mới Delivered.
+            // TakeAway: Paid không kích hoạt Delivered — chờ duyệt xuất kho.
             if (order.FulfillmentType == FulfillmentType.TakeAway && order.Status != OrderStatus.Delivered)
             {
                 if (!DeferTakeAwayDeliveredUntilAfterExport(order))
                 {
                     order.Status = OrderStatus.Delivered;
                     order.DeliveredAt = DateTime.UtcNow;
-                    order.ShippingStatus = ShippingStatus.DeliveredShip;
+                    order.ShippingStatus = ShippingStatus.None;
                 }
             }
 
@@ -214,11 +214,9 @@ namespace AgriIDMS.Application.Services
             return MapToDto(payment);
         }
 
-        /// <summary>POS TakeAway + trả trước pick: không chuyển Delivered khi vừa xác nhận tiền mặt.</summary>
+        /// <summary>TakeAway: không chuyển Delivered khi vừa Paid — chờ duyệt xuất kho.</summary>
         private static bool DeferTakeAwayDeliveredUntilAfterExport(Order order) =>
-            order.Source == OrderSource.POS
-            && order.FulfillmentType == FulfillmentType.TakeAway
-            && order.PaymentTiming == PaymentTiming.PayBefore;
+            order.FulfillmentType == FulfillmentType.TakeAway;
 
         // ===================== Banking (PayOS) =====================
 
@@ -387,7 +385,7 @@ namespace AgriIDMS.Application.Services
                     {
                         payment.Order.Status = OrderStatus.Delivered;
                         payment.Order.DeliveredAt = DateTime.UtcNow;
-                        payment.Order.ShippingStatus = ShippingStatus.DeliveredShip;
+                        payment.Order.ShippingStatus = ShippingStatus.None;
                     }
                 }
 

@@ -221,9 +221,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve FEFO ngay, Confirmed.
-        /// <see cref="CreatePosOrderRequest.PosCheckoutTiming"/>: PickBeforePay = PayAfter, có thể xuất khi tiền mặt Pending; Delivered khi đã thu;
-        /// PayBeforePick = phải Paid mới tạo phiếu xuất, Delivered khi duyệt xuất. Delivery: AwaitingAllocation như cũ.
+        /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve ngay, Confirmed, luôn PayBefore (thu đủ mới xuất; Delivered khi duyệt xuất). Delivery: AwaitingAllocation như cũ.
         /// </summary>
         [HttpPost("pos")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
