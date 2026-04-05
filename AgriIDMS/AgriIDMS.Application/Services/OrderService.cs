@@ -25,6 +25,7 @@ namespace AgriIDMS.Application.Services
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
         private readonly IExportReceiptRepository _exportRepo;
         private readonly INotificationService _notificationService;
+        private readonly IPaymentService _paymentService;
         private readonly IUserRepository _userRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
@@ -46,6 +47,7 @@ namespace AgriIDMS.Application.Services
             IInventoryTransactionRepository inventoryTranRepo,
             IExportReceiptRepository exportRepo,
             INotificationService notificationService,
+            IPaymentService paymentService,
             IUserRepository userRepo,
             IUnitOfWork uow,
             IConfiguration config,
@@ -59,6 +61,7 @@ namespace AgriIDMS.Application.Services
             _inventoryTranRepo = inventoryTranRepo;
             _exportRepo = exportRepo;
             _notificationService = notificationService;
+            _paymentService = paymentService;
             _userRepo = userRepo;
             _uow = uow;
             _nearExpiryDiscountDays = int.TryParse(config["Pricing:NearExpiryDiscountDays"], out var days)
@@ -733,6 +736,8 @@ namespace AgriIDMS.Application.Services
 
         public async Task ConfirmCashPaidForOrderAsync(int orderId, string operatorUserId)
         {
+            _ = operatorUserId;
+
             var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
@@ -747,26 +752,7 @@ namespace AgriIDMS.Application.Services
             if (latestCashPayment.PaymentStatus == PaymentStatus.Paid)
                 return;
 
-            if (latestCashPayment.PaymentStatus != PaymentStatus.Pending)
-                throw new InvalidBusinessRuleException(
-                    $"Không thể xác nhận đã thu tiền mặt từ trạng thái {latestCashPayment.PaymentStatus}");
-
-            latestCashPayment.PaymentStatus = PaymentStatus.Paid;
-            latestCashPayment.PaidAt = DateTime.UtcNow;
-
-            if (IsTakeAway(order) && order.Status != OrderStatus.Delivered)
-            {
-                var deferDelivered = order.Source == OrderSource.POS
-                                     && order.FulfillmentType == FulfillmentType.TakeAway
-                                     && order.PaymentTiming == PaymentTiming.PayBefore;
-                if (!deferDelivered)
-                {
-                    order.Status = OrderStatus.Delivered;
-                    order.DeliveredAt = DateTime.UtcNow;
-                }
-            }
-
-            await _uow.SaveChangesAsync();
+            await _paymentService.ConfirmCashPaymentPaidAsync(latestCashPayment.Id);
         }
 
         public async Task<bool> CheckCanCompleteAsync(int orderId)
@@ -1621,59 +1607,6 @@ namespace AgriIDMS.Application.Services
 
             await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
 
-            var utcNow = DateTime.UtcNow;
-            var orderAllocationsSnapshot = await _allocationRepo.GetByOrderIdAsync(orderId);
-            foreach (var a in orderAllocationsSnapshot.Where(x =>
-                         x.Status == AllocationStatus.SoftLocked &&
-                         x.ExpiredAt.HasValue &&
-                         x.ExpiredAt <= utcNow))
-                a.Status = AllocationStatus.Cancelled;
-
-            var activeSoftLocks = orderAllocationsSnapshot
-                .Where(x =>
-                    x.Status == AllocationStatus.SoftLocked &&
-                    (!x.ExpiredAt.HasValue || x.ExpiredAt > utcNow))
-                .ToList();
-
-            if (activeSoftLocks.Count > 0)
-            {
-                if (SoftLockSetCoversNewOnlineOrder(order, activeSoftLocks))
-                {
-                    await _uow.BeginTransactionAsync();
-                    try
-                    {
-                        foreach (var a in activeSoftLocks)
-                        {
-                            a.Status = AllocationStatus.Proposed;
-                            a.ExpiredAt = null;
-                        }
-
-                        if (IsInitialAllocationStatus(order.Status))
-                            order.Status = OrderStatus.PendingWarehouseConfirm;
-
-                        await _uow.CommitAsync();
-
-                        return new AllocationProposalResultDto
-                        {
-                            OrderId = orderId,
-                            ProposedBoxCount = activeSoftLocks.Count,
-                            Message =
-                                "Đơn đã có thùng được tạm giữ từ lúc đặt hàng; đã chuyển sang đề xuất chờ kho xác nhận"
-                        };
-                    }
-                    catch
-                    {
-                        await _uow.RollbackAsync();
-                        throw;
-                    }
-                }
-
-                foreach (var a in activeSoftLocks)
-                    a.Status = AllocationStatus.Cancelled;
-
-                await _uow.SaveChangesAsync();
-            }
-
             var existingProposed = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
             if (existingProposed.Any())
             {
@@ -2264,23 +2197,6 @@ namespace AgriIDMS.Application.Services
             return deadlines.Any() ? deadlines.Min() : null;
         }
 
-        /// <summary>Legacy: đơn cũ còn allocation SoftLocked.</summary>
-        private static bool SoftLockSetCoversNewOnlineOrder(Order order, List<OrderAllocation> allocations)
-        {
-            foreach (var d in order.Details)
-            {
-                var need = (int)d.Quantity;
-                if (need <= 0)
-                    continue;
-                var have = allocations.Count(a =>
-                    a.OrderDetailId == d.Id && a.Status == AllocationStatus.SoftLocked);
-                if (have != need)
-                    return false;
-            }
-
-            return true;
-        }
-
         private static bool ReservedAllocationsCoverOrderDetails(Order order, IReadOnlyList<OrderAllocation> allocations)
         {
             foreach (var d in order.Details)
@@ -2322,13 +2238,13 @@ namespace AgriIDMS.Application.Services
         {
             var allAllocations = await _allocationRepo.GetByOrderIdAsync(order.Id);
 
+            // DB cũ có thể còn SoftLocked; đơn mới dùng Reserved ngay khi đặt.
             foreach (var a in allAllocations.Where(x =>
                          x.Status == AllocationStatus.SoftLocked &&
                          x.ExpiredAt.HasValue &&
                          x.ExpiredAt <= utcNow))
                 a.Status = AllocationStatus.Cancelled;
 
-            // Legacy DB: SoftLocked → Reserved + box Stored → Reserved
             foreach (var a in allAllocations.Where(x =>
                          x.Status == AllocationStatus.SoftLocked &&
                          (!x.ExpiredAt.HasValue || x.ExpiredAt > utcNow)))
