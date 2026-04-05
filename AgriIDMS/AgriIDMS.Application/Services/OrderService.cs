@@ -691,7 +691,7 @@ namespace AgriIDMS.Application.Services
 
             var notifyOrderPaid = false;
 
-            if (order.Source == OrderSource.Online && order.PaymentTiming == PaymentTiming.PayAfter)
+            if (order.PaymentTiming == PaymentTiming.PayAfter)
             {
                 if (latestPayment == null)
                 {
@@ -726,7 +726,7 @@ namespace AgriIDMS.Application.Services
                     else
                     {
                         throw new InvalidBusinessRuleException(
-                            $"Đơn online trả sau: không thể xác nhận giao khi thanh toán {latestPayment.PaymentMethod} đang {latestPayment.PaymentStatus}.");
+                            $"Đơn trả sau: không thể xác nhận giao khi thanh toán {latestPayment.PaymentMethod} đang {latestPayment.PaymentStatus}.");
                     }
                 }
             }
@@ -753,7 +753,7 @@ namespace AgriIDMS.Application.Services
             }
             else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
             {
-                throw new InvalidBusinessRuleException("Đơn thanh toán online chưa Paid, không thể xác nhận Delivered");
+                throw new InvalidBusinessRuleException("Đơn chưa thanh toán thành công (Paid), không thể xác nhận Delivered");
             }
 
             order.Status = OrderStatus.Delivered;
@@ -1351,7 +1351,8 @@ namespace AgriIDMS.Application.Services
                 }
                 else
                 {
-                    order.PaymentTiming = PaymentTiming.PayBefore;
+                    // POS Delivery: staff chọn PayBefore / PayAfter khi tạo (giống đơn online sau khi chọn timing).
+                    order.PaymentTiming = request.PaymentTiming ?? PaymentTiming.PayBefore;
                 }
 
                 var responseItems = new List<OrderItemDto>();

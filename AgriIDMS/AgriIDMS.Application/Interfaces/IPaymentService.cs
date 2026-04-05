@@ -9,7 +9,7 @@ namespace AgriIDMS.Application.Interfaces
         Task<PaymentResponseDto> CreatePaymentAsync(CreatePaymentRequest request, string userId);
 
         /// <summary>
-        /// Sale/kho tạo thanh toán cho đơn online PayBefore sau khi thống nhất với khách (bỏ qua chặn quá hạn 24h của khách tự thanh toán).
+        /// Sale/kho tạo thanh toán cho đơn giao hàng PayBefore (online hoặc POS); bỏ qua chặn quá hạn 24h khi khách tự thanh toán online.
         /// </summary>
         Task<PaymentResponseDto> CreateStaffOnlinePayBeforePaymentAsync(CreatePaymentRequest request, string staffUserId);
 

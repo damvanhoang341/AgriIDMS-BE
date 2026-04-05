@@ -69,9 +69,12 @@ namespace AgriIDMS.Application.Services
             }
             else
             {
-                if (order.Source != OrderSource.Online || order.PaymentTiming != PaymentTiming.PayBefore)
+                var staffPayBeforeAllowed = order.PaymentTiming == PaymentTiming.PayBefore
+                    && order.FulfillmentType == FulfillmentType.Delivery
+                    && (order.Source == OrderSource.Online || order.Source == OrderSource.POS);
+                if (!staffPayBeforeAllowed)
                     throw new InvalidBusinessRuleException(
-                        "Chỉ dùng API này cho đơn online trả trước (PayBefore), sau khi sale đã thống nhất với khách.");
+                        "Chỉ dùng API này cho đơn giao hàng trả trước (online hoặc POS), sau khi đã thống nhất với khách.");
             }
 
             if (order.Status != OrderStatus.Confirmed)
@@ -104,8 +107,8 @@ namespace AgriIDMS.Application.Services
                 if (!forCustomer)
                 {
                     _logger.LogInformation(
-                        "Staff {StaffUserId} creating PayBefore payment for online order {OrderId}, method {Method}",
-                        actorUserId, order.Id, request.PaymentMethod);
+                        "Staff {StaffUserId} creating PayBefore payment for order {OrderId} ({Source}), method {Method}",
+                        actorUserId, order.Id, order.Source, request.PaymentMethod);
                 }
 
                 var result = request.PaymentMethod switch

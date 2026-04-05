@@ -57,7 +57,7 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? AllocationMessage { get; set; }
         /// <summary>POS TakeAway: luôn PayBeforePick khi tạo mới.</summary>
         public string? PosCheckoutTiming { get; set; }
-        /// <summary>Trả trước / trả sau. Đơn online: null cho đến khi khách chọn sau sale-confirm; POS luôn có giá trị.</summary>
+        /// <summary>Trả trước / trả sau. Đơn online: null cho đến khi khách chọn sau sale-confirm; POS luôn có giá trị sau khi tạo.</summary>
         public string? PaymentTiming { get; set; }
     }
 
@@ -106,6 +106,10 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
         public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.TakeAway;
+        /// <summary>
+        /// Chỉ áp dụng <see cref="FulfillmentType.Delivery"/>: trả trước / trả sau (cùng quy tắc xuất kho &amp; giao như đơn online). Bỏ qua nếu TakeAway. Mặc định PayBefore khi null.
+        /// </summary>
+        public PaymentTiming? PaymentTiming { get; set; }
         public List<CreatePosOrderItemRequest> Items { get; set; } = new();
     }
 

@@ -221,7 +221,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve ngay, Confirmed, luôn PayBefore (thu đủ mới xuất; Delivered khi duyệt xuất). Delivery: AwaitingAllocation như cũ.
+        /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve ngay, Confirmed, luôn PayBefore. Delivery: AwaitingAllocation; body có thể gửi <c>paymentTiming</c> PayBefore/PayAfter (mặc định PayBefore) — cùng quy tắc xuất kho &amp; giao như đơn online.
         /// </summary>
         [HttpPost("pos")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]

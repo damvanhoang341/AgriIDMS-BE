@@ -21,7 +21,8 @@ namespace AgriIDMS.Domain.Entities
         public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.Delivery;
 
         /// <summary>
-        /// Trả trước / trả sau. Đơn online: null cho đến khi khách chọn (sau khi sale xác nhận). POS luôn gán rõ PayBefore/PayAfter.
+        /// Trả trước / trả sau. Đơn online: null cho đến khi khách chọn (sau khi sale xác nhận).
+        /// POS TakeAway: PayBefore. POS Delivery: staff chọn khi tạo đơn (PayBefore hoặc PayAfter).
         /// </summary>
         public PaymentTiming? PaymentTiming { get; set; }
 

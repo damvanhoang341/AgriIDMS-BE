@@ -29,7 +29,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Đơn online PayBefore quá hạn 24h: khách không tự tạo thanh toán; sale tạo Cash/Banking sau khi thống nhất với khách.
+        /// Đơn giao hàng PayBefore (online hoặc POS): sale tạo Cash/Banking khi cần (ví dụ online quá hạn 24h khách không tự thanh toán).
         /// </summary>
         [HttpPost("staff/online-paybefore")]
         [Authorize(Roles = "Admin,Manager,WarehouseStaff,SalesStaff")]
