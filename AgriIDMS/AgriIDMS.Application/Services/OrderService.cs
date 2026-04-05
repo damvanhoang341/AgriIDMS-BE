@@ -270,178 +270,6 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
-        public async Task<IList<OrderListItemDto>> GetPendingCustomerDecisionOrdersAsync(GetPendingAllocationOrdersQuery query)
-        {
-            query ??= new GetPendingAllocationOrdersQuery();
-            var take = Math.Clamp(query.Take, 1, 200);
-            var skip = Math.Max(0, query.Skip);
-
-            OrderSource? source = null;
-            if (!string.IsNullOrWhiteSpace(query.Source))
-            {
-                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
-                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
-                source = parsedSource;
-            }
-
-            var orders = await _orderRepo.GetPendingCustomerDecisionOrdersAsync(
-                query.CustomerUserId,
-                source,
-                skip,
-                take);
-
-            return orders.Select(o => new OrderListItemDto
-            {
-                OrderId = o.Id,
-                TotalAmount = o.TotalAmount,
-                Status = o.Status.ToString(),
-                ShippingStatus = o.ShippingStatus.ToString(),
-                Source = o.Source.ToString(),
-                CreatedAt = o.CreatedAt,
-                ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
-                PaymentTiming = o.PaymentTiming?.ToString()
-            }).ToList();
-        }
-
-        public async Task<IList<BackorderWaitingListItemDto>> GetBackorderWaitingOrdersAsync(GetPendingAllocationOrdersQuery query)
-        {
-            query ??= new GetPendingAllocationOrdersQuery();
-            var take = Math.Clamp(query.Take, 1, 200);
-            var skip = Math.Max(0, query.Skip);
-
-            OrderSource? source = null;
-            if (!string.IsNullOrWhiteSpace(query.Source))
-            {
-                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
-                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
-                source = parsedSource;
-            }
-
-            var orders = await _orderRepo.GetBackorderWaitingOrdersAsync(
-                query.CustomerUserId,
-                source,
-                skip,
-                take);
-
-            var now = DateTime.UtcNow;
-            var result = new List<BackorderWaitingListItemDto>();
-            foreach (var o in orders)
-            {
-                var deadline = await GetBackorderDeadlineAtAsync(o.Id);
-                var totalRequested = o.Details?.Sum(d => d.Quantity) ?? 0m;
-                var totalFulfilled = o.Details?.Sum(d => d.FulfilledQuantity) ?? 0m;
-                var totalShortage = o.Details?.Sum(d => d.ShortageQuantity) ?? 0m;
-                var isOverdue = !deadline.HasValue || now > deadline.Value;
-
-                result.Add(new BackorderWaitingListItemDto
-                {
-                    OrderId = o.Id,
-                    CustomerUserId = o.UserId,
-                    CustomerName = null,
-                    Source = o.Source.ToString(),
-                    Status = o.Status.ToString(),
-                    CreatedAt = o.CreatedAt,
-                    BackorderDeadlineAt = deadline,
-                    IsOverdue = isOverdue,
-                    TotalRequestedBoxes = totalRequested,
-                    TotalFulfilledBoxes = totalFulfilled,
-                    TotalShortageBoxes = totalShortage,
-                    TotalAmount = o.TotalAmount,
-                    ItemCount = o.Details?.Count ?? 0,
-                    LatestPaymentStatus = o.Payments?
-                        .OrderByDescending(p => p.CreatedAt)
-                        .FirstOrDefault()?
-                        .PaymentStatus
-                        .ToString(),
-                    NextRecommendedAction = isOverdue
-                        ? "choose_expired_action"
-                        : "allocate_backorder"
-                });
-            }
-
-            return result;
-        }
-
-        public async Task<BackorderWaitingDetailDto> GetBackorderWaitingOrderDetailAsync(int orderId)
-        {
-            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
-
-            if (order.Status != OrderStatus.BackorderWaiting)
-                throw new InvalidBusinessRuleException(
-                    $"Chỉ xem chi tiết backorder-waiting khi đơn ở trạng thái BackorderWaiting. Hiện tại: {order.Status}");
-
-            var deadline = await GetBackorderDeadlineAtAsync(order.Id);
-            var now = DateTime.UtcNow;
-            var isOverdue = !deadline.HasValue || now > deadline.Value;
-
-            var reservedAllocations = await _allocationRepo.GetByOrderIdWithDetailsAsync(orderId, AllocationStatus.Reserved);
-            var latestPaymentStatus = order.Payments?
-                .OrderByDescending(p => p.CreatedAt)
-                .FirstOrDefault()?
-                .PaymentStatus
-                .ToString();
-
-            var items = order.Details.Select(d => new BackorderWaitingDetailItemDto
-            {
-                OrderDetailId = d.Id,
-                ProductVariantId = d.ProductVariantId,
-                ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
-                Grade = d.ProductVariant?.Grade.ToString() ?? string.Empty,
-                BoxWeight = d.BoxWeight,
-                IsPartial = d.IsPartial,
-                RequestedQuantity = d.Quantity,
-                FulfilledQuantity = d.FulfilledQuantity,
-                ShortageQuantity = d.ShortageQuantity,
-                UnitPrice = d.UnitPrice
-            }).ToList();
-
-            var totalRequested = items.Sum(i => i.RequestedQuantity);
-            var totalFulfilled = items.Sum(i => i.FulfilledQuantity);
-            var totalShortage = items.Sum(i => i.ShortageQuantity);
-
-            return new BackorderWaitingDetailDto
-            {
-                OrderId = order.Id,
-                CustomerUserId = order.UserId,
-                CustomerName = null,
-                Source = order.Source.ToString(),
-                Status = order.Status.ToString(),
-                CreatedAt = order.CreatedAt,
-                BackorderDeadlineAt = deadline,
-                IsOverdue = isOverdue,
-                TotalAmount = order.TotalAmount,
-                LatestPaymentStatus = latestPaymentStatus,
-                Summary = new BackorderWaitingSummaryDto
-                {
-                    TotalRequestedBoxes = totalRequested,
-                    TotalFulfilledBoxes = totalFulfilled,
-                    TotalShortageBoxes = totalShortage,
-                    IsFullyAllocated = totalShortage <= 0
-                },
-                Items = items,
-                ReservedAllocations = reservedAllocations.Select(a => new BackorderWaitingReservedAllocationDto
-                {
-                    AllocationId = a.Id,
-                    OrderDetailId = a.OrderDetailId,
-                    BoxId = a.BoxId,
-                    BoxCode = a.Box?.BoxCode ?? string.Empty,
-                    ReservedQuantity = a.ReservedQuantity,
-                    Status = a.Status.ToString(),
-                    ReservedAt = a.ReservedAt,
-                    ExpiredAt = a.ExpiredAt
-                }).ToList(),
-                AllowedActions = isOverdue
-                    ? new List<string> { "cancel_shortage", "cancel_order" }
-                    : new List<string> { "allocate_backorder" }
-            };
-        }
-
         public async Task<IList<OrderListItemDto>> GetConfirmedAllocationOrdersAsync(GetPendingAllocationOrdersQuery query)
         {
             query ??= new GetPendingAllocationOrdersQuery();
@@ -486,12 +314,10 @@ namespace AgriIDMS.Application.Services
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
             if (order.Status != OrderStatus.PendingWarehouseConfirm
-                && order.Status != OrderStatus.PartiallyAllocated
-                && order.Status != OrderStatus.BackorderWaiting
                 && order.Status != OrderStatus.Confirmed)
             {
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ xem proposal khi đơn đang chờ kho xác nhận/backorder. Hiện tại: {order.Status}");
+                    $"Chỉ xem proposal khi đơn đang chờ kho xác nhận hoặc đã Confirmed (xem thùng đã giữ). Hiện tại: {order.Status}");
             }
 
             // For fully allocated orders (Confirmed), FE should still see the reserved boxes.
@@ -524,9 +350,7 @@ namespace AgriIDMS.Application.Services
             {
                 proposedByDetailId.TryGetValue(d.Id, out var proposedQty);
 
-                var requestedQty = order.Status == OrderStatus.PartiallyAllocated || order.Status == OrderStatus.BackorderWaiting
-                    ? (int)d.ShortageQuantity
-                    : (int)d.Quantity;
+                var requestedQty = (int)d.Quantity;
 
                 var shortage = Math.Max(0, requestedQty - proposedQty);
                 return new AllocationProposalDetailSummaryDto
@@ -860,37 +684,6 @@ namespace AgriIDMS.Application.Services
                 await _uow.SaveChangesAsync();
 
             return completedCount;
-        }
-
-        public async Task<IList<OverdueBackorderItemDto>> GetOverdueBackordersAsync()
-        {
-            var now = DateTime.UtcNow;
-            var orders = await _orderRepo.GetOverdueBackordersAsync(now);
-
-            return orders.Select(o =>
-            {
-                var reservedAllocations = o.Allocations
-                    .Where(a => a.Status == AllocationStatus.Reserved)
-                    .ToList();
-
-                var deadline = reservedAllocations
-                    .Where(a => a.ExpiredAt.HasValue)
-                    .Select(a => a.ExpiredAt!.Value)
-                    .DefaultIfEmpty(now)
-                    .Min();
-
-                return new OverdueBackorderItemDto
-                {
-                    OrderId = o.Id,
-                    CustomerUserId = o.UserId,
-                    CreatedAt = o.CreatedAt,
-                    BackorderDeadlineAt = deadline,
-                    TotalShortageQuantity = o.Details.Sum(d => d.ShortageQuantity),
-                    TotalReservedQuantity = reservedAllocations.Sum(a => a.ReservedQuantity),
-                    CurrentTotalAmount = o.TotalAmount,
-                    Status = o.Status.ToString()
-                };
-            }).ToList();
         }
 
         public async Task CancelOrderAsync(int orderId, string userId)
@@ -1331,9 +1124,8 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = now,
                     Source = OrderSource.POS,
                     FulfillmentType = request.FulfillmentType,
-                    Status = request.FulfillmentType == FulfillmentType.TakeAway
-                        ? OrderStatus.Confirmed
-                        : OrderStatus.AwaitingAllocation,
+                    // POS: giữ đủ thùng ngay khi tạo (giống online); không qua hàng chờ allocate / thiếu hàng.
+                    Status = OrderStatus.Confirmed,
                     CustomerUserId = posCustomer.CustomerUserId,
                     CustomerName = posCustomer.CustomerName,
                     CustomerPhone = posCustomer.CustomerPhone,
@@ -1412,8 +1204,7 @@ namespace AgriIDMS.Application.Services
                     });
                 }
 
-                if (IsTakeAway(order))
-                    await ReserveStockImmediatelyForTakeAwayAsync(order, now);
+                await ReserveStockImmediatelyForPosAsync(order, now);
 
                 order.TotalAmount = total;
                 await _orderRepo.AddAsync(order);
@@ -1425,8 +1216,9 @@ namespace AgriIDMS.Application.Services
                     TotalAmount = total,
                     Recipient = ToRecipientSnapshot(order),
                     Items = responseItems,
-                    AllocationSucceeded = false,
-                    AllocationMessage = null,
+                    AllocationSucceeded = true,
+                    AllocationMessage =
+                        $"Đã giữ (Reserved) đủ thùng cho đơn POS — hết hạn giữ theo cấu hình kho ({AllocationExpirationHours} giờ).",
                     PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
                     PaymentTiming = order.PaymentTiming!.ToString()
                 };
@@ -1608,71 +1400,6 @@ namespace AgriIDMS.Application.Services
             };
         }
 
-        /// <summary>Khách chọn chờ đủ hàng (backorder) cho phần còn thiếu.</summary>
-        public async Task WaitBackorderAsync(int orderId, string userId)
-        {
-            await WaitBackorderInternalAsync(orderId, userId, skipCustomerOwnershipCheck: false);
-        }
-
-        /// <summary>Sales staff chọn chờ backorder thay khách cho phần còn thiếu.</summary>
-        public async Task WaitBackorderAsStaffAsync(int orderId, string operatorUserId)
-        {
-            await WaitBackorderInternalAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
-        }
-
-        /// <summary>Khách chấp nhận bỏ phần còn thiếu: chỉ ship phần đã allocate được.</summary>
-        public async Task CancelShortageAsync(int orderId, string userId)
-        {
-            await CancelShortageInternalAsync(orderId, userId, skipCustomerOwnershipCheck: false);
-        }
-
-        /// <summary>Sales staff chọn hủy phần thiếu thay khách.</summary>
-        public async Task CancelShortageAsStaffAsync(int orderId, string operatorUserId)
-        {
-            await CancelShortageInternalAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
-        }
-
-        /// <summary>
-        /// Staff allocate nốt phần còn thiếu cho backorder.
-        /// Nếu đã hết thời gian chờ thì xử lý theo expiredAction.
-        /// </summary>
-        public async Task BackorderAllocateAsync(int orderId, string operatorUserId, BackorderExpiredAction expiredAction)
-        {
-            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
-
-            if (order.Status != OrderStatus.BackorderWaiting)
-                throw new InvalidBusinessRuleException(
-                    $"Chỉ xử lý backorder khi đơn ở trạng thái BackorderWaiting. Hiện tại: {order.Status}");
-
-            if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Paid ||
-                    p.PaymentStatus == PaymentStatus.Refunded))
-            {
-                throw new InvalidBusinessRuleException("Không thể allocate backorder: đơn đã thanh toán thành công");
-            }
-
-            var deadline = await GetBackorderDeadlineAtAsync(orderId);
-            var isExpired = !deadline.HasValue || DateTime.UtcNow > deadline.Value;
-
-            if (isExpired)
-            {
-                switch (expiredAction)
-                {
-                    case BackorderExpiredAction.CancelOrder:
-                        await CancelOrderInternalAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
-                        return;
-                    case BackorderExpiredAction.CancelShortage:
-                    default:
-                        await CancelShortageInternalAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
-                        return;
-                }
-            }
-
-            // Trong thời gian chờ: allocate tiếp phần còn thiếu.
-            await ConfirmOrderAsync(orderId, operatorUserId, skipCustomerOwnershipCheck: true);
-        }
-
         public async Task<AllocationProposalResultDto> AutoProposeAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
@@ -1842,89 +1569,18 @@ namespace AgriIDMS.Application.Services
 
             await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
 
+            if (!IsInitialAllocationStatus(order.Status))
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ xác nhận allocate khi đơn đang chờ giữ hàng / chờ kho xác nhận. Hiện tại: {order.Status}");
+
             var proposedAllocations = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
-            // Race-condition / stale proposal handling:
-            // Another order may have reserved boxes, causing all proposals to be cancelled by auto-propose cleanup
-            // or leaving no Proposed rows when staff clicks confirm.
-            // In that case, treat confirm as "reserved 0", compute shortage, and require customer decision.
             if (!proposedAllocations.Any())
-            {
-                await _uow.BeginTransactionAsync();
-                try
-                {
-                    var originalStatus = order.Status;
-
-                    // No new boxes reserved. For initial allocation, fulfilled=0, shortage=quantity.
-                    // For backorder, keep existing fulfilled/shortage (no progress this round).
-                    if (IsInitialAllocationStatus(originalStatus))
-                    {
-                        foreach (var detail in order.Details)
-                        {
-                            detail.FulfilledQuantity = 0;
-                            detail.ShortageQuantity = detail.Quantity;
-                        }
-
-                        order.TotalAmount = 0m;
-                    }
-
-                    order.Status = IsOrderFullyReserved(order)
-                        ? OrderStatus.Confirmed
-                        : (originalStatus == OrderStatus.BackorderWaiting
-                            ? OrderStatus.BackorderWaiting
-                            : OrderStatus.PartiallyAllocated);
-
-                    await _uow.CommitAsync();
-
-                    var fulfilledQty = order.Details.Sum(d => d.FulfilledQuantity);
-                    var shortageQty = order.Details.Sum(d => d.ShortageQuantity);
-                    var needsCustomerAction =
-                        order.Status == OrderStatus.PartiallyAllocated && shortageQty > 0;
-
-                    if (needsCustomerAction)
-                    {
-                        try
-                        {
-                            await _notificationService.NotifyOrderAllocationShortageAsync(order.Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(
-                                ex,
-                                "Allocation confirm had no proposals for order {OrderId}, customer notification failed",
-                                order.Id);
-                        }
-                    }
-
-                    return new ConfirmAllocationResultDto
-                    {
-                        OrderId = order.Id,
-                        Status = order.Status.ToString(),
-                        FulfilledQuantity = fulfilledQty,
-                        ShortageQuantity = shortageQty,
-                        CustomerActionRequired = needsCustomerAction,
-                        CustomerActions = needsCustomerAction
-                            ? (fulfilledQty > 0
-                                ? new List<string> { "wait_backorder", "cancel_shortage" }
-                                : new List<string> { "wait_backorder", "cancel_order" })
-                            : new List<string>(),
-                        Message = needsCustomerAction
-                            ? (fulfilledQty > 0
-                                ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
-                                : "Đơn thiếu hàng sau khi xác nhận kho nhưng chưa giữ được phần nào. Vui lòng để khách chọn chờ backorder hoặc hủy đơn.")
-                            : "Kho đã xác nhận allocate thành công"
-                    };
-                }
-                catch
-                {
-                    await _uow.RollbackAsync();
-                    throw;
-                }
-            }
+                throw new InvalidBusinessRuleException(
+                    "Không có đề xuất allocate (Proposed). Vui lòng chạy auto-propose trước; nếu vẫn trống, thùng có thể đã bị giữ bởi đơn khác.");
 
             await _uow.BeginTransactionAsync();
             try
             {
-                var originalStatus = order.Status;
                 var now = DateTime.UtcNow;
                 var expiredAt = now.AddHours(AllocationExpirationHours);
                 var totalAmount = 0m;
@@ -1954,81 +1610,37 @@ namespace AgriIDMS.Application.Services
                 foreach (var detail in order.Details)
                 {
                     allocatedCountByDetail.TryGetValue(detail.Id, out var allocated);
-
-                    var prevFulfilled = detail.FulfilledQuantity;
-                    var prevShortage = detail.ShortageQuantity;
-                    var boxesNeeded = IsInitialAllocationStatus(originalStatus)
-                        ? (int)detail.Quantity
-                        : (int)detail.ShortageQuantity;
-
-                    if (IsInitialAllocationStatus(originalStatus))
-                    {
-                        detail.FulfilledQuantity = allocated;
-                        detail.ShortageQuantity = boxesNeeded - allocated;
-                    }
-                    else
-                    {
-                        detail.FulfilledQuantity = prevFulfilled + allocated;
-                        detail.ShortageQuantity = Math.Max(0, prevShortage - allocated);
-                    }
-
+                    var boxesNeeded = (int)detail.Quantity;
+                    detail.FulfilledQuantity = allocated;
+                    detail.ShortageQuantity = Math.Max(0, boxesNeeded - allocated);
                     totalAmount += allocated * detail.BoxWeight * detail.UnitPrice;
                 }
 
-                order.TotalAmount = IsInitialAllocationStatus(originalStatus)
-                    ? totalAmount
-                    : order.TotalAmount + totalAmount;
+                if (!IsOrderFullyReserved(order))
+                    throw new InvalidBusinessRuleException(
+                        "Không đủ thùng để allocate đủ đơn (một phần thùng trong đề xuất không còn khả dụng). Vui lòng chạy lại đề xuất allocate (re-propose) rồi xác nhận.");
 
-                order.Status = IsOrderFullyReserved(order)
-                    ? OrderStatus.Confirmed
-                    : (originalStatus == OrderStatus.BackorderWaiting
-                        ? OrderStatus.BackorderWaiting
-                        : OrderStatus.PartiallyAllocated);
+                foreach (var detail in order.Details)
+                {
+                    detail.FulfilledQuantity = detail.Quantity;
+                    detail.ShortageQuantity = 0;
+                }
 
+                order.TotalAmount = totalAmount;
+                order.Status = OrderStatus.Confirmed;
                 await _uow.CommitAsync();
 
                 var fulfilledQty = order.Details.Sum(d => d.FulfilledQuantity);
-                var shortageQty = order.Details.Sum(d => d.ShortageQuantity);
-                var needsCustomerAction =
-                    order.Status == OrderStatus.PartiallyAllocated && shortageQty > 0;
-
-                if (needsCustomerAction)
-                {
-                    try
-                    {
-                        await _notificationService.NotifyOrderAllocationShortageAsync(order.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(
-                            ex,
-                            "Allocation confirmed with shortage for order {OrderId}, but customer notification failed",
-                            order.Id);
-                    }
-                }
-
                 return new ConfirmAllocationResultDto
                 {
                     OrderId = order.Id,
                     Status = order.Status.ToString(),
                     FulfilledQuantity = fulfilledQty,
-                    ShortageQuantity = shortageQty,
-                    CustomerActionRequired = needsCustomerAction,
-                    CustomerActions = needsCustomerAction
-                        ? (fulfilledQty > 0
-                            ? new List<string> { "wait_backorder", "cancel_shortage" }
-                            : new List<string> { "wait_backorder", "cancel_order" })
-                        : new List<string>(),
-                    Message = needsCustomerAction
-                        ? (fulfilledQty > 0
-                            ? "Đơn thiếu hàng sau khi xác nhận kho. Vui lòng để khách chọn chờ backorder hoặc hủy phần thiếu."
-                            : "Đơn thiếu hàng sau khi xác nhận kho nhưng chưa giữ được phần nào. Vui lòng để khách chọn chờ backorder hoặc hủy đơn.")
-                        : "Kho đã xác nhận allocate thành công"
+                    ShortageQuantity = 0,
+                    CustomerActionRequired = false,
+                    CustomerActions = new List<string>(),
+                    Message = "Kho đã xác nhận allocate thành công"
                 };
-            }
-            catch (InvalidBusinessRuleException)
-            {
-                throw;
             }
             catch
             {
@@ -2037,77 +1649,11 @@ namespace AgriIDMS.Application.Services
             }
         }
 
-        /// <summary>Propose FEFO + confirm allocate trong một lần (POS / thiếu hàng / staff allocate).</summary>
+        /// <summary>Đơn legacy <see cref="OrderStatus.AwaitingAllocation"/>: auto-propose + xác nhận. POS mới giữ đủ thùng khi tạo đơn.</summary>
         public async Task ConfirmOrderAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
         {
             await AutoProposeAllocationAsync(orderId, operatorUserId, skipCustomerOwnershipCheck);
             await ConfirmAllocationAsync(orderId, operatorUserId, skipCustomerOwnershipCheck);
-        }
-
-        private async Task WaitBackorderInternalAsync(int orderId, string actorUserId, bool skipCustomerOwnershipCheck)
-        {
-            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
-
-            if (!IsDelivery(order))
-                throw new InvalidBusinessRuleException("Backorder chỉ áp dụng cho đơn Delivery");
-
-            if (!skipCustomerOwnershipCheck && order.UserId != actorUserId)
-                throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
-
-            if (order.Status != OrderStatus.PartiallyAllocated)
-                throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể chờ backorder khi đơn đang ở trạng thái PartiallyAllocated. Hiện tại: {order.Status}");
-
-            if (order.Details == null || !order.Details.Any(d => d.ShortageQuantity > 0))
-                throw new InvalidBusinessRuleException("Đơn không còn thiếu hàng để chờ backorder");
-
-            if (order.Payments != null && order.Payments.Any(p =>
-                    p.PaymentStatus == PaymentStatus.Paid ||
-                    p.PaymentStatus == PaymentStatus.Refunded))
-            {
-                throw new InvalidBusinessRuleException("Không thể backorder: đơn đã thanh toán thành công");
-            }
-
-            // Cho phép vào backorder ngay cả khi chưa giữ được box nào (reserved = 0),
-            // miễn là đơn vẫn còn shortage để chờ allocate trong các vòng backorder sau.
-            order.Status = OrderStatus.BackorderWaiting;
-            order.BackorderExpiryNotifiedAt = null;
-            await _uow.SaveChangesAsync();
-        }
-
-        private async Task CancelShortageInternalAsync(int orderId, string actorUserId, bool skipCustomerOwnershipCheck)
-        {
-            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
-
-            if (!IsDelivery(order))
-                throw new InvalidBusinessRuleException("Cancel shortage chỉ áp dụng cho đơn Delivery");
-
-            if (!skipCustomerOwnershipCheck && order.UserId != actorUserId)
-                throw new ForbiddenException("Bạn không có quyền thao tác trên đơn hàng này");
-
-            if (order.Status != OrderStatus.PartiallyAllocated && order.Status != OrderStatus.BackorderWaiting)
-                throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể cancel shortage khi đơn đang PartiallyAllocated/BackorderWaiting. Hiện tại: {order.Status}");
-
-            var reservedAllocations = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Reserved);
-            if (!reservedAllocations.Any())
-                throw new InvalidBusinessRuleException("Không tìm thấy allocation (Reserved) để ship phần còn lại");
-
-            // Chốt lại quantity theo phần đã allocate được để export & hiển thị thống nhất.
-            foreach (var d in order.Details)
-            {
-                d.Quantity = d.FulfilledQuantity;
-                d.ShortageQuantity = 0;
-            }
-
-            var unitPriceByDetailId = order.Details.ToDictionary(d => d.Id, d => d.UnitPrice);
-            order.TotalAmount = reservedAllocations.Sum(a =>
-                a.ReservedQuantity * unitPriceByDetailId[a.OrderDetailId]);
-
-            order.Status = OrderStatus.Confirmed;
-            await _uow.SaveChangesAsync();
         }
 
         private async Task CancelOrderInternalAsync(int orderId, string actorUserId, bool skipCustomerOwnershipCheck)
@@ -2219,31 +1765,15 @@ namespace AgriIDMS.Application.Services
 
             var canAllocate =
                 order.Status == OrderStatus.AwaitingAllocation
-                || order.Status == OrderStatus.PendingWarehouseConfirm
-                || order.Status == OrderStatus.PartiallyAllocated
-                || order.Status == OrderStatus.BackorderWaiting;
+                || order.Status == OrderStatus.PendingWarehouseConfirm;
 
             if (!canAllocate)
                 throw new InvalidBusinessRuleException(
-                    $"Chỉ có thể giữ hàng khi đơn đang chờ giữ hàng / backorder. Hiện tại: {order.Status}");
+                    $"Chỉ có thể giữ hàng khi đơn đang chờ giữ hàng / chờ kho xác nhận. Hiện tại: {order.Status}");
 
             if (order.Details == null || !order.Details.Any())
                 throw new InvalidBusinessRuleException("Order không có chi tiết");
-
-            if (order.Status == OrderStatus.BackorderWaiting)
-            {
-                var deadline = await GetBackorderDeadlineAtAsync(order.Id);
-                if (!deadline.HasValue || DateTime.UtcNow > deadline.Value)
-                    throw new InvalidBusinessRuleException(
-                        "Backorder đã hết thời gian chờ. Vui lòng gọi endpoint xử lý timeout (cancel-shortage hoặc cancel-order) để tiếp tục.");
-            }
         }
-
-        private static string FormatShortageDetails(Order order) =>
-            string.Join("; ",
-                order.Details
-                    .Where(d => d.ShortageQuantity > 0)
-                    .Select(d => $"Variant #{d.ProductVariantId}: thiếu {d.ShortageQuantity} box"));
 
         private async Task ReleaseReservedBoxesAsync(IReadOnlyList<OrderAllocation> allocations)
         {
@@ -2254,17 +1784,6 @@ namespace AgriIDMS.Application.Services
                 box.Status = BoxStatus.Stored;
                 await _boxRepo.UpdateAsync(box);
             }
-        }
-
-        private async Task<DateTime?> GetBackorderDeadlineAtAsync(int orderId)
-        {
-            // Backorder deadline lấy theo hạn hết của các allocation đã reserve (ExpiredAt).
-            // Nếu có nhiều allocation, dùng mốc sớm nhất để tránh trường hợp giữ hàng hết hạn một phần.
-            var allocations = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Reserved);
-            var deadlines = allocations
-                .Where(a => a.ExpiredAt.HasValue)
-                .Select(a => a.ExpiredAt!.Value);
-            return deadlines.Any() ? deadlines.Min() : null;
         }
 
         private static bool ReservedAllocationsCoverOrderDetails(Order order, IReadOnlyList<OrderAllocation> allocations)
@@ -2489,7 +2008,6 @@ namespace AgriIDMS.Application.Services
             var allocations = new List<OrderAllocation>();
             var selectedBoxIds = new HashSet<int>();
 
-            var isInitialAllocation = IsInitialAllocationStatus(order.Status);
             var existingAllocations = await _allocationRepo.GetByOrderIdAsync(order.Id);
             var activeAllocationStatuses = new HashSet<AllocationStatus>
             {
@@ -2507,9 +2025,7 @@ namespace AgriIDMS.Application.Services
 
             foreach (var detail in order.Details)
             {
-                var boxesNeeded = isInitialAllocation
-                    ? (int)detail.Quantity
-                    : (int)detail.ShortageQuantity;
+                var boxesNeeded = (int)detail.Quantity;
 
                 if (boxesNeeded <= 0)
                     continue;
@@ -2548,7 +2064,8 @@ namespace AgriIDMS.Application.Services
             return allocations;
         }
 
-        private async Task ReserveStockImmediatelyForTakeAwayAsync(Order order, DateTime nowUtc)
+        /// <summary>POS TakeAway &amp; Delivery: FEFO + tồn offline, Reserved ngay, đủ số lượng hoặc throw.</summary>
+        private async Task ReserveStockImmediatelyForPosAsync(Order order, DateTime nowUtc)
         {
             foreach (var detail in order.Details)
             {

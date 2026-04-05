@@ -127,37 +127,6 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: new[] { order.UserId });
         }
 
-        public async Task NotifyOrderAllocationShortageAsync(int orderId)
-        {
-            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
-
-            var totalShortage = order.Details?.Sum(d => d.ShortageQuantity) ?? 0;
-            var totalFulfilled = order.Details?.Sum(d => d.FulfilledQuantity) ?? 0m;
-            var actionText = totalFulfilled > 0
-                ? "hủy phần thiếu"
-                : "hủy đơn";
-
-            var message = totalShortage > 0
-                ? $"Đơn hàng #{orderId} đang thiếu {totalShortage} box sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc {actionText}."
-                : $"Đơn hàng #{orderId} đang thiếu hàng sau khi kho xác nhận. Vui lòng chọn chờ backorder hoặc {actionText}.";
-
-            var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                order.UserId
-            };
-            var salesUsers = await _userRepo.GetUserIdsInRolesAsync("SalesStaff");
-            foreach (var id in salesUsers)
-                recipients.Add(id);
-
-            await CreateNotificationIfNotExistsAsync(
-                NotificationType.Warning,
-                message,
-                referenceType: "OrderAllocationShortage",
-                referenceId: orderId,
-                recipientUserIds: recipients);
-        }
-
         public async Task NotifyOnlineOrderPendingSaleConfirmAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
@@ -284,23 +253,6 @@ namespace AgriIDMS.Application.Services
                 message,
                 referenceType: "GoodsReceipt",
                 referenceId: receipt.Id,
-                recipientUserIds: recipients);
-        }
-
-        public async Task NotifyBackorderExpiredForSalesAsync(int orderId)
-        {
-            var order = await _orderRepo.GetByIdAsync(orderId)
-                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
-
-            var message = $"Đơn hàng #{orderId} đã quá hạn backorder. Vui lòng liên hệ khách để chọn CancelShortage hoặc CancelOrder.";
-
-            var recipients = await _userRepo.GetUserIdsInRolesAsync("Sale", "Admin", "Manager", "WarehouseStaff");
-
-            await CreateNotificationIfNotExistsAsync(
-                NotificationType.Warning,
-                message,
-                referenceType: "BackorderExpired",
-                referenceId: orderId,
                 recipientUserIds: recipients);
         }
 

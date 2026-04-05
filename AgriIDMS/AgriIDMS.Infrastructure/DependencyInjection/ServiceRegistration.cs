@@ -149,7 +149,6 @@ public static class ServiceRegistration
         services.AddScoped<IDisposalRequestService, DisposalRequestService>();
 
         // Background workers
-        services.AddHostedService<BackorderExpiryScannerService>();
         services.AddHostedService<PayBeforeDeadlineScannerService>();
         services.AddHostedService<NearExpiryLotScannerService>();
         services.AddHostedService<OrderAutoCompleteService>();

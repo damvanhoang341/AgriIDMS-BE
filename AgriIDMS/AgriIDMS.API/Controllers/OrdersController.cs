@@ -68,33 +68,6 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Danh sách đơn thiếu hàng đang chờ khách quyết định (wait/cancel-shortage).</summary>
-        [HttpGet("staff/pending-customer-decision")]
-        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
-        public async Task<IActionResult> GetPendingCustomerDecisionOrders([FromQuery] GetPendingAllocationOrdersQuery query)
-        {
-            var result = await _orderService.GetPendingCustomerDecisionOrdersAsync(query);
-            return Ok(result);
-        }
-
-        /// <summary>Danh sách đơn khách đã chọn chờ backorder (BackorderWaiting).</summary>
-        [HttpGet("staff/backorder-waiting")]
-        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
-        public async Task<IActionResult> GetBackorderWaitingOrders([FromQuery] GetPendingAllocationOrdersQuery query)
-        {
-            var result = await _orderService.GetBackorderWaitingOrdersAsync(query);
-            return Ok(result);
-        }
-
-        /// <summary>Chi tiết đơn đang chờ backorder để staff xử lý allocate/timeout action.</summary>
-        [HttpGet("staff/backorder-waiting/{id:int:min(1)}")]
-        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
-        public async Task<IActionResult> GetBackorderWaitingOrderDetail(int id)
-        {
-            var result = await _orderService.GetBackorderWaitingOrderDetailAsync(id);
-            return Ok(result);
-        }
-
         /// <summary>Danh sách đơn đã allocate xong (Confirmed) để staff xem lại box đã reserve.</summary>
         [HttpGet("staff/allocation-completed")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
@@ -164,15 +137,6 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Danh sách đơn backorder đã quá hạn cho sale/staff xử lý.</summary>
-        [HttpGet("backorder/overdue")]
-        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
-        public async Task<IActionResult> GetOverdueBackorders()
-        {
-            var result = await _orderService.GetOverdueBackordersAsync();
-            return Ok(result);
-        }
-
         /// <summary>Gợi ý họ tên, SĐT, địa chỉ từ tài khoản để màn checkout (khách có thể sửa trước khi đặt).</summary>
         [HttpGet("checkout-defaults")]
         [Authorize(Roles = "Customer")]
@@ -225,7 +189,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Tạo đơn bán trực tiếp (POS). TakeAway: reserve ngay, Confirmed, luôn PayBefore. Delivery: AwaitingAllocation; body có thể gửi <c>paymentTiming</c> PayBefore/PayAfter (mặc định PayBefore) — cùng quy tắc xuất kho &amp; giao như đơn online.
+        /// Tạo đơn bán trực tiếp (POS). TakeAway &amp; Delivery: giữ đủ thùng (Reserved) ngay, <c>Confirmed</c>; Delivery gửi <c>paymentTiming</c> PayBefore/PayAfter (mặc định PayBefore) — cùng quy tắc xuất kho &amp; giao như đơn online.
         /// </summary>
         [HttpPost("pos")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
@@ -258,7 +222,7 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Giữ hàng FEFO thay khách: POS/đơn ở AwaitingAllocation (hoặc backorder allocate). Đơn online mới dùng sale-confirm rồi payment-timing, không qua endpoint này.</summary>
+        /// <summary>Đơn legacy <see cref="OrderStatus.AwaitingAllocation"/>: auto-propose + xác nhận allocate. POS mới đã giữ đủ thùng khi tạo đơn.</summary>
         [HttpPatch("{id:int:min(1)}/allocate/staff")]
         [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> AllocateAsStaff(int id)
@@ -363,79 +327,6 @@ namespace AgriIDMS.API.Controllers
             var operatorUserId = GetCurrentUserId();
             await _orderService.ConfirmCashPaidForOrderAsync(id, operatorUserId);
             return Ok(new { Message = "Đã xác nhận thu tiền mặt thành công", OrderId = id });
-        }
-
-        /// <summary>Khách chọn chờ backorder cho phần còn thiếu.</summary>
-        [HttpPatch("{id:int:min(1)}/backorder/wait")]
-        [Authorize(Roles = "Customer")]
-        public async Task<IActionResult> WaitBackorder(int id)
-        {
-            var userId = GetCurrentUserId();
-            await _orderService.WaitBackorderAsync(id, userId);
-            return Ok(new
-            {
-                Message = "Đã chuyển trạng thái chờ backorder",
-                OrderId = id
-            });
-        }
-
-        /// <summary>Sales staff chọn chờ backorder thay khách.</summary>
-        [HttpPatch("{id:int:min(1)}/backorder/wait/staff")]
-        [Authorize(Roles = "SalesStaff,Admin,Manager")]
-        public async Task<IActionResult> WaitBackorderAsStaff(int id)
-        {
-            var operatorUserId = GetCurrentUserId();
-            await _orderService.WaitBackorderAsStaffAsync(id, operatorUserId);
-            return Ok(new
-            {
-                Message = "Đã chuyển trạng thái chờ backorder (thao tác nhân sự)",
-                OrderId = id
-            });
-        }
-
-        /// <summary>Khách chọn hủy phần còn thiếu để chỉ ship phần đã allocate/giữ được.</summary>
-        [HttpPatch("{id:int:min(1)}/backorder/cancel-shortage")]
-        [Authorize(Roles = "Customer")]
-        public async Task<IActionResult> CancelShortage(int id)
-        {
-            var userId = GetCurrentUserId();
-            await _orderService.CancelShortageAsync(id, userId);
-            return Ok(new
-            {
-                Message = "Đã hủy phần thiếu: chỉ ship phần còn lại",
-                OrderId = id
-            });
-        }
-
-        /// <summary>Sales staff chọn hủy phần thiếu thay khách.</summary>
-        [HttpPatch("{id:int:min(1)}/backorder/cancel-shortage/staff")]
-        [Authorize(Roles = "SalesStaff,Admin,Manager")]
-        public async Task<IActionResult> CancelShortageAsStaff(int id)
-        {
-            var operatorUserId = GetCurrentUserId();
-            await _orderService.CancelShortageAsStaffAsync(id, operatorUserId);
-            return Ok(new
-            {
-                Message = "Đã hủy phần thiếu: chỉ ship phần còn lại (thao tác nhân sự)",
-                OrderId = id
-            });
-        }
-
-        /// <summary>
-        /// Staff allocate nốt phần thiếu cho backorder.
-        /// Nếu quá thời gian chờ thì xử lý theo <see cref="BackorderAllocateRequestDto.ExpiredAction"/>.
-        /// </summary>
-        [HttpPatch("{id:int:min(1)}/backorder/allocate")]
-        [Authorize(Roles = "WarehouseStaff,Admin,Manager,SalesStaff")]
-        public async Task<IActionResult> AllocateBackorderAsStaff(int id, [FromBody] BackorderAllocateRequestDto request)
-        {
-            var operatorUserId = GetCurrentUserId();
-            await _orderService.BackorderAllocateAsync(id, operatorUserId, request?.ExpiredAction ?? BackorderExpiredAction.CancelShortage);
-            return Ok(new
-            {
-                Message = "Đã xử lý backorder theo thời gian chờ",
-                OrderId = id
-            });
         }
 
         /// <summary>

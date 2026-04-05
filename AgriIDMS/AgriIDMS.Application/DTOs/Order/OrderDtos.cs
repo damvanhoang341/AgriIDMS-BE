@@ -261,84 +261,6 @@ namespace AgriIDMS.Application.DTOs.Order
         public decimal ShortageQuantity { get; set; }
     }
 
-    /// <summary>Hành động cần làm khi hết thời gian backorder.</summary>
-    public enum BackorderExpiredAction
-    {
-        CancelShortage = 0,
-        CancelOrder = 1
-    }
-
-    public class BackorderAllocateRequestDto
-    {
-        public BackorderExpiredAction ExpiredAction { get; set; }
-            = BackorderExpiredAction.CancelShortage;
-    }
-
-    public class OverdueBackorderItemDto
-    {
-        public int OrderId { get; set; }
-        public string CustomerUserId { get; set; } = null!;
-        public DateTime CreatedAt { get; set; }
-        public DateTime BackorderDeadlineAt { get; set; }
-        public decimal TotalShortageQuantity { get; set; }
-        public decimal TotalReservedQuantity { get; set; }
-        public decimal CurrentTotalAmount { get; set; }
-        public string Status { get; set; } = null!;
-    }
-
-    public class BackorderWaitingListItemDto
-    {
-        public int OrderId { get; set; }
-        public string CustomerUserId { get; set; } = null!;
-        public string? CustomerName { get; set; }
-        public string Source { get; set; } = null!;
-        public string Status { get; set; } = null!;
-        public DateTime CreatedAt { get; set; }
-        public DateTime? BackorderDeadlineAt { get; set; }
-        public bool IsOverdue { get; set; }
-        public decimal TotalRequestedBoxes { get; set; }
-        public decimal TotalFulfilledBoxes { get; set; }
-        public decimal TotalShortageBoxes { get; set; }
-        public decimal TotalAmount { get; set; }
-        public int ItemCount { get; set; }
-        public string? LatestPaymentStatus { get; set; }
-        public string NextRecommendedAction { get; set; } = null!;
-    }
-
-    public class BackorderWaitingSummaryDto
-    {
-        public decimal TotalRequestedBoxes { get; set; }
-        public decimal TotalFulfilledBoxes { get; set; }
-        public decimal TotalShortageBoxes { get; set; }
-        public bool IsFullyAllocated { get; set; }
-    }
-
-    public class BackorderWaitingDetailItemDto
-    {
-        public int OrderDetailId { get; set; }
-        public int ProductVariantId { get; set; }
-        public string ProductName { get; set; } = string.Empty;
-        public string Grade { get; set; } = string.Empty;
-        public decimal BoxWeight { get; set; }
-        public bool IsPartial { get; set; }
-        public decimal RequestedQuantity { get; set; }
-        public decimal FulfilledQuantity { get; set; }
-        public decimal ShortageQuantity { get; set; }
-        public decimal UnitPrice { get; set; }
-    }
-
-    public class BackorderWaitingReservedAllocationDto
-    {
-        public int AllocationId { get; set; }
-        public int OrderDetailId { get; set; }
-        public int BoxId { get; set; }
-        public string BoxCode { get; set; } = string.Empty;
-        public decimal ReservedQuantity { get; set; }
-        public string Status { get; set; } = null!;
-        public DateTime? ReservedAt { get; set; }
-        public DateTime? ExpiredAt { get; set; }
-    }
-
     public class AllocationHistoryItemDto
     {
         public int AllocationId { get; set; }
@@ -361,24 +283,6 @@ namespace AgriIDMS.Application.DTOs.Order
         public int OrderId { get; set; }
         public string OrderStatus { get; set; } = null!;
         public IList<AllocationHistoryItemDto> Items { get; set; } = new List<AllocationHistoryItemDto>();
-    }
-
-    public class BackorderWaitingDetailDto
-    {
-        public int OrderId { get; set; }
-        public string CustomerUserId { get; set; } = null!;
-        public string? CustomerName { get; set; }
-        public string Source { get; set; } = null!;
-        public string Status { get; set; } = null!;
-        public DateTime CreatedAt { get; set; }
-        public DateTime? BackorderDeadlineAt { get; set; }
-        public bool IsOverdue { get; set; }
-        public decimal TotalAmount { get; set; }
-        public string? LatestPaymentStatus { get; set; }
-        public BackorderWaitingSummaryDto Summary { get; set; } = new();
-        public IList<BackorderWaitingDetailItemDto> Items { get; set; } = new List<BackorderWaitingDetailItemDto>();
-        public IList<BackorderWaitingReservedAllocationDto> ReservedAllocations { get; set; } = new List<BackorderWaitingReservedAllocationDto>();
-        public IList<string> AllowedActions { get; set; } = new List<string>();
     }
 
     public class GetPaidPendingExportOrdersQuery

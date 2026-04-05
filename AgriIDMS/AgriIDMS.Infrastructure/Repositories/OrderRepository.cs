@@ -65,21 +65,6 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Orders.FirstOrDefaultAsync(o => o.Id == id);
         }
 
-        public async Task<IList<Order>> GetOverdueBackordersAsync(System.DateTime nowUtc)
-        {
-            return await _context.Orders
-                .Include(o => o.Details)
-                .Include(o => o.Allocations)
-                .Where(o =>
-                    o.Status == OrderStatus.BackorderWaiting
-                    && o.Allocations.Any(a =>
-                        a.Status == AllocationStatus.Reserved
-                        && a.ExpiredAt.HasValue
-                        && a.ExpiredAt.Value <= nowUtc))
-                .OrderBy(o => o.CreatedAt)
-                .ToListAsync();
-        }
-
         public async Task<IList<Order>> GetPendingSaleConfirmationOrdersAsync(string? customerUserId, int skip, int take)
         {
             var query = _context.Orders
@@ -132,51 +117,6 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(o =>
                     o.Status == OrderStatus.PendingWarehouseConfirm
                     && o.Allocations.Any(a => a.Status == AllocationStatus.Proposed));
-
-            if (!string.IsNullOrWhiteSpace(customerUserId))
-                query = query.Where(o => o.UserId == customerUserId.Trim());
-
-            if (source.HasValue)
-                query = query.Where(o => o.Source == source.Value);
-
-            return await query
-                .OrderBy(o => o.CreatedAt)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
-        }
-
-        public async Task<IList<Order>> GetPendingCustomerDecisionOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take)
-        {
-            var query = _context.Orders
-                .Include(o => o.Details)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
-                .Include(o => o.Payments)
-                .Where(o => o.Status == OrderStatus.PartiallyAllocated);
-
-            if (!string.IsNullOrWhiteSpace(customerUserId))
-                query = query.Where(o => o.UserId == customerUserId.Trim());
-
-            if (source.HasValue)
-                query = query.Where(o => o.Source == source.Value);
-
-            return await query
-                .OrderBy(o => o.CreatedAt)
-                .Skip(skip)
-                .Take(take)
-                .ToListAsync();
-        }
-
-        public async Task<IList<Order>> GetBackorderWaitingOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take)
-        {
-            var query = _context.Orders
-                .Include(o => o.Details)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
-                .Include(o => o.Payments)
-                .Include(o => o.Allocations)
-                .Where(o => o.Status == OrderStatus.BackorderWaiting);
 
             if (!string.IsNullOrWhiteSpace(customerUserId))
                 query = query.Where(o => o.UserId == customerUserId.Trim());
