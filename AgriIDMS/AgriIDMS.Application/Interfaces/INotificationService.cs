@@ -7,6 +7,10 @@ namespace AgriIDMS.Application.Interfaces
     {
         // Event producers
         Task NotifyOrderPaidAsync(int orderId);
+        /// <summary>Đơn online: shipper đã bắt đầu giao (ShippingInProgress).</summary>
+        Task NotifyOrderShippingInProgressAsync(int orderId);
+        /// <summary>Đơn đã giao thành công — nhắc khách có thể đánh giá sản phẩm.</summary>
+        Task NotifyOrderDeliveredForReviewAsync(int orderId);
         Task NotifyOrderPaymentFailedAsync(int orderId);
         Task NotifyOrderPaymentCancelledAsync(int orderId);
         Task NotifyOrderAllocationShortageAsync(int orderId);

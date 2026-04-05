@@ -337,6 +337,10 @@ namespace AgriIDMS.API.Controllers
             return Ok(detail);
         }
 
+        /// <summary>
+        /// Xác nhận giao thành công (Delivery, ApprovedExport). Đơn online trả sau: đồng thời quyết toán tiền
+        /// (tạo thanh toán tiền mặt Paid nếu chưa có; Cash/Banking Pending hoặc Processing → Paid).
+        /// </summary>
         [HttpPatch("{id:int:min(1)}/delivery/confirm")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> ConfirmDelivered(int id)

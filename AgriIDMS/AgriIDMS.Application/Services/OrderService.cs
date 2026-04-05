@@ -629,6 +629,9 @@ namespace AgriIDMS.Application.Services
 
             await _uow.SaveChangesAsync();
 
+            if (newShippingStatus == ShippingStatus.ShippingInProgress)
+                await _notificationService.NotifyOrderShippingInProgressAsync(orderId);
+
             return MapOrderToDetailDto(order);
         }
 
@@ -661,9 +664,16 @@ namespace AgriIDMS.Application.Services
 
         public async Task ConfirmDeliveredAsync(int orderId, string operatorUserId)
         {
+            _ = operatorUserId;
+
             var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
+            await ApplyConfirmDeliveredCoreAsync(order);
+        }
+
+        private async Task ApplyConfirmDeliveredCoreAsync(Order order)
+        {
             if (!IsDelivery(order))
                 throw new InvalidBusinessRuleException("Chỉ đơn Delivery mới được xác nhận delivered");
 
@@ -679,20 +689,61 @@ namespace AgriIDMS.Application.Services
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefault();
 
-            if (latestPayment == null)
+            var notifyOrderPaid = false;
+
+            if (order.Source == OrderSource.Online && order.PaymentTiming == PaymentTiming.PayAfter)
+            {
+                if (latestPayment == null)
+                {
+                    order.Payments ??= new List<Payment>();
+                    order.Payments.Add(new Payment
+                    {
+                        OrderId = order.Id,
+                        PaymentMethod = PaymentMethod.Cash,
+                        PaymentStatus = PaymentStatus.Paid,
+                        Amount = order.TotalAmount,
+                        PaidAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    notifyOrderPaid = true;
+                }
+                else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
+                {
+                    if (latestPayment.PaymentMethod == PaymentMethod.Cash && latestPayment.PaymentStatus == PaymentStatus.Pending)
+                    {
+                        latestPayment.PaymentStatus = PaymentStatus.Paid;
+                        latestPayment.PaidAt = DateTime.UtcNow;
+                        notifyOrderPaid = true;
+                    }
+                    else if (latestPayment.PaymentMethod == PaymentMethod.Banking
+                             && (latestPayment.PaymentStatus == PaymentStatus.Processing
+                                 || latestPayment.PaymentStatus == PaymentStatus.Pending))
+                    {
+                        latestPayment.PaymentStatus = PaymentStatus.Paid;
+                        latestPayment.PaidAt = DateTime.UtcNow;
+                        notifyOrderPaid = true;
+                    }
+                    else
+                    {
+                        throw new InvalidBusinessRuleException(
+                            $"Đơn online trả sau: không thể xác nhận giao khi thanh toán {latestPayment.PaymentMethod} đang {latestPayment.PaymentStatus}.");
+                    }
+                }
+            }
+            else if (latestPayment == null)
             {
                 if (order.PaymentTiming == PaymentTiming.PayAfter)
                     throw new InvalidBusinessRuleException(
                         "Đơn trả sau: vui lòng ghi nhận thanh toán (ví dụ tạo thanh toán tiền mặt và xác nhận đã thu) trước khi xác nhận đã giao.");
                 throw new InvalidBusinessRuleException("Không tìm thấy thông tin thanh toán của đơn hàng");
             }
-
-            if (order.PaymentTiming == PaymentTiming.PayAfter && latestPayment.PaymentMethod == PaymentMethod.Cash)
+            else if (order.PaymentTiming == PaymentTiming.PayAfter && latestPayment.PaymentMethod == PaymentMethod.Cash)
             {
                 if (latestPayment.PaymentStatus == PaymentStatus.Pending)
                 {
                     latestPayment.PaymentStatus = PaymentStatus.Paid;
                     latestPayment.PaidAt = DateTime.UtcNow;
+                    notifyOrderPaid = true;
                 }
                 else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
                 {
@@ -709,6 +760,11 @@ namespace AgriIDMS.Application.Services
             order.ShippingStatus = ShippingStatus.DeliveredShip;
             order.DeliveredAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync();
+
+            if (notifyOrderPaid)
+                await _notificationService.NotifyOrderPaidAsync(order.Id);
+
+            await _notificationService.NotifyOrderDeliveredForReviewAsync(order.Id);
         }
 
         public async Task ConfirmFailedDeliveryAsync(int orderId, string operatorUserId)

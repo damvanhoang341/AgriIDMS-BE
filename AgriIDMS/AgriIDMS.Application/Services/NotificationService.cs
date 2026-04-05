@@ -63,6 +63,42 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: new[] { order.UserId });
         }
 
+        public async Task NotifyOrderShippingInProgressAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.Online)
+                return;
+
+            var message =
+                $"Đơn hàng #{orderId} đã được bàn giao cho shipper và đang trên đường giao đến bạn. Vui lòng theo dõi và chuẩn bị nhận hàng.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Order,
+                message,
+                referenceType: "OrderShippingInProgress",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.UserId });
+        }
+
+        public async Task NotifyOrderDeliveredForReviewAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.Online)
+                return;
+
+            var message =
+                $"Đơn hàng #{orderId} đã giao thành công. Bạn có thể vào chi tiết đơn để đánh giá sản phẩm.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Order,
+                message,
+                referenceType: "OrderDeliveredReview",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.UserId });
+        }
+
         public async Task NotifyOrderPaymentFailedAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
