@@ -63,8 +63,7 @@ namespace AgriIDMS.Application.Services
         {
             var variant = await _variantRepo.GetProductVariantByIdAsync(request.ProductVariantId);
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
 
@@ -117,17 +116,11 @@ namespace AgriIDMS.Application.Services
                 }
 
                 cart.UpdatedAt = DateTime.UtcNow;
-                await _uow.CommitAsync();
+            });
 
-                _logger.LogInformation(
-                    "Cart updated for user {UserId}: variant {VariantId} qty {Qty}",
-                    userId, request.ProductVariantId, request.Quantity);
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            _logger.LogInformation(
+                "Cart updated for user {UserId}: variant {VariantId} qty {Qty}",
+                userId, request.ProductVariantId, request.Quantity);
         }
 
         public async Task UpdateItemQuantityAsync(int productVariantId, UpdateCartItemRequest request, string userId)

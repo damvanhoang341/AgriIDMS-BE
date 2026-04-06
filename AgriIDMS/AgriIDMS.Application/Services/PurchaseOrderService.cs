@@ -63,10 +63,12 @@ public class PurchaseOrderService : IPurchaseOrderService
             throw new NotFoundException($"ProductVariant {missing} không tồn tại");
         }
 
-        await _unitOfWork.BeginTransactionAsync();
-        try
+        int createdOrderId = 0;
+        string? logOrderCode = null;
+        await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
         {
             var orderCode = await _repository.GenerateOrderCodeAsync();
+            logOrderCode = orderCode;
 
             var order = new PurchaseOrder
             {
@@ -105,16 +107,11 @@ public class PurchaseOrderService : IPurchaseOrderService
 
             await _repository.AddAsync(order);
             await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitAsync();
+            createdOrderId = order.Id;
+        });
 
-            _logger.LogInformation("PurchaseOrder {OrderCode} created successfully", orderCode);
-            return order.Id;
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
+        _logger.LogInformation("PurchaseOrder {OrderCode} created successfully", logOrderCode);
+        return createdOrderId;
     }
 
     public async Task<PurchaseOrderResponse> GetByIdAsync(int id)
@@ -162,22 +159,14 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (po.Details == null || !po.Details.Any())
             throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết mới được duyệt");
 
-        await _unitOfWork.BeginTransactionAsync();
-        try
+        await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
         {
             po.Status = PurchaseOrderStatus.Approved;
             po.ApprovedBy = userId;
             po.ApprovedAt = DateTime.UtcNow;
             await _repository.UpdateAsync(po);
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitAsync();
-            _logger.LogInformation("PurchaseOrder {Id} approved successfully", id);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
+        });
+        _logger.LogInformation("PurchaseOrder {Id} approved successfully", id);
     }
 
     public async Task UpdateAsync(int id, UpdatePurchaseOrderRequest request, string userId)
@@ -193,8 +182,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         EnsureCanEdit(po);
 
-        await _unitOfWork.BeginTransactionAsync();
-        try
+        await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
         {
             if (request.SupplierId.HasValue && request.SupplierId.Value != po.SupplierId)
             {
@@ -278,15 +266,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             }
 
             await _repository.UpdateAsync(po);
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitAsync();
-            _logger.LogInformation("PurchaseOrder {Id} updated successfully", id);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
+        });
+        _logger.LogInformation("PurchaseOrder {Id} updated successfully", id);
     }
 
     public async Task DeleteAsync(int id)
@@ -302,19 +283,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (po.GoodsReceipts != null && po.GoodsReceipts.Any())
             throw new InvalidBusinessRuleException("Không thể xóa đơn mua đã có phiếu nhập kho. Chỉ xóa được đơn ở trạng thái Nháp và chưa có phiếu nhập.");
 
-        await _unitOfWork.BeginTransactionAsync();
-        try
+        await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
         {
             await _repository.DeleteAsync(po);
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitAsync();
-            _logger.LogInformation("PurchaseOrder {Id} deleted successfully", id);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
+        });
+        _logger.LogInformation("PurchaseOrder {Id} deleted successfully", id);
     }
 
     /// <summary>Gọi trước khi chỉnh sửa PO; ném nếu đã Approved (khóa sửa sau duyệt).</summary>
