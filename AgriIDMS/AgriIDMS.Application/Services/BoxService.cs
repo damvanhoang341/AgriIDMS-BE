@@ -461,8 +461,7 @@ namespace AgriIDMS.Application.Services
             var now = DateTime.UtcNow;
             var disposedCount = 0;
 
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 foreach (var box in boxes)
                 {
@@ -508,15 +507,7 @@ namespace AgriIDMS.Application.Services
 
                     disposedCount++;
                 }
-
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitAsync();
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+            });
 
             return new DisposeExpiredBoxesResultDto
             {

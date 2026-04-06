@@ -184,8 +184,7 @@ namespace AgriIDMS.Application.Services
 
         public async Task ApproveAsync(int stockCheckId, string userId)
         {
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var stockCheck = await _stockCheckRepo.GetByIdWithDetailsAndBoxesAsync(stockCheckId);
                 if (stockCheck == null)
@@ -292,16 +291,10 @@ namespace AgriIDMS.Application.Services
 
                 await _stockCheckRepo.UpdateAsync(stockCheck);
                 await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitAsync();
-                _logger.LogInformation("StockCheck {Id} approved by {UserId}", stockCheckId, userId);
+            });
 
-                await _notificationService.NotifyStockCheckApprovedAsync(stockCheckId);
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+            _logger.LogInformation("StockCheck {Id} approved by {UserId}", stockCheckId, userId);
+            await _notificationService.NotifyStockCheckApprovedAsync(stockCheckId);
         }
 
         public async Task RejectAsync(int stockCheckId, string userId)

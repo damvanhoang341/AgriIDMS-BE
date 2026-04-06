@@ -68,8 +68,9 @@ namespace AgriIDMS.Application.Services
             bool autoApproveWhenCreatedByManager = false)
         {
             _logger.LogInformation("User {UserId} tạo phiếu nhập kho", userId);
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            var receiptIdResult = 0;
+            var notifyPendingManager = false;
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var po = await _purchaseOrderRepo.GetByIdAsync(request.PurchaseOrderId);
                 if (po == null)
@@ -121,18 +122,13 @@ namespace AgriIDMS.Application.Services
                     await AutoApproveCreatedReceiptByManagerAsync(receipt.Id, userId);
                 }
 
-                await _unitOfWork.CommitAsync();
-                if (!autoApproveWhenCreatedByManager)
-                {
-                    await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receipt.Id);
-                }
-                return receipt.Id;
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+                receiptIdResult = receipt.Id;
+                notifyPendingManager = !autoApproveWhenCreatedByManager;
+            });
+
+            if (notifyPendingManager)
+                await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receiptIdResult);
+            return receiptIdResult;
         }
 
 
@@ -215,8 +211,7 @@ namespace AgriIDMS.Application.Services
         // ===============================
         public async Task ApproveGoodsReceiptAsync(int receiptId, string userId)
         {
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var receipt = await _receiptRepo.GetGoodsReceiptForApproveAsync(receiptId);
                 if (receipt == null)
@@ -237,14 +232,9 @@ namespace AgriIDMS.Application.Services
                 await EnsureWarehouseCapacityAsync(receipt);
 
                 await CreateLotsAndSetApprovedAsync(receipt, userId);
-                await _unitOfWork.CommitAsync();
-                _logger.LogInformation("Receipt {ReceiptId} đã được approve bởi {UserId}", receiptId, userId);
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+            });
+
+            _logger.LogInformation("Receipt {ReceiptId} đã được approve bởi {UserId}", receiptId, userId);
         }
 
         // ===============================
@@ -278,8 +268,7 @@ namespace AgriIDMS.Application.Services
         // ===============================
         public async Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId)
         {
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var receipt = await _receiptRepo.GetGoodsReceiptForApproveAsync(receiptId);
                 if (receipt == null)
@@ -299,14 +288,7 @@ namespace AgriIDMS.Application.Services
                     await _unitOfWork.SaveChangesAsync();
                     _logger.LogInformation("Receipt {ReceiptId} đã bị Manager từ chối (vượt dung sai) bởi {UserId}", receiptId, userId);
                 }
-
-                await _unitOfWork.CommitAsync();
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+            });
         }
 
         // ===============================

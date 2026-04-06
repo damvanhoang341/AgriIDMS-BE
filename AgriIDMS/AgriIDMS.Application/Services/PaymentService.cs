@@ -85,8 +85,8 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     "Vui lòng chọn hình thức thanh toán (trả trước hoặc trả sau) trước khi thanh toán.");
 
-            await _uow.BeginTransactionAsync();
-            try
+            PaymentResponseDto result = null!;
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var hasPaid = await _paymentRepo.HasPaidPaymentAsync(order.Id);
                 if (hasPaid)
@@ -111,22 +111,15 @@ namespace AgriIDMS.Application.Services
                         actorUserId, order.Id, order.Source, request.PaymentMethod);
                 }
 
-                var result = request.PaymentMethod switch
+                result = request.PaymentMethod switch
                 {
                     PaymentMethod.Cash => await ProcessCashPaymentAsync(order),
                     PaymentMethod.Banking => await ProcessBankingAsync(order),
                     _ => throw new InvalidBusinessRuleException(
                         $"Phương thức thanh toán '{request.PaymentMethod}' chưa được hỗ trợ. Chỉ hỗ trợ Cash hoặc Banking.")
                 };
-
-                await _uow.CommitAsync();
-                return result;
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
+            return result;
         }
 
         /// <summary>

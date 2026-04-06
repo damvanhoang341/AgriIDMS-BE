@@ -759,8 +759,7 @@ namespace AgriIDMS.Application.Services
         private async Task CommitCancelOrderReleaseStockAsync(Order order)
         {
             var orderId = order.Id;
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 if (order.Payments != null)
                 {
@@ -800,14 +799,7 @@ namespace AgriIDMS.Application.Services
 
                 order.ShippingStatus = ShippingStatus.None;
                 order.Status = OrderStatus.Cancelled;
-
-                await _uow.CommitAsync();
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
         }
 
         public async Task<OrderCheckoutDefaultsDto> GetOrderCheckoutDefaultsAsync(string userId)
@@ -836,8 +828,9 @@ namespace AgriIDMS.Application.Services
 
             var now = DateTime.UtcNow;
 
-            await _uow.BeginTransactionAsync();
-            try
+            CreateOrderFromCartResponse response = null!;
+            var reservedBoxCount = 0;
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 decimal estimatedTotal = 0;
                 var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
@@ -898,15 +891,9 @@ namespace AgriIDMS.Application.Services
                         "Không đủ thùng khả dụng để đặt hàng (có thể đang được giữ bởi đơn khác). Vui lòng giảm số lượng hoặc thử lại sau.");
 
                 await _allocationRepo.AddRangeAsync(reservedAllocations);
-                await _uow.CommitAsync();
+                reservedBoxCount = reservedAllocations.Count;
 
-                _logger.LogInformation(
-                    "Order {OrderId} created from cart for user {UserId}, estimated total {Total}, reservedBoxCount {ReservedCount}",
-                    order.Id, userId, estimatedTotal, reservedAllocations.Count);
-
-                await TryNotifySalesOnlineOrderCreatedAsync(order.Id);
-
-                return new CreateOrderFromCartResponse
+                response = new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
@@ -917,12 +904,15 @@ namespace AgriIDMS.Application.Services
                         $"Đã giữ cứng (Reserved) {reservedAllocations.Count} thùng trong {_onlineOrderSoftLockDuration.TotalMinutes:0} phút — chờ sale xác nhận với khách.",
                     PaymentTiming = order.PaymentTiming?.ToString()
                 };
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
+
+            _logger.LogInformation(
+                "Order {OrderId} created from cart for user {UserId}, estimated total {Total}, reservedBoxCount {ReservedCount}",
+                response.OrderId, userId, response.TotalAmount, reservedBoxCount);
+
+            await TryNotifySalesOnlineOrderCreatedAsync(response.OrderId);
+
+            return response;
         }
 
         public async Task<CreateOrderFromCartResponse> CreateOrderFromCartByVariantIdsAsync(
@@ -967,9 +957,8 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Không tìm thấy sản phẩm trong giỏ");
 
             var now = DateTime.UtcNow;
-            await _uow.BeginTransactionAsync();
-
-            try
+            CreateOrderFromCartResponse response = null!;
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 decimal estimatedTotal = 0;
                 var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
@@ -1079,11 +1068,8 @@ namespace AgriIDMS.Application.Services
                         "Không đủ thùng khả dụng để đặt hàng (có thể đang được giữ bởi đơn khác). Vui lòng giảm số lượng hoặc thử lại sau.");
 
                 await _allocationRepo.AddRangeAsync(reservedAllocations);
-                await _uow.CommitAsync();
 
-                await TryNotifySalesOnlineOrderCreatedAsync(order.Id);
-
-                return new CreateOrderFromCartResponse
+                response = new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = estimatedTotal,
@@ -1094,12 +1080,11 @@ namespace AgriIDMS.Application.Services
                         $"Đã giữ cứng (Reserved) {reservedAllocations.Count} thùng trong {_onlineOrderSoftLockDuration.TotalMinutes:0} phút — chờ sale xác nhận với khách.",
                     PaymentTiming = order.PaymentTiming?.ToString()
                 };
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
+
+            await TryNotifySalesOnlineOrderCreatedAsync(response.OrderId);
+
+            return response;
         }
 
         public async Task<CreateOrderFromCartResponse> CreatePosOrderAsync(string operatorUserId, CreatePosOrderRequest request)
@@ -1113,8 +1098,8 @@ namespace AgriIDMS.Application.Services
 
             var now = DateTime.UtcNow;
             var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
-            await _uow.BeginTransactionAsync();
-            try
+            CreateOrderFromCartResponse response = null!;
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 decimal total = 0m;
                 var order = new Order
@@ -1208,9 +1193,8 @@ namespace AgriIDMS.Application.Services
 
                 order.TotalAmount = total;
                 await _orderRepo.AddAsync(order);
-                await _uow.CommitAsync();
 
-                return new CreateOrderFromCartResponse
+                response = new CreateOrderFromCartResponse
                 {
                     OrderId = order.Id,
                     TotalAmount = total,
@@ -1222,12 +1206,9 @@ namespace AgriIDMS.Application.Services
                     PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
                     PaymentTiming = order.PaymentTiming!.ToString()
                 };
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
+
+            return response;
         }
 
         private async Task<PosCustomerInfo> ResolvePosCustomerAsync(CreatePosOrderRequest request, string operatorUserId)
@@ -1363,17 +1344,10 @@ namespace AgriIDMS.Application.Services
             if (order.Details == null || !order.Details.Any())
                 throw new InvalidBusinessRuleException("Order không có chi tiết");
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 await FinalizeSaleConfirmForReservedOnlineOrderAsync(order, DateTime.UtcNow);
-                await _uow.CommitAsync();
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
 
             var orderAfter = await _orderRepo.GetByIdWithDetailsAsync(orderId) ?? order;
 
@@ -1412,8 +1386,8 @@ namespace AgriIDMS.Application.Services
             {
                 // Re-check proposal validity to avoid stale "pending warehouse confirm"
                 // when another order already reserved the same boxes.
-                await _uow.BeginTransactionAsync();
-                try
+                AllocationProposalResultDto? staleProposalsResult = null;
+                await _uow.ExecuteInRetryableTransactionAsync(async () =>
                 {
                     var validProposedCount = 0;
                     foreach (var proposal in existingProposed)
@@ -1433,26 +1407,22 @@ namespace AgriIDMS.Application.Services
                         if (IsInitialAllocationStatus(order.Status))
                             order.Status = OrderStatus.PendingWarehouseConfirm;
 
-                        await _uow.CommitAsync();
-                        return new AllocationProposalResultDto
+                        staleProposalsResult = new AllocationProposalResultDto
                         {
                             OrderId = orderId,
                             ProposedBoxCount = validProposedCount,
                             Message = "Đơn đã có đề xuất allocate FEFO hợp lệ, đang chờ kho xác nhận"
                         };
+                        return;
                     }
 
                     // No valid proposal left -> move out of pending queue before rebuilding.
                     if (order.Status == OrderStatus.PendingWarehouseConfirm)
                         order.Status = OrderStatus.AwaitingAllocation;
+                });
 
-                    await _uow.CommitAsync();
-                }
-                catch
-                {
-                    await _uow.RollbackAsync();
-                    throw;
-                }
+                if (staleProposalsResult != null)
+                    return staleProposalsResult;
 
                 existingProposed = new List<OrderAllocation>();
             }
@@ -1476,21 +1446,13 @@ namespace AgriIDMS.Application.Services
                 };
             }
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 await _allocationRepo.AddRangeAsync(proposals);
 
                 if (IsInitialAllocationStatus(order.Status))
                     order.Status = OrderStatus.PendingWarehouseConfirm;
-
-                await _uow.CommitAsync();
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
 
             return new AllocationProposalResultDto
             {
@@ -1507,8 +1469,7 @@ namespace AgriIDMS.Application.Services
 
             await ValidateAllocationRequestAsync(order, operatorUserId, skipCustomerOwnershipCheck);
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var oldProposals = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
                 foreach (var p in oldProposals)
@@ -1516,14 +1477,7 @@ namespace AgriIDMS.Application.Services
 
                 if (order.Status == OrderStatus.PendingWarehouseConfirm)
                     order.Status = OrderStatus.AwaitingAllocation;
-
-                await _uow.CommitAsync();
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
 
             return await AutoProposeAllocationAsync(orderId, operatorUserId, skipCustomerOwnershipCheck);
         }
@@ -1538,28 +1492,24 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Chỉ từ chối proposal khi đơn đang PendingWarehouseConfirm. Hiện tại: {order.Status}");
 
-            await _uow.BeginTransactionAsync();
-            try
+            AllocationProposalResultDto result = null!;
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var proposals = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Proposed);
                 foreach (var p in proposals)
                     p.Status = AllocationStatus.Cancelled;
 
                 order.Status = OrderStatus.AwaitingAllocation;
-                await _uow.CommitAsync();
 
-                return new AllocationProposalResultDto
+                result = new AllocationProposalResultDto
                 {
                     OrderId = orderId,
                     ProposedBoxCount = 0,
                     Message = "Kho đã từ chối proposal hiện tại. Đơn quay về hàng chờ allocate"
                 };
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
+
+            return result;
         }
 
         public async Task<ConfirmAllocationResultDto> ConfirmAllocationAsync(int orderId, string operatorUserId, bool skipCustomerOwnershipCheck = false)
@@ -1578,8 +1528,8 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     "Không có đề xuất allocate (Proposed). Vui lòng chạy auto-propose trước; nếu vẫn trống, thùng có thể đã bị giữ bởi đơn khác.");
 
-            await _uow.BeginTransactionAsync();
-            try
+            ConfirmAllocationResultDto result = null!;
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var now = DateTime.UtcNow;
                 var expiredAt = now.AddHours(AllocationExpirationHours);
@@ -1628,10 +1578,9 @@ namespace AgriIDMS.Application.Services
 
                 order.TotalAmount = totalAmount;
                 order.Status = OrderStatus.Confirmed;
-                await _uow.CommitAsync();
 
                 var fulfilledQty = order.Details.Sum(d => d.FulfilledQuantity);
-                return new ConfirmAllocationResultDto
+                result = new ConfirmAllocationResultDto
                 {
                     OrderId = order.Id,
                     Status = order.Status.ToString(),
@@ -1641,12 +1590,9 @@ namespace AgriIDMS.Application.Services
                     CustomerActions = new List<string>(),
                     Message = "Kho đã xác nhận allocate thành công"
                 };
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
+
+            return result;
         }
 
         /// <summary>Đơn legacy <see cref="OrderStatus.AwaitingAllocation"/>: auto-propose + xác nhận. POS mới giữ đủ thùng khi tạo đơn.</summary>
@@ -1682,8 +1628,7 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Không thể hủy đơn: đơn đã thanh toán thành công");
             }
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 // Nếu có payment đang Pending/Processing thì chuyển sang Cancelled.
                 if (order.Payments != null)
@@ -1724,13 +1669,7 @@ namespace AgriIDMS.Application.Services
 
                 order.ShippingStatus = ShippingStatus.None;
                 order.Status = OrderStatus.Cancelled;
-                await _uow.CommitAsync();
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            });
         }
 
         private static bool IsOrderFullyReserved(Order order) =>

@@ -111,8 +111,7 @@ namespace AgriIDMS.Application.Services
             var allocations = await _allocationRepo.GetByOrderIdAsync(receipt.OrderId, AllocationStatus.Reserved);
             var allocByBox = allocations.ToDictionary(a => a.BoxId);
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 foreach (var detail in receipt.Details)
                 {
@@ -133,19 +132,13 @@ namespace AgriIDMS.Application.Services
                 }
 
                 receipt.Status = ExportStatus.ReadyToExport;
-                await _uow.CommitAsync();
+            });
 
-                _logger.LogInformation(
-                    "ExportReceipt {ExportId} confirmed pick → ReadyToExport. {Count} boxes picking.",
-                    exportId, receipt.Details.Count);
+            _logger.LogInformation(
+                "ExportReceipt {ExportId} confirmed pick → ReadyToExport. {Count} boxes picking.",
+                exportId, receipt.Details.Count);
 
-                return MapToDto(receipt);
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            return MapToDto(receipt);
         }
 
         public async Task<ExportReceiptResponseDto> ApproveExportAsync(int exportId, string userId)
@@ -157,8 +150,7 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Chỉ duyệt phiếu xuất ở trạng thái ReadyToExport. Hiện tại: {receipt.Status}");
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var exportTransactions = new List<InventoryTransaction>();
 
@@ -215,22 +207,15 @@ namespace AgriIDMS.Application.Services
                     ord.DeliveredAt = DateTime.UtcNow;
                     ord.ShippingStatus = ShippingStatus.None;
                 }
+            });
 
-                await _uow.CommitAsync();
+            _logger.LogInformation(
+                "ExportReceipt {ExportId} approved. {Count} boxes exported. Order {OrderId} status {OrderStatus}",
+                exportId, receipt.Details.Count, receipt.OrderId, receipt.Order.Status);
 
-                _logger.LogInformation(
-                    "ExportReceipt {ExportId} approved. {Count} boxes exported. Order {OrderId} status {OrderStatus}",
-                    exportId, receipt.Details.Count, receipt.OrderId, ord.Status);
+            await _notificationService.NotifyExportApprovedAsync(receipt.Id);
 
-                await _notificationService.NotifyExportApprovedAsync(receipt.Id);
-
-                return MapToDto(receipt);
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            return MapToDto(receipt);
         }
 
         public async Task<ExportReceiptResponseDto> CancelExportAsync(int exportId, string userId)
@@ -246,8 +231,7 @@ namespace AgriIDMS.Application.Services
 
             var allocations = await _allocationRepo.GetByOrderIdAsync(receipt.OrderId);
 
-            await _uow.BeginTransactionAsync();
-            try
+            await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
                 foreach (var detail in receipt.Details)
                 {
@@ -266,19 +250,13 @@ namespace AgriIDMS.Application.Services
                 }
 
                 receipt.Status = ExportStatus.Cancelled;
-                await _uow.CommitAsync();
+            });
 
-                _logger.LogInformation(
-                    "ExportReceipt {ExportId} cancelled. Boxes reverted to Stored.",
-                    exportId);
+            _logger.LogInformation(
+                "ExportReceipt {ExportId} cancelled. Boxes reverted to Stored.",
+                exportId);
 
-                return MapToDto(receipt);
-            }
-            catch
-            {
-                await _uow.RollbackAsync();
-                throw;
-            }
+            return MapToDto(receipt);
         }
 
         public async Task<ExportReceiptResponseDto> GetExportReceiptAsync(int exportId)

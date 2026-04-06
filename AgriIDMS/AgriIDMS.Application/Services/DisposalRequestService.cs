@@ -62,18 +62,10 @@ namespace AgriIDMS.Application.Services
         {
             var (_, boxes) = await ValidateAndLoadBoxesAsync(dto);
 
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 await ProcessDisposeBoxesAsync(boxes, reviewerUserId, null);
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitAsync();
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+            });
         }
 
         public async Task<List<DisposalRequestListItemDto>> GetRequestsAsync(DisposalRequestStatus? status, int? warehouseId)
@@ -147,8 +139,7 @@ namespace AgriIDMS.Application.Services
             if (boxIds.Count == 0)
                 throw new InvalidBusinessRuleException("Yêu cầu không có box để xử lý");
 
-            await _unitOfWork.BeginTransactionAsync();
-            try
+            await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var boxes = await _boxRepo.GetByIdsWithLotAndReceiptAsync(boxIds);
                 if (boxes.Count == 0)
@@ -160,16 +151,9 @@ namespace AgriIDMS.Application.Services
                 req.ReviewedBy = adminUserId;
                 req.ReviewedAt = DateTime.UtcNow;
                 req.ReviewNote = string.IsNullOrWhiteSpace(reviewNote) ? null : reviewNote.Trim();
+            });
 
-                await _unitOfWork.SaveChangesAsync();
-                await _unitOfWork.CommitAsync();
-                await _notificationService.NotifyDisposalRequestApprovedAsync(req.Id, req.RequestedBy);
-            }
-            catch
-            {
-                await _unitOfWork.RollbackAsync();
-                throw;
-            }
+            await _notificationService.NotifyDisposalRequestApprovedAsync(req.Id, req.RequestedBy);
         }
 
         public async Task RejectAsync(int id, string adminUserId, string? reviewNote = null)
