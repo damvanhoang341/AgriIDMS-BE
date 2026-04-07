@@ -13,5 +13,8 @@ namespace AgriIDMS.Application.Interfaces
         Task<ExportReceiptResponseDto> GetExportReceiptAsync(int exportId);
         Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport();
         Task<IList<PendingApproveExportListItemDto>> GetPendingApproveExportsAsync(GetPendingApproveExportsQuery query);
+
+        /// <summary>Phiếu xuất đã duyệt (Approved) — lịch sử xuất thành công.</summary>
+        Task<IList<PendingApproveExportListItemDto>> GetApprovedExportsAsync(GetPendingApproveExportsQuery query);
     }
 }

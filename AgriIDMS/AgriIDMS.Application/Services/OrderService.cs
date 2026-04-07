@@ -308,6 +308,44 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<OrderListItemDto>> GetApprovedExportOrdersAsync(GetPendingAllocationOrdersQuery query)
+        {
+            query ??= new GetPendingAllocationOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            OrderSource? source = null;
+            if (!string.IsNullOrWhiteSpace(query.Source))
+            {
+                if (!Enum.TryParse<OrderSource>(query.Source, true, out var parsedSource))
+                    throw new InvalidBusinessRuleException("Source không hợp lệ. Chỉ nhận Online hoặc POS.");
+                source = parsedSource;
+            }
+
+            var orders = await _orderRepo.GetApprovedExportOrdersAsync(
+                query.CustomerUserId,
+                source,
+                skip,
+                take);
+
+            return orders.Select(o => new OrderListItemDto
+            {
+                OrderId = o.Id,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
+                Source = o.Source.ToString(),
+                CreatedAt = o.CreatedAt,
+                ItemCount = o.Details?.Count ?? 0,
+                LatestPaymentStatus = o.Payments?
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefault()?
+                    .PaymentStatus
+                    .ToString(),
+                PaymentTiming = o.PaymentTiming?.ToString()
+            }).ToList();
+        }
+
         public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)

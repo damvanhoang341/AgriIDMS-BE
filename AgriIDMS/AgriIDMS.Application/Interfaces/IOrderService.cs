@@ -28,6 +28,9 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<IList<OrderListItemDto>> GetConfirmedAllocationOrdersAsync(GetPendingAllocationOrdersQuery query);
 
+        /// <summary>Đơn đang ApprovedExport (đã duyệt xuất, trong luồng giao).</summary>
+        Task<IList<OrderListItemDto>> GetApprovedExportOrdersAsync(GetPendingAllocationOrdersQuery query);
+
         Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId);
 
         Task<AllocationHistoryDto> GetAllocationHistoryAsync(int orderId);

@@ -64,5 +64,24 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Take(take)
                 .ToListAsync();
         }
+
+        public async Task<IList<ExportReceipt>> GetApprovedExportsAsync(int skip, int take, string? sort)
+        {
+            var q = _context.ExportReceipts
+                .Include(e => e.Order)
+                .Include(e => e.Details)
+                .Where(e => e.Status == ExportStatus.Approved);
+
+            var sortKey = sort?.Trim();
+            if (string.Equals(sortKey, "createdAtAsc", StringComparison.OrdinalIgnoreCase))
+                q = q.OrderBy(e => e.CreatedAt);
+            else
+                q = q.OrderByDescending(e => e.CreatedAt);
+
+            return await q
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
     }
 }

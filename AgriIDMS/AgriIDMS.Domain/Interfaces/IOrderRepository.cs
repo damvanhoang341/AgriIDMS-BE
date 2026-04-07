@@ -54,7 +54,8 @@ namespace AgriIDMS.Domain.Interfaces
 
         Task<IList<Order>> GetPaidPendingExportOrdersAsync(int? orderId, OrderSource? source, int skip, int take, string? sort);
 
-
+        /// <summary>Đơn đã duyệt phiếu xuất, đang trong luồng giao (OrderStatus.ApprovedExport).</summary>
+        Task<IList<Order>> GetApprovedExportOrdersAsync(string? customerUserId, OrderSource? source, int skip, int take);
 
         /// <summary>Danh sách đơn của customer có thể khiếu nại (Shipping/Completed).</summary>
 
