@@ -1193,6 +1193,7 @@ namespace AgriIDMS.Application.Services
 
                 order.TotalAmount = total;
                 await _orderRepo.AddAsync(order);
+                await _uow.SaveChangesAsync();
 
                 response = new CreateOrderFromCartResponse
                 {
