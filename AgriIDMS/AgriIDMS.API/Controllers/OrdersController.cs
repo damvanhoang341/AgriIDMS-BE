@@ -77,6 +77,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Đơn đang <c>ApprovedExport</c> (đã duyệt phiếu xuất, trong luồng giao) — Sale theo dõi.</summary>
+        [HttpGet("staff/approved-export")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> GetApprovedExportOrders([FromQuery] GetPendingAllocationOrdersQuery query)
+        {
+            var result = await _orderService.GetApprovedExportOrdersAsync(query);
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết box đang được propose FEFO cho 1 đơn.</summary>
         [HttpGet("{id:int:min(1)}/allocation/proposals")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]

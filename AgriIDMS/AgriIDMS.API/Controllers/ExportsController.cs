@@ -82,6 +82,29 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Phiếu đã xác nhận pick (<c>ReadyToExport</c>), chờ Manager duyệt — kho xem lại các phiếu đã xác nhận lấy hàng.
+        /// Cùng dữ liệu với <c>staff/pending-approve</c>, mở thêm cho WarehouseStaff.
+        /// </summary>
+        [HttpGet("warehouse/post-pick")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetWarehousePostPickExports([FromQuery] GetPendingApproveExportsQuery query)
+        {
+            var result = await _exportService.GetPendingApproveExportsAsync(query);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Phiếu xuất đã duyệt xuất kho thành công (<c>Approved</c>) — Manager/Admin xem lại lịch sử.
+        /// </summary>
+        [HttpGet("staff/approved")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetApprovedExports([FromQuery] GetPendingApproveExportsQuery query)
+        {
+            var result = await _exportService.GetApprovedExportsAsync(query);
+            return Ok(result);
+        }
+
         [HttpGet("get-all-export")]
         public async Task<IActionResult> GetAllExport()
         {

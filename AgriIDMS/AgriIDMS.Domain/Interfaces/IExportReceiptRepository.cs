@@ -13,5 +13,8 @@ namespace AgriIDMS.Domain.Interfaces
 
         /// <summary>Phiếu ReadyToExport chờ Manager/Admin duyệt.</summary>
         Task<IList<ExportReceipt>> GetReadyToExportPendingApproveAsync(int skip, int take, string? sort);
+
+        /// <summary>Phiếu xuất đã duyệt xuất kho thành công (ExportStatus.Approved).</summary>
+        Task<IList<ExportReceipt>> GetApprovedExportsAsync(int skip, int take, string? sort);
     }
 }

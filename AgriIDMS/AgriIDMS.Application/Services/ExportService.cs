@@ -340,6 +340,25 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<PendingApproveExportListItemDto>> GetApprovedExportsAsync(GetPendingApproveExportsQuery query)
+        {
+            query ??= new GetPendingApproveExportsQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            var list = await _exportRepo.GetApprovedExportsAsync(skip, take, query.Sort);
+
+            return list.Select(e => new PendingApproveExportListItemDto
+            {
+                ExportId = e.Id,
+                ExportCode = e.ExportCode,
+                OrderId = e.OrderId,
+                Status = e.Status.ToString(),
+                CreatedAt = e.CreatedAt,
+                BoxCount = e.Details?.Count ?? 0
+            }).ToList();
+        }
+
         public async Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport()
         {
             var exportsList = await _exportRepo.GetAllExport();
