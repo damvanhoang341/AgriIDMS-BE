@@ -331,6 +331,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.PendingReason)
                   .HasMaxLength(500);
 
+            entity.Property(x => x.NonPoReason)
+                  .HasMaxLength(500);
+
+            entity.Property(x => x.InboundReceiptKind)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.PrintSnapshotAfterQcJson)
+                  .HasColumnType("nvarchar(max)");
+
+            entity.Property(x => x.PrintSnapshotAfterApproveJson)
+                  .HasColumnType("nvarchar(max)");
+
             entity.Property(x => x.ReceivedBy)
                   .HasMaxLength(450);
 

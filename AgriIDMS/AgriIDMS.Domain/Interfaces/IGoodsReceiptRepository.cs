@@ -13,6 +13,10 @@ namespace AgriIDMS.Domain.Interfaces
         Task<GoodsReceipt?> GetGoodsReceiptByIdAsync(int goodsReceiptId);
         Task<GoodsReceipt?> GetGoodsReceiptWithDetailsAsync(int goodsReceiptId);
         Task<GoodsReceipt?> GetGoodsReceiptForApproveAsync(int goodsReceiptId);
+
+        /// <summary>Phiếu nhập đủ quan hệ để dựng Phiếu nhập kho (in).</summary>
+        Task<GoodsReceipt?> GetGoodsReceiptForPrintAsync(int goodsReceiptId);
+
         Task AddGoodsReceiptAsync(GoodsReceipt goodsReceipt);
         Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt);
         Task DeleteGoodsReceiptAsync(int goodsReceiptId);

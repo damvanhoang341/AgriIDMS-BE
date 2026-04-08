@@ -52,6 +52,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result.Details);
         }
 
+        /// <summary>Dữ liệu in "Phiếu nhập kho" (FE HTML). phase: afterQc | afterApprove (mặc định tự chọn). preview=true: xem trước.</summary>
+        [HttpGet("{id:int:min(1)}/print-data")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetPrintData(int id, [FromQuery] string? phase, [FromQuery] bool preview = false)
+        {
+            var result = await _goodsReceiptService.GetGoodsReceiptPrintDataAsync(id, phase, preview);
+            return Ok(result);
+        }
+
         /// <summary>Phiếu nhập kèm giá nhập để Manager/Admin xem xét khi Approve/Reject. Warehouse không gọi được.</summary>
         [HttpGet("{id:int:min(1)}/for-approval")]
         [Authorize(Roles = "Admin,Manager")]
