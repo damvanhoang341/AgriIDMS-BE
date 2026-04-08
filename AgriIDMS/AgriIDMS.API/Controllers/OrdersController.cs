@@ -77,9 +77,9 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Đơn đang <c>ApprovedExport</c> (đã duyệt phiếu xuất, trong luồng giao) — Sale theo dõi.</summary>
+        /// <summary>Đơn đang <c>ApprovedExport</c> (đã duyệt phiếu xuất, trong luồng giao) — Sale/Kho theo dõi.</summary>
         [HttpGet("staff/approved-export")]
-        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> GetApprovedExportOrders([FromQuery] GetPendingAllocationOrdersQuery query)
         {
             var result = await _orderService.GetApprovedExportOrdersAsync(query);
