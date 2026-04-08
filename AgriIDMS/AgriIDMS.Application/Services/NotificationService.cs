@@ -184,12 +184,17 @@ namespace AgriIDMS.Application.Services
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)
                 ?? throw new NotFoundException($"Phiếu xuất #{exportReceiptId} không tồn tại");
 
-            var message = $"Phiếu xuất {receipt.ExportCode} đã được duyệt. Đơn hàng #{receipt.OrderId} đang giao.";
+            var message =
+                $"Phiếu xuất {receipt.ExportCode} đã được Quản lý duyệt xuất thành công. Đơn hàng #{receipt.OrderId} đang trong luồng giao hàng — kho tiếp tục bàn giao/shipper theo quy trình.";
 
             var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (!string.IsNullOrWhiteSpace(receipt.CreatedBy))
                 recipients.Add(receipt.CreatedBy);
+
+            var warehouseStaff = await _userRepo.GetUserIdsInRolesAsync("WarehouseStaff");
+            foreach (var id in warehouseStaff)
+                recipients.Add(id);
 
             await CreateNotificationIfNotExistsAsync(
                 NotificationType.Order,
