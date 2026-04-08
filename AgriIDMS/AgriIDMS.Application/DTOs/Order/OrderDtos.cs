@@ -210,6 +210,8 @@ namespace AgriIDMS.Application.DTOs.Order
         public string Status { get; set; } = null!;
         public string ShippingStatus { get; set; } = null!;
         public string Source { get; set; } = null!;
+        /// <summary>Delivery | TakeAway — cùng ý nghĩa với <see cref="OrderDetailDto.FulfillmentType"/>.</summary>
+        public string FulfillmentType { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public int ItemCount { get; set; }
         public string? LatestPaymentStatus { get; set; }
