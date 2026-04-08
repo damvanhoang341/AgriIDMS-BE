@@ -8,6 +8,9 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task AddAsync(ExportReceipt receipt);
         Task<ExportReceipt?> GetByIdWithDetailsAsync(int id);
+
+        /// <summary>Phiếu xuất kèm Order + chi tiết hàng (Lot → sản phẩm) để in / snapshot.</summary>
+        Task<ExportReceipt?> GetByIdWithDetailsForPrintAsync(int id);
         Task<IEnumerable<ExportReceipt>> GetAllExport();
         Task<bool> ExistsForOrderAsync(int orderId);
 

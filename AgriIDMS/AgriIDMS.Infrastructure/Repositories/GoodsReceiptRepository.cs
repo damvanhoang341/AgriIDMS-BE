@@ -83,6 +83,25 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
         }
 
+        public async Task<GoodsReceipt?> GetGoodsReceiptForPrintAsync(int goodsReceiptId)
+        {
+            return await _context.GoodsReceipts
+                .AsSplitQuery()
+                .Include(r => r.Supplier)
+                .Include(r => r.Warehouse)
+                .Include(r => r.PurchaseOrder)
+                .Include(r => r.CreatedUser)
+                .Include(r => r.ApprovedUser)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.Qc)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.ProductVariant!)
+                        .ThenInclude(pv => pv.Product)
+                .Include(r => r.Details)
+                    .ThenInclude(d => d.PurchaseOrderDetail!)
+                .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
+        }
+
         public Task UpdateGoodsReceiptAsync(GoodsReceipt goodsReceipt)
         {
             _context.GoodsReceipts.Update(goodsReceipt);

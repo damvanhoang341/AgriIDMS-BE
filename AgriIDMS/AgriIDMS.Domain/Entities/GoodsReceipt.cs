@@ -14,6 +14,12 @@ namespace AgriIDMS.Domain.Entities
         public int? PurchaseOrderId { get; set; }
         public PurchaseOrder? PurchaseOrder { get; set; }
 
+        /// <summary>Phân loại phiếu (theo PO / nhập trực tiếp). Hiển thị trên Phiếu nhập kho.</summary>
+        public InboundReceiptKind InboundReceiptKind { get; set; } = InboundReceiptKind.FromPurchaseOrder;
+
+        /// <summary>Lý do nhập không PO hoặc ghi chú nghiệp vụ (khi <see cref="InboundReceiptKind"/> = DirectInbound hoặc không có PO).</summary>
+        public string? NonPoReason { get; set; }
+
         public int SupplierId { get; set; }
         public Supplier Supplier { get; set; } = null!;
 
@@ -43,6 +49,12 @@ namespace AgriIDMS.Domain.Entities
 
         /// <summary>Lý do chuyển sang chờ Manager (vượt dung sai / dưới định mức). Hiển thị cho Manager xem xét Approve/Reject.</summary>
         public string? PendingReason { get; set; }
+
+        /// <summary>Snapshot JSON in Phiếu nhập kho sau khi QC xong (QCCompleted hoặc PendingManagerApproval).</summary>
+        public string? PrintSnapshotAfterQcJson { get; set; }
+
+        /// <summary>Snapshot JSON in Phiếu nhập kho sau khi duyệt nhập (Approved).</summary>
+        public string? PrintSnapshotAfterApproveJson { get; set; }
 
         public ICollection<GoodsReceiptDetail> Details { get; set; } = new List<GoodsReceiptDetail>();
     }

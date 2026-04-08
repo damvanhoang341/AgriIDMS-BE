@@ -9,12 +9,20 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
 {
     public class GoodsReceiptService : IGoodsReceiptService
     {
+        private static readonly JsonSerializerOptions PrintJsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
+
         private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly IGoodsReceiptDetailRepository _detailRepo;
         private readonly IGoodsReceiptDetailService _detailService;
@@ -86,6 +94,7 @@ namespace AgriIDMS.Application.Services
                 {
                     ReceiptCode = await _receiptRepo.GenerateReceiptCodeAsync(),
                     PurchaseOrderId = request.PurchaseOrderId,
+                    InboundReceiptKind = InboundReceiptKind.FromPurchaseOrder,
                     SupplierId = po.SupplierId,
                     WarehouseId = request.WarehouseId,
                     VehicleNumber = request.VehicleNumber,
@@ -196,6 +205,7 @@ namespace AgriIDMS.Application.Services
                 receipt.PendingReason = reason;
                 await _unitOfWork.SaveChangesAsync();
                 await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receipt.Id);
+                await PersistPrintSnapshotAfterQcAsync(receipt.Id);
             }
             else
             {
@@ -203,6 +213,7 @@ namespace AgriIDMS.Application.Services
                 receipt.Status = GoodsReceiptStatus.QCCompleted;
                 receipt.PendingReason = null;
                 await _unitOfWork.SaveChangesAsync();
+                await PersistPrintSnapshotAfterQcAsync(receipt.Id);
             }
         }
 
@@ -366,6 +377,8 @@ namespace AgriIDMS.Application.Services
             receipt.ApprovedAt = DateTime.UtcNow;
             receipt.PendingReason = null; // Đã duyệt, xóa lý do chờ Manager
             await _unitOfWork.SaveChangesAsync();
+
+            await PersistPrintSnapshotAfterApproveAsync(receipt.Id);
         }
 
         /// <summary>Check Capacity: đảm bảo kho đích còn đủ dung lượng trống cho tổng UsableWeight của phiếu.</summary>
@@ -603,6 +616,175 @@ namespace AgriIDMS.Application.Services
             };
             await _lotRepo.AddRangeAsync(new List<Lot> { lot });
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        // ===============================
+        // PRINT: Phiếu nhập kho (HTML — FE template)
+        // ===============================
+
+        public async Task<GoodsReceiptPrintDataDto> GetGoodsReceiptPrintDataAsync(int receiptId, string? phase, bool preview)
+        {
+            if (preview)
+            {
+                var rPreview = await _receiptRepo.GetGoodsReceiptForPrintAsync(receiptId)
+                    ?? throw new NotFoundException("Phiếu nhập không tồn tại");
+                return BuildGoodsReceiptPrintDataDto(rPreview, "preview", isPreview: true);
+            }
+
+            var receipt = await _receiptRepo.GetGoodsReceiptForPrintAsync(receiptId)
+                ?? throw new NotFoundException("Phiếu nhập không tồn tại");
+
+            var p = phase?.Trim().ToLowerInvariant();
+
+            if (p == "afterqc")
+            {
+                if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterQcJson))
+                    return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterQcJson);
+                if (receipt.Status == GoodsReceiptStatus.QCCompleted
+                    || receipt.Status == GoodsReceiptStatus.PendingManagerApproval)
+                    return BuildGoodsReceiptPrintDataDto(receipt, "afterQc", isPreview: false);
+                throw new InvalidBusinessRuleException(
+                    "Chưa có bản in sau QC. Vui lòng hoàn tất QC toàn bộ dòng.");
+            }
+
+            if (p == "afterapprove")
+            {
+                if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterApproveJson))
+                    return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterApproveJson);
+                if (receipt.Status == GoodsReceiptStatus.Approved)
+                    return BuildGoodsReceiptPrintDataDto(receipt, "afterApprove", isPreview: false);
+                throw new InvalidBusinessRuleException(
+                    "Chưa có bản in sau duyệt. Phiếu cần ở trạng thái đã duyệt nhập kho.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterApproveJson))
+                return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterApproveJson);
+            if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterQcJson))
+                return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterQcJson);
+            if (receipt.Status == GoodsReceiptStatus.Approved)
+                return BuildGoodsReceiptPrintDataDto(receipt, "afterApprove", isPreview: false);
+            if (receipt.Status == GoodsReceiptStatus.QCCompleted
+                || receipt.Status == GoodsReceiptStatus.PendingManagerApproval)
+                return BuildGoodsReceiptPrintDataDto(receipt, "afterQc", isPreview: false);
+
+            throw new InvalidBusinessRuleException(
+                "Chưa đủ dữ liệu in. Hoàn tất QC, hoặc truyền preview=true để xem trước.");
+        }
+
+        private async Task PersistPrintSnapshotAfterQcAsync(int receiptId)
+        {
+            var r = await _receiptRepo.GetGoodsReceiptForPrintAsync(receiptId);
+            if (r == null) return;
+            if (r.Status != GoodsReceiptStatus.QCCompleted && r.Status != GoodsReceiptStatus.PendingManagerApproval)
+                return;
+            if (!string.IsNullOrWhiteSpace(r.PrintSnapshotAfterQcJson))
+                return;
+
+            var dto = BuildGoodsReceiptPrintDataDto(r, "afterQc", isPreview: false);
+            r.PrintSnapshotAfterQcJson = JsonSerializer.Serialize(dto, PrintJsonOptions);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        private async Task PersistPrintSnapshotAfterApproveAsync(int receiptId)
+        {
+            var r = await _receiptRepo.GetGoodsReceiptForPrintAsync(receiptId);
+            if (r == null) return;
+            if (r.Status != GoodsReceiptStatus.Approved) return;
+            if (!string.IsNullOrWhiteSpace(r.PrintSnapshotAfterApproveJson))
+                return;
+
+            var dto = BuildGoodsReceiptPrintDataDto(r, "afterApprove", isPreview: false);
+            r.PrintSnapshotAfterApproveJson = JsonSerializer.Serialize(dto, PrintJsonOptions);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        private static GoodsReceiptPrintDataDto DeserializeGoodsReceiptPrint(string json)
+        {
+            var dto = JsonSerializer.Deserialize<GoodsReceiptPrintDataDto>(json, PrintJsonOptions);
+            if (dto == null)
+                throw new InvalidBusinessRuleException("Dữ liệu in (snapshot) không hợp lệ.");
+            return dto;
+        }
+
+        private static GoodsReceiptPrintDataDto BuildGoodsReceiptPrintDataDto(
+            GoodsReceipt receipt,
+            string snapshotPhase,
+            bool isPreview)
+        {
+            var requiresManagerAttention =
+                receipt.Status == GoodsReceiptStatus.PendingManagerApproval
+                || receipt.Status == GoodsReceiptStatus.PendingManagerApprovalQc;
+
+            string? printWarning = null;
+            if (requiresManagerAttention)
+            {
+                printWarning = string.IsNullOrWhiteSpace(receipt.PendingReason)
+                    ? "Phiếu đang chờ Quản lý xử lý."
+                    : "Phiếu đang chờ Quản lý xử lý. " + receipt.PendingReason!.Trim();
+            }
+
+            var kind = receipt.PurchaseOrderId.HasValue
+                ? receipt.InboundReceiptKind
+                : InboundReceiptKind.DirectInbound;
+
+            var lines = new List<GoodsReceiptPrintLineDto>();
+            var n = 0;
+            foreach (var d in receipt.Details.OrderBy(x => x.Id))
+            {
+                n++;
+                var pv = d.ProductVariant;
+                var productName = pv?.Product?.Name != null && !string.IsNullOrWhiteSpace(pv.Name)
+                    ? $"{pv.Product.Name.Trim()} ({pv.Name.Trim()})"
+                    : (pv?.Product?.Name?.Trim() ?? pv?.Name?.Trim() ?? "N/A");
+                var grade = pv?.Grade.ToString() ?? "";
+
+                lines.Add(new GoodsReceiptPrintLineDto
+                {
+                    LineNo = n,
+                    DetailId = d.Id,
+                    ProductName = productName,
+                    Grade = grade,
+                    OrderedWeightKg = d.PurchaseOrderDetail?.OrderedWeight,
+                    ReceivedWeightKg = d.ReceivedWeight,
+                    UsableWeightKg = d.UsableWeight,
+                    QcResult = d.QCResult.ToString(),
+                    QcNote = d.Qc?.QCNote,
+                    InspectedBy = d.InspectedBy,
+                    InspectedAtUtc = d.InspectedAt
+                });
+            }
+
+            var approvedName = receipt.ApprovedUser?.FullName?.Trim()
+                ?? receipt.ApprovedUser?.UserName?.Trim();
+
+            return new GoodsReceiptPrintDataDto
+            {
+                SchemaVersion = "1",
+                DocumentTitle = "Phiếu nhập kho",
+                SnapshotAtUtc = DateTime.UtcNow,
+                SnapshotPhase = snapshotPhase,
+                IsPreview = isPreview,
+                RequiresManagerAttention = requiresManagerAttention,
+                PrintWarningMessage = printWarning,
+                ReceiptType = kind.ToString(),
+                NonPoReason = receipt.NonPoReason,
+                ReceiptId = receipt.Id,
+                ReceiptCode = receipt.ReceiptCode,
+                ReceiptStatus = receipt.Status.ToString(),
+                PurchaseOrderId = receipt.PurchaseOrderId,
+                PurchaseOrderCode = receipt.PurchaseOrder?.OrderCode,
+                SupplierName = receipt.Supplier?.Name?.Trim() ?? "N/A",
+                WarehouseName = receipt.Warehouse?.Name?.Trim() ?? "N/A",
+                VehicleNumber = receipt.VehicleNumber,
+                DriverName = receipt.DriverName,
+                TransportCompany = receipt.TransportCompany,
+                ReceivedDate = receipt.ReceivedDate,
+                TotalReceivedWeight = receipt.TotalReceivedWeight,
+                TotalUsableWeight = receipt.TotalUsableWeight,
+                ApprovedByUserName = approvedName,
+                ApprovedAtUtc = receipt.ApprovedAt,
+                Lines = lines
+            };
         }
 
         // ===============================

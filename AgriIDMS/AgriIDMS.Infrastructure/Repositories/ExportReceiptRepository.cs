@@ -34,6 +34,20 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(e => e.Id == id);
         }
 
+        public async Task<ExportReceipt?> GetByIdWithDetailsForPrintAsync(int id)
+        {
+            return await _context.ExportReceipts
+                .AsSplitQuery()
+                .Include(e => e.Order)
+                .Include(e => e.Details)
+                    .ThenInclude(d => d.Box!)
+                        .ThenInclude(b => b.Lot)
+                            .ThenInclude(l => l.GoodsReceiptDetail)
+                                .ThenInclude(grd => grd.ProductVariant)
+                                    .ThenInclude(pv => pv.Product)
+                .FirstOrDefaultAsync(e => e.Id == id);
+        }
+
         public async Task<bool> ExistsForOrderAsync(int orderId)
         {
             return await _context.ExportReceipts
