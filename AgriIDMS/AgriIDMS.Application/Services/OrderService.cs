@@ -340,6 +340,7 @@ namespace AgriIDMS.Application.Services
                 Status = o.Status.ToString(),
                 ShippingStatus = o.ShippingStatus.ToString(),
                 Source = o.Source.ToString(),
+                FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = o.Payments?
@@ -1410,6 +1411,7 @@ namespace AgriIDMS.Application.Services
                     Status = orderAfter.Status.ToString(),
                     ShippingStatus = orderAfter.ShippingStatus.ToString(),
                     Source = orderAfter.Source.ToString(),
+                    FulfillmentType = orderAfter.FulfillmentType.ToString(),
                     CreatedAt = orderAfter.CreatedAt,
                     ItemCount = orderAfter.Details?.Count ?? 0,
                     LatestPaymentStatus = null,
