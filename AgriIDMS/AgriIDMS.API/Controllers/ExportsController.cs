@@ -54,7 +54,17 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> CancelExport(int exportId)
         {
             var userId = GetCurrentUserId();
-            var result = await _exportService.CancelExportAsync(exportId, userId);
+            var isManagerOrAdmin = User.IsInRole("Manager") || User.IsInRole("Admin");
+            var result = await _exportService.CancelExportAsync(exportId, userId, isManagerOrAdmin);
+            return Ok(result);
+        }
+
+        /// <summary>Dữ liệu in phiếu xuất (FE dựng HTML). PendingPick = preview; từ ReadyToExport = snapshot đã chốt.</summary>
+        [HttpGet("{exportId:int:min(1)}/print-data")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetExportPrintData(int exportId)
+        {
+            var result = await _exportService.GetExportPrintDataAsync(exportId);
             return Ok(result);
         }
 

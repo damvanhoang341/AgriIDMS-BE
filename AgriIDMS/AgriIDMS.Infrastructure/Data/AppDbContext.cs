@@ -1324,6 +1324,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.CreatedAt)
                   .HasDefaultValueSql("GETUTCDATE()");
 
+            entity.Property(x => x.PrintDataSnapshotJson)
+                  .HasColumnType("nvarchar(max)");
+
             // Order (1 - many ExportReceipt nếu cho phép partial shipment)
             entity.HasOne(x => x.Order)
                   .WithMany(o => o.ExportReceipts)

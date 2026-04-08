@@ -23,6 +23,9 @@ namespace AgriIDMS.Domain.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        /// <summary>JSON snapshot cho in phiếu (HTML phía FE), chốt khi chuyển ReadyToExport.</summary>
+        public string? PrintDataSnapshotJson { get; set; }
+
         public ICollection<ExportDetail> Details { get; set; } = new List<ExportDetail>();
     }
 }

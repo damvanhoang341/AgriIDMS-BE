@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
@@ -18,6 +19,13 @@ namespace AgriIDMS.Application.Services
     public class ExportService : IExportService
     {
         private const decimal DefaultColdStorageHours = 48m;
+
+        private static readonly JsonSerializerOptions PrintJsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
         private readonly IExportReceiptRepository _exportRepo;
         private readonly IOrderRepository _orderRepo;
         private readonly IOrderAllocationRepository _allocationRepo;
@@ -138,7 +146,13 @@ namespace AgriIDMS.Application.Services
                 "ExportReceipt {ExportId} confirmed pick → ReadyToExport. {Count} boxes picking.",
                 exportId, receipt.Details.Count);
 
-            return MapToDto(receipt);
+            var forPrint = await _exportRepo.GetByIdWithDetailsForPrintAsync(exportId)
+                ?? throw new NotFoundException($"Phiếu xuất #{exportId} không tồn tại");
+            var printDto = BuildExportPrintData(forPrint, isPreview: false);
+            forPrint.PrintDataSnapshotJson = JsonSerializer.Serialize(printDto, PrintJsonOptions);
+            await _uow.SaveChangesAsync();
+
+            return MapToDto(forPrint);
         }
 
         public async Task<ExportReceiptResponseDto> ApproveExportAsync(int exportId, string userId)
@@ -218,16 +232,22 @@ namespace AgriIDMS.Application.Services
             return MapToDto(receipt);
         }
 
-        public async Task<ExportReceiptResponseDto> CancelExportAsync(int exportId, string userId)
+        public async Task<ExportReceiptResponseDto> CancelExportAsync(int exportId, string userId, bool isManagerOrAdmin)
         {
+            _ = userId;
+
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportId)
                 ?? throw new NotFoundException($"Phiếu xuất #{exportId} không tồn tại");
 
             if (receipt.Status == ExportStatus.Approved)
-                throw new InvalidBusinessRuleException("Không thể hủy phiếu xuất đã được duyệt");
+                throw new InvalidBusinessRuleException("Không thể hủy phiếu xuất đã được duyệt / đã xuất kho.");
 
             if (receipt.Status == ExportStatus.Cancelled)
                 throw new InvalidBusinessRuleException("Phiếu xuất đã bị hủy trước đó");
+
+            if (receipt.Status == ExportStatus.ReadyToExport && !isManagerOrAdmin)
+                throw new ForbiddenException(
+                    "Phiếu đã xác nhận sẵn sàng xuất (ReadyToExport). Chỉ Quản lý hoặc Admin mới được hủy.");
 
             var allocations = await _allocationRepo.GetByOrderIdAsync(receipt.OrderId);
 
@@ -259,6 +279,42 @@ namespace AgriIDMS.Application.Services
             return MapToDto(receipt);
         }
 
+        public async Task<ExportPrintDataDto> GetExportPrintDataAsync(int exportId)
+        {
+            var receipt = await _exportRepo.GetByIdWithDetailsForPrintAsync(exportId)
+                ?? throw new NotFoundException($"Phiếu xuất #{exportId} không tồn tại");
+
+            if (receipt.Status == ExportStatus.Cancelled)
+                throw new InvalidBusinessRuleException("Phiếu đã hủy, không còn dữ liệu in hợp lệ.");
+
+            if (receipt.Status == ExportStatus.PendingPick)
+                return BuildExportPrintData(receipt, isPreview: true);
+
+            if (!string.IsNullOrWhiteSpace(receipt.PrintDataSnapshotJson))
+            {
+                try
+                {
+                    var fromDb = JsonSerializer.Deserialize<ExportPrintDataDto>(
+                        receipt.PrintDataSnapshotJson,
+                        PrintJsonOptions);
+                    if (fromDb != null)
+                    {
+                        fromDb.IsPreview = false;
+                        return fromDb;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Export {ExportId}: snapshot JSON lỗi, build lại từ DB.", exportId);
+                }
+            }
+
+            if (receipt.Status is ExportStatus.ReadyToExport or ExportStatus.Approved)
+                return BuildExportPrintData(receipt, isPreview: false);
+
+            throw new InvalidBusinessRuleException($"Không có dữ liệu in cho trạng thái phiếu: {receipt.Status}.");
+        }
+
         public async Task<ExportReceiptResponseDto> GetExportReceiptAsync(int exportId)
         {
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportId)
@@ -277,6 +333,7 @@ namespace AgriIDMS.Application.Services
                 Status = receipt.Status.ToString(),
                 CreatedBy = receipt.CreatedBy,
                 CreatedAt = receipt.CreatedAt,
+                HasPrintSnapshot = !string.IsNullOrWhiteSpace(receipt.PrintDataSnapshotJson),
                 Details = receipt.Details.Select(d => new ExportDetailDto
                 {
                     Id = d.Id,
@@ -285,6 +342,72 @@ namespace AgriIDMS.Application.Services
                     ActualQuantity = d.ActualQuantity,
                     BoxStatus = d.Box?.Status.ToString() ?? "N/A"
                 }).ToList()
+            };
+        }
+
+        private static ExportPrintDataDto BuildExportPrintData(ExportReceipt receipt, bool isPreview)
+        {
+            var order = receipt.Order
+                ?? throw new InvalidBusinessRuleException("Thiếu thông tin đơn hàng trên phiếu xuất.");
+
+            var lines = new List<ExportPrintLineDto>();
+            var n = 0;
+            foreach (var d in receipt.Details.OrderBy(x => x.Id))
+            {
+                n++;
+                var box = d.Box;
+                var lotCode = box?.Lot?.LotCode ?? "N/A";
+                var productName = "N/A";
+                var grade = "";
+
+                var pv = box?.Lot?.GoodsReceiptDetail?.ProductVariant;
+                if (pv != null)
+                {
+                    var pname = pv.Product?.Name?.Trim();
+                    var vname = pv.Name?.Trim();
+                    productName = string.IsNullOrEmpty(pname)
+                        ? (vname ?? "N/A")
+                        : (string.IsNullOrEmpty(vname) ? pname! : $"{pname} ({vname})");
+                    grade = pv.Grade.ToString();
+                }
+
+                lines.Add(new ExportPrintLineDto
+                {
+                    LineNo = n,
+                    BoxId = d.BoxId,
+                    BoxCode = box?.BoxCode ?? "N/A",
+                    LotCode = lotCode,
+                    ProductName = productName,
+                    Grade = grade,
+                    BoxWeightKg = box?.Weight ?? 0,
+                    ActualQuantity = d.ActualQuantity,
+                    BoxType = box?.BoxType.ToString() ?? "Unknown",
+                    IsPartial = box?.IsPartial ?? false
+                });
+            }
+
+            return new ExportPrintDataDto
+            {
+                SchemaVersion = "1",
+                SnapshotAtUtc = DateTime.UtcNow,
+                IsPreview = isPreview,
+                ExportId = receipt.Id,
+                ExportCode = receipt.ExportCode,
+                ExportStatus = receipt.Status.ToString(),
+                OrderId = order.Id,
+                OrderStatus = order.Status.ToString(),
+                OrderSource = order.Source.ToString(),
+                FulfillmentType = order.FulfillmentType.ToString(),
+                TotalAmount = order.TotalAmount,
+                RecipientFullName = !string.IsNullOrWhiteSpace(order.RecipientFullName)
+                    ? order.RecipientFullName.Trim()
+                    : (order.CustomerName?.Trim() ?? string.Empty),
+                RecipientPhone = !string.IsNullOrWhiteSpace(order.RecipientPhone)
+                    ? order.RecipientPhone.Trim()
+                    : (order.CustomerPhone?.Trim() ?? string.Empty),
+                RecipientAddress = order.RecipientAddress?.Trim() ?? string.Empty,
+                CustomerUserId = order.CustomerUserId,
+                Lines = lines
             };
         }
 
@@ -370,6 +493,7 @@ namespace AgriIDMS.Application.Services
                 Status = s.Status.ToString(),
                 CreatedBy = s.CreatedBy,
                 CreatedAt = s.CreatedAt,
+                HasPrintSnapshot = !string.IsNullOrWhiteSpace(s.PrintDataSnapshotJson),
                 Details = s.Details.Select(d => new ExportDetailDto
                 {
                     Id = d.Id,
