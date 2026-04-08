@@ -68,7 +68,17 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.Source != OrderSource.Online)
+            string? recipientUserId = null;
+            if (order.Source == OrderSource.Online)
+            {
+                recipientUserId = order.UserId;
+            }
+            else if (order.Source == OrderSource.POS && !string.IsNullOrWhiteSpace(order.CustomerUserId))
+            {
+                recipientUserId = order.CustomerUserId;
+            }
+
+            if (string.IsNullOrWhiteSpace(recipientUserId))
                 return;
 
             var message =
@@ -78,7 +88,7 @@ namespace AgriIDMS.Application.Services
                 message,
                 referenceType: "OrderShippingInProgress",
                 referenceId: orderId,
-                recipientUserIds: new[] { order.UserId });
+                recipientUserIds: new[] { recipientUserId });
         }
 
         public async Task NotifyOrderDeliveredForReviewAsync(int orderId)
