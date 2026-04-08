@@ -290,7 +290,7 @@ namespace AgriIDMS.API.Controllers
         /// Body: { "shippingStatus": "ShippingInProgress" } (enum name, JSON number cũng được).
         /// </summary>
         [HttpPatch("{id:int:min(1)}/shipping/status")]
-        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        [Authorize(Roles = "WarehouseStaff")]
         public async Task<IActionResult> UpdateShippingStatusAsStaff(int id, [FromBody] UpdateOrderShippingStatusRequest body)
         {
             var operatorUserId = GetCurrentUserId();

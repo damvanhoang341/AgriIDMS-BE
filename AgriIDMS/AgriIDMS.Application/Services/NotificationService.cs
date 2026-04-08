@@ -174,13 +174,9 @@ namespace AgriIDMS.Application.Services
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)
                 ?? throw new NotFoundException($"Phiếu xuất #{exportReceiptId} không tồn tại");
 
-            var order = receipt.Order;
             var message = $"Phiếu xuất {receipt.ExportCode} đã được duyệt. Đơn hàng #{receipt.OrderId} đang giao.";
 
-            var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                order.UserId
-            };
+            var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (!string.IsNullOrWhiteSpace(receipt.CreatedBy))
                 recipients.Add(receipt.CreatedBy);
