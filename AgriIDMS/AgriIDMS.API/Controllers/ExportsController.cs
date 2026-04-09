@@ -105,10 +105,10 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Phiếu xuất đã duyệt xuất kho thành công (<c>Approved</c>) — Manager/Admin xem lại lịch sử.
+        /// Phiếu xuất đã duyệt xuất kho thành công (<c>Approved</c>) — Kho/Manager/Admin xem lịch sử (chỉ đọc; duyệt qua <c>PATCH .../approve</c>).
         /// </summary>
         [HttpGet("staff/approved")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
         public async Task<IActionResult> GetApprovedExports([FromQuery] GetPendingApproveExportsQuery query)
         {
             var result = await _exportService.GetApprovedExportsAsync(query);
