@@ -297,7 +297,6 @@ public class AuthService(IAuthRepository authRepo,
     public async Task ForgotPasswordAndResetAsync(ForgotPasswordRequest dto)
     {
         var user = await userManager.FindByEmailAsync(dto.Email);
-
         if (user == null || !user.EmailConfirmed)
             throw new NotFoundException("Không tìm thấy user với email đã cho");
 
