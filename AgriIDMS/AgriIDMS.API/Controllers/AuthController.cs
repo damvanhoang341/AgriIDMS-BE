@@ -99,7 +99,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
     {
         var clientUrl = (_config["AppSettings:ClientUrl"] ?? string.Empty).TrimEnd('/');
-        var loginUrl = "https://agriidms-eghneufmafazh0hx.japanwest-01.azurewebsites.net/api/Auth/Login";
+        var loginUrl = "https://agreeable-pebble-0c3796b00.7.azurestaticapps.net/login";
 
         try
         {
