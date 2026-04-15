@@ -10,12 +10,14 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
 {
     public class OrderService : IOrderService
     {
+        private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         private readonly ICartRepository _cartRepo;
         private readonly IOrderRepository _orderRepo;
         private readonly IBoxRepository _boxRepo;
@@ -869,6 +871,7 @@ namespace AgriIDMS.Application.Services
                 decimal estimatedTotal = 0;
                 var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
                 var nearExpiryRules = await GetActiveNearExpiryRulesForPricingAsync();
+                var freeStyleRules = await GetActiveFreeStyleRulesForPricingAsync();
                 var unitPriceByType = new Dictionary<(int ProductVariantId, decimal BoxWeight, bool IsPartial), decimal>();
                 var order = new Order
                 {
@@ -888,6 +891,15 @@ namespace AgriIDMS.Application.Services
                         cartUnitPricePerKg,
                         nearExpiryEligibilityCache,
                         nearExpiryRules);
+                    var lineSubtotalBeforeFreeStyle = item.Quantity * item.BoxWeight * unitPrice;
+                    var projectedSubtotalBeforeFreeStyle = estimatedTotal + lineSubtotalBeforeFreeStyle;
+                    unitPrice = ApplyFreeStyleDiscountIfEligible(
+                        item.ProductVariantId,
+                        unitPrice,
+                        projectedSubtotalBeforeFreeStyle,
+                        freeStyleRules,
+                        channel: "Online",
+                        isGuest: false);
 
                     var detail = new OrderDetail
                     {
@@ -999,6 +1011,7 @@ namespace AgriIDMS.Application.Services
                 decimal estimatedTotal = 0;
                 var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
                 var nearExpiryRules = await GetActiveNearExpiryRulesForPricingAsync();
+                var freeStyleRules = await GetActiveFreeStyleRulesForPricingAsync();
 
                 var order = new Order
                 {
@@ -1055,14 +1068,24 @@ namespace AgriIDMS.Application.Services
                             BoxWeight = item.BoxWeight,
                             IsPartial = item.IsPartial,
                             Quantity = qtyToTake,
-                            UnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
-                                item.ProductVariantId,
-                                NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price),
-                                nearExpiryEligibilityCache,
-                                nearExpiryRules),
+                            UnitPrice = 0m,
                             FulfilledQuantity = 0,
                             ShortageQuantity = 0
                         };
+                        var nearExpiryUnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
+                            item.ProductVariantId,
+                            NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price),
+                            nearExpiryEligibilityCache,
+                            nearExpiryRules);
+                        var lineSubtotalBeforeFreeStyle = qtyToTake * item.BoxWeight * nearExpiryUnitPrice;
+                        var projectedSubtotalBeforeFreeStyle = estimatedTotal + lineSubtotalBeforeFreeStyle;
+                        detail.UnitPrice = ApplyFreeStyleDiscountIfEligible(
+                            item.ProductVariantId,
+                            nearExpiryUnitPrice,
+                            projectedSubtotalBeforeFreeStyle,
+                            freeStyleRules,
+                            channel: "Online",
+                            isGuest: false);
 
                         order.Details.Add(detail);
                         estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
@@ -1137,6 +1160,7 @@ namespace AgriIDMS.Application.Services
             var now = DateTime.UtcNow;
             var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
             var nearExpiryRules = await GetActiveNearExpiryRulesForPricingAsync();
+            var freeStyleRules = await GetActiveFreeStyleRulesForPricingAsync();
             CreateOrderFromCartResponse response = null!;
             await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
@@ -1200,6 +1224,18 @@ namespace AgriIDMS.Application.Services
                             nearExpiryEligibilityCache,
                             nearExpiryRules,
                             includeOfflineOnly: true);
+                    if (!item.UnitPrice.HasValue)
+                    {
+                        var lineSubtotalBeforeFreeStyle = item.Quantity * item.BoxWeight * unitPrice;
+                        var projectedSubtotalBeforeFreeStyle = total + lineSubtotalBeforeFreeStyle;
+                        unitPrice = ApplyFreeStyleDiscountIfEligible(
+                            item.ProductVariantId,
+                            unitPrice,
+                            projectedSubtotalBeforeFreeStyle,
+                            freeStyleRules,
+                            channel: "POS",
+                            isGuest: posCustomer.IsGuest);
+                    }
                     if (unitPrice <= 0)
                         throw new InvalidBusinessRuleException("Đơn giá phải lớn hơn 0");
 
@@ -1374,6 +1410,86 @@ namespace AgriIDMS.Application.Services
         {
             var rules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.NearExpiry);
             return rules;
+        }
+
+        private async Task<IReadOnlyList<DiscountRule>> GetActiveFreeStyleRulesForPricingAsync()
+        {
+            var rules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.FreeStyle);
+            return rules;
+        }
+
+        private static decimal ApplyFreeStyleDiscountIfEligible(
+            int productVariantId,
+            decimal unitPrice,
+            decimal orderSubtotalBeforeFreeStyle,
+            IReadOnlyList<DiscountRule> freeStyleRules,
+            string channel,
+            bool isGuest)
+        {
+            if (unitPrice <= 0 || freeStyleRules.Count == 0)
+                return unitPrice;
+
+            var matchedRule = freeStyleRules
+                .Where(r => r.IsActive)
+                .Where(r => IsFreeStyleRuleMatched(r, productVariantId, orderSubtotalBeforeFreeStyle, channel, isGuest))
+                .OrderBy(r => r.Priority)
+                .ThenByDescending(r => r.DiscountPercent)
+                .FirstOrDefault();
+
+            if (matchedRule == null || matchedRule.DiscountPercent <= 0)
+                return unitPrice;
+
+            var discountedPrice = unitPrice * (1 - (matchedRule.DiscountPercent / 100m));
+            return Math.Round(Math.Max(discountedPrice, 0.01m), 2, MidpointRounding.AwayFromZero);
+        }
+
+        private static bool IsFreeStyleRuleMatched(
+            DiscountRule rule,
+            int productVariantId,
+            decimal orderSubtotal,
+            string channel,
+            bool isGuest)
+        {
+            var conditions = ParseFreeStyleConditions(rule.ConditionsJson);
+            if (conditions.Channels.Count > 0 &&
+                !conditions.Channels.Any(c => string.Equals(c, channel, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            if (!conditions.IsGuestAllowed && isGuest)
+                return false;
+
+            if (conditions.MinSubtotal.HasValue && orderSubtotal < conditions.MinSubtotal.Value)
+                return false;
+
+            if (conditions.ProductVariantIds.Count > 0 &&
+                !conditions.ProductVariantIds.Contains(productVariantId))
+                return false;
+
+            return true;
+        }
+
+        private static FreeStyleConditions ParseFreeStyleConditions(string? conditionsJson)
+        {
+            if (string.IsNullOrWhiteSpace(conditionsJson))
+                return new FreeStyleConditions();
+
+            try
+            {
+                return JsonSerializer.Deserialize<FreeStyleConditions>(conditionsJson, JsonOptions)
+                    ?? new FreeStyleConditions();
+            }
+            catch
+            {
+                return new FreeStyleConditions();
+            }
+        }
+
+        private sealed class FreeStyleConditions
+        {
+            public List<string> Channels { get; set; } = new();
+            public bool IsGuestAllowed { get; set; }
+            public decimal? MinSubtotal { get; set; }
+            public List<int> ProductVariantIds { get; set; } = new();
         }
 
         private static decimal NormalizeCartUnitPricePerKg(decimal storedUnitPrice, decimal boxWeight, decimal? variantPricePerKg)
