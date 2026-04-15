@@ -67,7 +67,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Manager đặt % giảm giá thủ công khi tồn gần hết hạn (ghi đè Pricing:NearExpiryDiscountPercent).
+        /// Manager đặt % giảm giá thủ công khi tồn gần hết hạn theo biến thể.
         /// Gửi <c>discountPercent: null</c> để xóa override.
         /// </summary>
         [HttpPut("{id:int}/near-expiry-discount")]

@@ -43,7 +43,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
-    public DbSet<NearExpiryDiscountRule> NearExpiryDiscountRules => Set<NearExpiryDiscountRule>();
+    public DbSet<DiscountRule> DiscountRules => Set<DiscountRule>();
     public DbSet<DisposalRequest> DisposalRequests => Set<DisposalRequest>();
     public DbSet<DisposalRequestItem> DisposalRequestItems => Set<DisposalRequestItem>();
     protected override void OnModelCreating(ModelBuilder builder)
@@ -140,20 +140,30 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.CategoryId);
         });
 
-        // ===================== NearExpiryDiscountRule =====================
-        builder.Entity<NearExpiryDiscountRule>(entity =>
+        // ===================== DiscountRule =====================
+        builder.Entity<DiscountRule>(entity =>
         {
-            entity.ToTable("NearExpiryDiscountRules");
+            entity.ToTable("DiscountRules");
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.MaxDaysLeft).IsRequired();
+            entity.Property(x => x.RuleType)
+                .HasConversion<int>()
+                .HasDefaultValue(DiscountRuleType.NearExpiry)
+                .IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(200);
+            entity.Property(x => x.MaxDaysLeft);
             entity.Property(x => x.DiscountPercent)
                 .HasPrecision(5, 2)
                 .IsRequired();
+            entity.Property(x => x.Priority)
+                .HasDefaultValue(100)
+                .IsRequired();
+            entity.Property(x => x.ConditionsJson).HasMaxLength(4000);
             entity.Property(x => x.IsActive)
                 .HasDefaultValue(true)
                 .IsRequired();
             entity.Property(x => x.CreatedBy).HasMaxLength(450);
             entity.Property(x => x.UpdatedBy).HasMaxLength(450);
+            entity.HasIndex(x => new { x.RuleType, x.IsActive, x.Priority });
         });
 
         // ===================== DisposalRequest =====================

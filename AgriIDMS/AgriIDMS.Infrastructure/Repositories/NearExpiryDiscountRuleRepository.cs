@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using AgriIDMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,41 +10,62 @@ using System.Threading.Tasks;
 
 namespace AgriIDMS.Infrastructure.Repositories
 {
-    public class NearExpiryDiscountRuleRepository : INearExpiryDiscountRuleRepository
+    public class DiscountRuleRepository : IDiscountRuleRepository
     {
         private readonly AppDbContext _db;
 
-        public NearExpiryDiscountRuleRepository(AppDbContext db)
+        public DiscountRuleRepository(AppDbContext db)
         {
             _db = db;
         }
 
-        public Task<List<NearExpiryDiscountRule>> GetActiveRulesAsync()
+        public Task<List<DiscountRule>> GetActiveRulesAsync(DiscountRuleType? ruleType = null)
         {
-            return _db.NearExpiryDiscountRules
+            var query = _db.DiscountRules
                 .AsNoTracking()
-                .Where(r => r.IsActive)
-                .OrderBy(r => r.MaxDaysLeft)
+                .Where(r => r.IsActive);
+
+            if (ruleType.HasValue)
+            {
+                query = query.Where(r => r.RuleType == ruleType.Value);
+            }
+
+            return query
+                .OrderBy(r => r.Priority)
+                .ThenBy(r => r.MaxDaysLeft)
                 .ThenBy(r => r.Id)
                 .ToListAsync();
         }
 
-        public Task<List<NearExpiryDiscountRule>> GetAllRulesAsync()
+        public Task<List<DiscountRule>> GetAllRulesAsync(DiscountRuleType? ruleType = null)
         {
-            return _db.NearExpiryDiscountRules
-                .AsNoTracking()
-                .OrderBy(r => r.MaxDaysLeft)
+            var query = _db.DiscountRules.AsNoTracking();
+
+            if (ruleType.HasValue)
+            {
+                query = query.Where(r => r.RuleType == ruleType.Value);
+            }
+
+            return query
+                .OrderBy(r => r.Priority)
+                .ThenBy(r => r.MaxDaysLeft)
                 .ThenBy(r => r.Id)
                 .ToListAsync();
         }
 
-        public async Task ReplaceAllRulesAsync(IEnumerable<NearExpiryDiscountRule> rules)
+        public async Task ReplaceAllRulesAsync(IEnumerable<DiscountRule> rules, DiscountRuleType? ruleType = null)
         {
-            var existing = await _db.NearExpiryDiscountRules.ToListAsync();
-            _db.NearExpiryDiscountRules.RemoveRange(existing);
+            var existingQuery = _db.DiscountRules.AsQueryable();
+            if (ruleType.HasValue)
+            {
+                existingQuery = existingQuery.Where(r => r.RuleType == ruleType.Value);
+            }
+
+            var existing = await existingQuery.ToListAsync();
+            _db.DiscountRules.RemoveRange(existing);
             await _db.SaveChangesAsync();
 
-            await _db.NearExpiryDiscountRules.AddRangeAsync(rules);
+            await _db.DiscountRules.AddRangeAsync(rules);
             await _db.SaveChangesAsync();
         }
     }

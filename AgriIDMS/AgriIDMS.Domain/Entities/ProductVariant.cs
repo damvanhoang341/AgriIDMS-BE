@@ -27,8 +27,8 @@ namespace AgriIDMS.Domain.Entities
         public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// % giảm giá khi tồn đủ điều kiện gần hết hạn (theo Pricing:NearExpiryDiscountDays).
-        /// Null = dùng Pricing:NearExpiryDiscountPercent trong cấu hình.
+        /// % giảm giá thủ công cho biến thể gần hết hạn.
+        /// Null = chỉ áp dụng theo bộ rule gần hết hạn trong hệ thống.
         /// </summary>
         public decimal? ManualNearExpiryDiscountPercent { get; set; }
 

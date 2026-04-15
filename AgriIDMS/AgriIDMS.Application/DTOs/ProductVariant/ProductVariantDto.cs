@@ -146,10 +146,10 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public bool IsActive { get; set; }
     }
 
-    /// <summary>Manager đặt % giảm giá khi hàng gần hết hạn (ghi đè config chung).</summary>
+    /// <summary>Manager đặt % giảm giá khi hàng gần hết hạn cho từng biến thể.</summary>
     public class SetManualNearExpiryDiscountRequestDto
     {
-        /// <summary>0–100. Để null để xóa override và quay về <c>Pricing:NearExpiryDiscountPercent</c>.</summary>
+        /// <summary>0–100. Để null để xóa giá trị thủ công.</summary>
         [Range(0, 100, ErrorMessage = "DiscountPercent phải từ 0 đến 100")]
         public decimal? DiscountPercent { get; set; }
     }
