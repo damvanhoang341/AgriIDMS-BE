@@ -25,6 +25,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll()
         {
             var warehouses = await _warehouseService.GetAllAsync();

@@ -148,6 +148,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(x => x.Id);
             entity.Property(x => x.RuleType)
                 .HasConversion<int>()
+                .HasSentinel(DiscountRuleType.Unknown)
                 .HasDefaultValue(DiscountRuleType.NearExpiry)
                 .IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200);
