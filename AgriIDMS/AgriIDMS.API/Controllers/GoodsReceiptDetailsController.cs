@@ -11,10 +11,14 @@ namespace AgriIDMS.API.Controllers
     public class GoodsReceiptDetailsController : ControllerBase
     {
         private readonly IGoodsReceiptDetailService _detailService;
+        private readonly IGoodsReceiptService _goodsReceiptService;
 
-        public GoodsReceiptDetailsController(IGoodsReceiptDetailService detailService)
+        public GoodsReceiptDetailsController(
+            IGoodsReceiptDetailService detailService,
+            IGoodsReceiptService goodsReceiptService)
         {
             _detailService = detailService;
+            _goodsReceiptService = goodsReceiptService;
         }
 
         // ADD RECEIPT DETAIL
@@ -23,6 +27,9 @@ namespace AgriIDMS.API.Controllers
         public async Task<IActionResult> AddDetail([FromBody] AddGoodsReceiptDetailRequest request)
         {
             await _detailService.AddGoodsReceiptDetailAsync(request);
+
+            if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                await _goodsReceiptService.ApplyPrivilegedFirstApprovalIfDraftAsync(request.GoodsReceiptId);
 
             return Ok(new
             {

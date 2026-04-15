@@ -69,12 +69,8 @@ namespace AgriIDMS.Application.Services
             await _detailRepo.AddGoodsReceiptDetaiAsync(detail);
             await _unitOfWork.SaveChangesAsync();
 
-            // 3.4: Chuyển trạng thái sang Received khi đã có chi tiết
-            if (receipt.Status == GoodsReceiptStatus.Draft)
-            {
-                receipt.Status = GoodsReceiptStatus.Received;
-                await _unitOfWork.SaveChangesAsync();
-            }
+            // Không tự Draft → Received tại đây: nhân viên kho cần Admin/Manager duyệt bước 1.
+            // Admin/Manager bỏ qua bước 1 qua ApplyPrivilegedFirstApprovalIfDraftAsync (sau khi thêm dòng hoặc khi tạo phiếu).
 
             // Check MinReceiptWeight của ProductVariant cho từng dòng: nếu thấp hơn thì vẫn cho nhập,
             // nhưng chuyển status của Receipt sang PendingManagerApprovalQc để Manager xem xét trước khi tiếp tục QC.

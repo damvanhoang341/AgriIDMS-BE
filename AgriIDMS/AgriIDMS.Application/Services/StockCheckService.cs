@@ -19,7 +19,6 @@ namespace AgriIDMS.Application.Services
         private readonly IStockCheckRepository _stockCheckRepo;
         private readonly IStockCheckDetailRepository _detailRepo;
         private readonly IBoxRepository _boxRepo;
-        private readonly ISlotRepository _slotRepo;
         private readonly IWarehouseRepository _warehouseRepo;
         private readonly IInventoryRequestRepository _inventoryRequestRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
@@ -31,7 +30,6 @@ namespace AgriIDMS.Application.Services
             IStockCheckRepository stockCheckRepo,
             IStockCheckDetailRepository detailRepo,
             IBoxRepository boxRepo,
-            ISlotRepository slotRepo,
             IWarehouseRepository warehouseRepo,
             IInventoryRequestRepository inventoryRequestRepo,
             IInventoryTransactionRepository inventoryTranRepo,
@@ -42,7 +40,6 @@ namespace AgriIDMS.Application.Services
             _stockCheckRepo = stockCheckRepo;
             _detailRepo = detailRepo;
             _boxRepo = boxRepo;
-            _slotRepo = slotRepo;
             _warehouseRepo = warehouseRepo;
             _inventoryRequestRepo = inventoryRequestRepo;
             _inventoryTranRepo = inventoryTranRepo;
@@ -195,7 +192,6 @@ namespace AgriIDMS.Application.Services
                 stockCheck.ApprovedBy = userId;
                 stockCheck.ApprovedAt = DateTime.UtcNow;
                 stockCheck.Status = StockCheckStatus.Approved;
-                var affectedSlotIds = new HashSet<int>();
 
                 foreach (var d in stockCheck.Details!)
                 {
@@ -237,22 +233,7 @@ namespace AgriIDMS.Application.Services
                         InventoryRequestId = invRequest.Id
                     });
 
-                    var previousWeight = box.Weight;
                     box.Weight = d.CountedWeight.Value;
-                    var weightDiff = box.Weight - previousWeight;
-                    var originalSlotId = box.SlotId;
-                    if (originalSlotId.HasValue)
-                        affectedSlotIds.Add(originalSlotId.Value);
-
-                    if (originalSlotId.HasValue && weightDiff != 0m)
-                    {
-                        var slot = box.Slot ?? await _slotRepo.GetByIdAsync(originalSlotId.Value);
-                        if (slot != null)
-                        {
-                            slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity + weightDiff);
-                            await _slotRepo.UpdateAsync(slot);
-                        }
-                    }
 
                     // Nếu sau kiểm kê còn 0kg thì coi như box không còn nằm trong slot.
                     if (box.Weight <= 0m)
@@ -283,11 +264,6 @@ namespace AgriIDMS.Application.Services
                 }
 
                 await _unitOfWork.SaveChangesAsync();
-
-                foreach (var slotId in affectedSlotIds)
-                {
-                    await _slotRepo.RecalculateCurrentCapacityAsync(slotId);
-                }
 
                 await _stockCheckRepo.UpdateAsync(stockCheck);
                 await _unitOfWork.SaveChangesAsync();
