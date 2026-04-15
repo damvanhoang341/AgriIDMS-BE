@@ -44,5 +44,9 @@ namespace AgriIDMS.Domain.Interfaces
 
         /// <summary>Tổng khối lượng box chưa xếp slot của một kho (loại trừ box đã Exported).</summary>
         Task<decimal> GetUnassignedStockWeightByWarehouseIdAsync(int warehouseId);
+        /// <summary>Tổng thể tích box đã được xếp slot của một kho (m3).</summary>
+        Task<decimal> GetAssignedStockVolumeByWarehouseIdAsync(int warehouseId);
+        /// <summary>Tổng thể tích box chưa xếp slot của một kho (m3).</summary>
+        Task<decimal> GetUnassignedStockVolumeByWarehouseIdAsync(int warehouseId);
     }
 }

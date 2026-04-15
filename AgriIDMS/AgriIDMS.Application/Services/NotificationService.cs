@@ -252,6 +252,9 @@ namespace AgriIDMS.Application.Services
 
             var statusText = receipt.Status switch
             {
+                GoodsReceiptStatus.Draft => "mới tạo và đang chờ duyệt bước 1 để bắt đầu kiểm tra chất lượng",
+                GoodsReceiptStatus.Received => "đã duyệt bước 1 và đang chờ nhân viên kho kiểm tra chất lượng",
+                GoodsReceiptStatus.QCCompleted => "đã hoàn tất kiểm tra chất lượng và đang chờ duyệt nhập kho (bước 2)",
                 GoodsReceiptStatus.PendingManagerApprovalQc => "chờ Quản lý duyệt (định mức tối thiểu)",
                 GoodsReceiptStatus.PendingManagerApproval => "chờ Quản lý duyệt",
                 _ => $"mới tạo ở trạng thái {receipt.Status} và cần Quản lý theo dõi/duyệt",
@@ -263,6 +266,23 @@ namespace AgriIDMS.Application.Services
                 NotificationType.Warning,
                 message,
                 referenceType: "GoodsReceipt",
+                referenceId: receipt.Id,
+                recipientUserIds: recipients);
+        }
+
+        public async Task NotifyWarehouseStaffGoodsReceiptApprovedAsync(int goodsReceiptId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptByIdAsync(goodsReceiptId)
+                ?? throw new NotFoundException($"Phiếu nhập #{goodsReceiptId} không tồn tại");
+
+            var message =
+                $"Phiếu nhập {receipt.ReceiptCode} đã được duyệt nhập kho. Vui lòng vào màn kiểm tra chất lượng để tạo thùng từ lô.";
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("WarehouseStaff");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "GoodsReceiptApproved",
                 referenceId: receipt.Id,
                 recipientUserIds: recipients);
         }

@@ -1,5 +1,4 @@
 using AgriIDMS.Application.DTOs.Lot;
-using AgriIDMS.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,7 +9,7 @@ namespace AgriIDMS.Application.Interfaces
     {
         Task<List<LotListItemDto>> GetAllLotsAsync();
         Task<LotDetailDto> GetLotDetailAsync(int lotId);
-        Task<List<Lot>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId);
+        Task<List<LotListItemDto>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId);
         Task<object?> GetByLotCodeAsync(string lotCode);
         /// <summary>Lưu URL ảnh QR (đã upload Cloudinary từ FE).</summary>
         Task UpdateQrImageUrlAsync(int lotId, string qrImageUrl);

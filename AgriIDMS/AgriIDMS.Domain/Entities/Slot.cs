@@ -13,10 +13,14 @@ namespace AgriIDMS.Domain.Entities
         public string? QrCode { get; set; }
         /// <summary>URL ảnh QR (Cloudinary) — do frontend tạo và gửi lên.</summary>
         public string? QrImageUrl { get; set; }
-        /// <summary>Khối lượng tối đa có thể chứa trong slot (kg).</summary>
+        /// <summary>Thể tích tối đa có thể chứa trong slot (m3).</summary>
         public decimal Capacity { get; set; }
-        /// <summary>Khối lượng hiện tại đã chứa trong slot (kg).</summary>
+        /// <summary>Thể tích hiện tại đã chứa trong slot (m3).</summary>
         public decimal CurrentCapacity { get; set; }
+        public decimal? LengthCm { get; set; }
+        public decimal? WidthCm { get; set; }
+        public decimal? HeightCm { get; set; }
+        public decimal? VolumeM3 { get; set; }
 
         public int RackId { get; set; }
         public Rack Rack { get; set; } = null!;

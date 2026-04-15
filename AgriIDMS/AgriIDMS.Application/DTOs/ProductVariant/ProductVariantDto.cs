@@ -20,6 +20,18 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         public decimal BoxPrice { get; set; }
     }
 
+    public class NearExpiryPriceTierDto
+    {
+        /// <summary>Ngưỡng ngày còn hạn (<= MaxDaysLeft).</summary>
+        public int MaxDaysLeft { get; set; }
+        /// <summary>% giảm giá áp dụng cho tier này.</summary>
+        public decimal DiscountPercent { get; set; }
+        /// <summary>Giá/kg sau giảm cho tier này.</summary>
+        public decimal PricePerKg { get; set; }
+        /// <summary>Số box khả dụng rơi vào tier này.</summary>
+        public int BoxCount { get; set; }
+    }
+
     public class ProductVariantResponseDto
     {
         public int Id { get; set; }
@@ -42,6 +54,8 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập sản phẩm này. Null = không bắt buộc.</summary>
         public decimal? MinReceiptWeight { get; set; }
+        /// <summary>Khối lượng riêng (kg/m3).</summary>
+        public decimal DensityKgPerM3 { get; set; }
 
         /// <summary>Số box khả dụng trong kho.</summary>
         public int AvailableBoxCount { get; set; }
@@ -76,6 +90,15 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         /// <summary>Các loại box khác nhau của biến thể (group theo loại + trọng lượng).</summary>
         public List<BoxTypeDto> BoxTypes { get; set; } = new();
+
+        /// <summary>Có tồn khả dụng thuộc nhóm gần hết hạn hay không.</summary>
+        public bool HasNearExpiryStock { get; set; }
+        /// <summary>% giảm áp cho nhóm gần hết hạn (nếu có).</summary>
+        public decimal? NearExpiryDiscountPercent { get; set; }
+        /// <summary>Giá/kg khi áp giảm gần hết hạn (nếu có).</summary>
+        public decimal? NearExpiryPricePerKg { get; set; }
+        /// <summary>Danh sách tier giảm giá gần hết hạn theo từng mốc ngày.</summary>
+        public List<NearExpiryPriceTierDto> NearExpiryPriceTiers { get; set; } = new();
     }
 
     public class ProductVariantResponseCustomerHomeDto
@@ -92,6 +115,15 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
 
         /// <summary>Đường dẫn ảnh của biến thể.</summary>
         public string? ImageUrl { get; set; }
+
+        /// <summary>Có tồn khả dụng thuộc nhóm gần hết hạn hay không.</summary>
+        public bool HasNearExpiryStock { get; set; }
+        /// <summary>% giảm áp cho nhóm gần hết hạn (nếu có).</summary>
+        public decimal? NearExpiryDiscountPercent { get; set; }
+        /// <summary>Giá/kg khi áp giảm gần hết hạn (nếu có).</summary>
+        public decimal? NearExpiryPricePerKg { get; set; }
+        /// <summary>Danh sách tier giảm giá gần hết hạn theo từng mốc ngày.</summary>
+        public List<NearExpiryPriceTierDto> NearExpiryPriceTiers { get; set; } = new();
 
     }
 
@@ -118,6 +150,10 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập. Null = không bắt buộc.</summary>
         [Range(0, double.MaxValue, ErrorMessage = "MinReceiptWeight phải >= 0")]
         public decimal? MinReceiptWeight { get; set; }
+
+        [Required(ErrorMessage = "DensityKgPerM3 không được để trống")]
+        [Range(0.0001, double.MaxValue, ErrorMessage = "DensityKgPerM3 phải > 0")]
+        public decimal DensityKgPerM3 { get; set; }
     }
 
     public class UpdateProductVariantDto
@@ -138,6 +174,9 @@ namespace AgriIDMS.Application.DTOs.ProductVariant
         /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập. Null = không bắt buộc.</summary>
         [Range(0, double.MaxValue, ErrorMessage = "MinReceiptWeight phải >= 0")]
         public decimal? MinReceiptWeight { get; set; }
+
+        [Range(0.0001, double.MaxValue, ErrorMessage = "DensityKgPerM3 phải > 0")]
+        public decimal? DensityKgPerM3 { get; set; }
     }
 
     public class UpdateProductVariantStatusDto

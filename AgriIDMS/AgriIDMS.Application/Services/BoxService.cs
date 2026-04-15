@@ -15,6 +15,15 @@ namespace AgriIDMS.Application.Services
     public class BoxService : IBoxService
     {
         private const decimal CapacityTolerance = 0.0001m;
+        private const decimal MaxSlotUtilizationRatio = 0.8m;
+        private static decimal EffectiveSlotCapacity(Slot slot) => slot.Capacity * MaxSlotUtilizationRatio;
+        private static decimal CapacityVolume(Box box)
+        {
+            if (box.VolumeM3 > 0) return box.VolumeM3;
+            var density = box.Lot?.GoodsReceiptDetail?.ProductVariant?.DensityKgPerM3 ?? 0m;
+            if (density > 0 && box.Weight > 0) return box.Weight / density;
+            return 0m;
+        }
         private readonly IBoxRepository _boxRepo;
         private readonly ISlotRepository _slotRepo;
         private readonly IInventoryTransactionRepository _inventoryTranRepo;
@@ -62,7 +71,7 @@ namespace AgriIDMS.Application.Services
             var existingVariantId = slot.Boxes
                 .Where(b =>
                     b.SlotId == slot.Id &&
-                    b.Weight > CapacityTolerance &&
+                    CapacityVolume(b) > CapacityTolerance &&
                     b.Status != BoxStatus.Exported &&
                     b.Status != BoxStatus.Expired &&
                     b.Status != BoxStatus.Disposed)
@@ -74,9 +83,11 @@ namespace AgriIDMS.Application.Services
                     "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
 
             bool isNewSlot = box.SlotId != request.SlotId;
-            if (isNewSlot && (slot.CurrentCapacity + box.Weight - slot.Capacity) > CapacityTolerance)
+            var boxVolume = CapacityVolume(box);
+            var effectiveCapacity = EffectiveSlotCapacity(slot);
+            if (isNewSlot && (slot.CurrentCapacity + boxVolume - effectiveCapacity) > CapacityTolerance)
                 throw new InvalidBusinessRuleException(
-                    $"Slot không đủ dung lượng: còn trống {slot.Capacity - slot.CurrentCapacity}, box nặng {box.Weight}.");
+                    $"Slot không đủ dung lượng vận hành (80%): còn trống {Math.Max(0, effectiveCapacity - slot.CurrentCapacity):N4} m3, box chiếm {boxVolume:N4} m3.");
 
             var oldSlotId = box.SlotId;
             if (isNewSlot && box.SlotId.HasValue)
@@ -84,7 +95,7 @@ namespace AgriIDMS.Application.Services
                 var oldSlot = await _slotRepo.GetByIdAsync(box.SlotId.Value);
                 if (oldSlot != null)
                 {
-                    oldSlot.CurrentCapacity = Math.Max(0, oldSlot.CurrentCapacity - box.Weight);
+                    oldSlot.CurrentCapacity = Math.Max(0, oldSlot.CurrentCapacity - boxVolume);
                     await _slotRepo.UpdateAsync(oldSlot);
                 }
             }
@@ -99,7 +110,7 @@ namespace AgriIDMS.Application.Services
 
             if (isNewSlot)
             {
-                slot.CurrentCapacity += box.Weight;
+                slot.CurrentCapacity += boxVolume;
                 await _slotRepo.UpdateAsync(slot);
             }
             await _boxRepo.UpdateAsync(box);
@@ -156,7 +167,7 @@ namespace AgriIDMS.Application.Services
             var existingVariantId = slot.Boxes
                 .Where(b =>
                     b.SlotId == slot.Id &&
-                    b.Weight > CapacityTolerance &&
+                    CapacityVolume(b) > CapacityTolerance &&
                     b.Status != BoxStatus.Exported &&
                     b.Status != BoxStatus.Expired &&
                     b.Status != BoxStatus.Disposed)
@@ -169,11 +180,12 @@ namespace AgriIDMS.Application.Services
 
             // Chỉ tính box đang chuyển sang slot này (chưa ở slot này)
             var boxesToAssign = boxes.Where(b => b.SlotId != request.SlotId).ToList();
-            decimal totalWeightToAdd = boxesToAssign.Sum(b => b.Weight);
+            decimal totalVolumeToAdd = boxesToAssign.Sum(CapacityVolume);
+            var effectiveCapacity = EffectiveSlotCapacity(slot);
 
-            if ((slot.CurrentCapacity + totalWeightToAdd - slot.Capacity) > CapacityTolerance)
+            if ((slot.CurrentCapacity + totalVolumeToAdd - effectiveCapacity) > CapacityTolerance)
                 throw new InvalidBusinessRuleException(
-                    $"Slot không đủ dung lượng: còn trống {slot.Capacity - slot.CurrentCapacity:N2}, tổng khối lượng {totalWeightToAdd:N2}.");
+                    $"Slot không đủ dung lượng vận hành (80%): còn trống {Math.Max(0, effectiveCapacity - slot.CurrentCapacity):N4} m3, tổng thể tích {totalVolumeToAdd:N4} m3.");
 
             // Trừ dung lượng ở các slot cũ (group theo SlotId)
             foreach (var group in boxesToAssign.Where(b => b.SlotId.HasValue).GroupBy(b => b.SlotId!.Value))
@@ -181,7 +193,7 @@ namespace AgriIDMS.Application.Services
                 var oldSlot = group.First().Slot;
                 if (oldSlot != null)
                 {
-                    decimal subtract = group.Sum(b => b.Weight);
+                    decimal subtract = group.Sum(CapacityVolume);
                     oldSlot.CurrentCapacity = Math.Max(0, oldSlot.CurrentCapacity - subtract);
                     await _slotRepo.UpdateAsync(oldSlot);
                 }
@@ -198,7 +210,7 @@ namespace AgriIDMS.Application.Services
                 await _boxRepo.UpdateAsync(box);
             }
 
-            slot.CurrentCapacity += totalWeightToAdd;
+            slot.CurrentCapacity += totalVolumeToAdd;
             await _slotRepo.UpdateAsync(slot);
             await _unitOfWork.SaveChangesAsync();
 
@@ -257,7 +269,7 @@ namespace AgriIDMS.Application.Services
             var existingVariantId = toSlot.Boxes
                 .Where(b =>
                     b.SlotId == toSlot.Id &&
-                    b.Weight > CapacityTolerance &&
+                    CapacityVolume(b) > CapacityTolerance &&
                     b.Status != BoxStatus.Exported &&
                     b.Status != BoxStatus.Expired &&
                     b.Status != BoxStatus.Disposed)
@@ -268,13 +280,15 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     "Slot này đang chứa sản phẩm khác loại. Mỗi slot chỉ được chứa 1 loại sản phẩm.");
 
-            if ((toSlot.CurrentCapacity + box.Weight - toSlot.Capacity) > CapacityTolerance)
+            var boxVolumeToMove = CapacityVolume(box);
+            var effectiveCapacity = EffectiveSlotCapacity(toSlot);
+            if ((toSlot.CurrentCapacity + boxVolumeToMove - effectiveCapacity) > CapacityTolerance)
                 throw new InvalidBusinessRuleException(
-                    $"Slot không đủ dung lượng: còn trống {toSlot.Capacity - toSlot.CurrentCapacity:N2}, box nặng {box.Weight:N2}.");
+                    $"Slot không đủ dung lượng vận hành (80%): còn trống {Math.Max(0, effectiveCapacity - toSlot.CurrentCapacity):N4} m3, box chiếm {boxVolumeToMove:N4} m3.");
 
             // Update capacities
-            fromSlot.CurrentCapacity = Math.Max(0, fromSlot.CurrentCapacity - box.Weight);
-            toSlot.CurrentCapacity += box.Weight;
+            fromSlot.CurrentCapacity = Math.Max(0, fromSlot.CurrentCapacity - boxVolumeToMove);
+            toSlot.CurrentCapacity += boxVolumeToMove;
             await _slotRepo.UpdateAsync(fromSlot);
             await _slotRepo.UpdateAsync(toSlot);
 
@@ -321,6 +335,7 @@ namespace AgriIDMS.Application.Services
                 box.QRCode,
                 box.QrImageUrl,
                 box.Weight,
+                VolumeM3 = CapacityVolume(box),
                 box.Status,
                 box.SlotId,
                 WarehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
@@ -348,6 +363,7 @@ namespace AgriIDMS.Application.Services
                 QrCode = b.QRCode,
                 QrImageUrl = b.QrImageUrl,
                 Weight = b.Weight,
+                VolumeM3 = CapacityVolume(b),
                 Status = b.Status.ToString(),
                 SlotId = b.SlotId,
                 WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
@@ -374,6 +390,7 @@ namespace AgriIDMS.Application.Services
                 QrCode = b.QRCode,
                 QrImageUrl = b.QrImageUrl,
                 Weight = b.Weight,
+                VolumeM3 = CapacityVolume(b),
                 Status = b.Status.ToString(),
                 SlotId = b.SlotId,
                 WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
@@ -400,6 +417,7 @@ namespace AgriIDMS.Application.Services
                 QrCode = b.QRCode,
                 QrImageUrl = b.QrImageUrl,
                 Weight = b.Weight,
+                VolumeM3 = CapacityVolume(b),
                 Status = b.Status.ToString(),
                 SlotId = b.SlotId,
                 WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
@@ -426,6 +444,7 @@ namespace AgriIDMS.Application.Services
                 QrCode = b.QRCode,
                 QrImageUrl = b.QrImageUrl,
                 Weight = b.Weight,
+                VolumeM3 = CapacityVolume(b),
                 Status = b.Status.ToString(),
                 SlotId = b.SlotId,
                 WarehouseId = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId,
@@ -471,6 +490,7 @@ namespace AgriIDMS.Application.Services
                         continue;
 
                     var removedWeight = box.Weight;
+                    var removedVolume = CapacityVolume(box);
                     var fromSlotId = box.SlotId;
 
                     if (box.SlotId.HasValue)
@@ -478,7 +498,7 @@ namespace AgriIDMS.Application.Services
                         var slot = await _slotRepo.GetByIdAsync(box.SlotId.Value);
                         if (slot != null)
                         {
-                            slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity - removedWeight);
+                            slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity - removedVolume);
                             await _slotRepo.UpdateAsync(slot);
                         }
                     }
@@ -491,6 +511,7 @@ namespace AgriIDMS.Application.Services
                     box.SlotId = null;
                     box.Status = BoxStatus.Disposed;
                     box.Weight = 0;
+                    box.VolumeM3 = 0;
                     await _boxRepo.UpdateAsync(box);
 
                     await _inventoryTranRepo.CreateAsync(new InventoryTransaction

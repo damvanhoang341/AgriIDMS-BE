@@ -7,6 +7,9 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = null!;
+        public decimal? LengthM { get; set; }
+        public decimal? WidthM { get; set; }
+        public decimal? FloorAreaM2 { get; set; }
     }
 
     public class ZoneDto
@@ -14,6 +17,9 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public int Id { get; set; }
         public string Name { get; set; } = null!;
         public int WarehouseId { get; set; }
+        public decimal? LengthM { get; set; }
+        public decimal? WidthM { get; set; }
+        public decimal? FloorAreaM2 { get; set; }
     }
 
     public class CreateRackRequest
@@ -21,6 +27,9 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = null!;
+        public decimal? LengthM { get; set; }
+        public decimal? WidthM { get; set; }
+        public decimal? FloorAreaM2 { get; set; }
     }
 
     public class RackDto
@@ -28,6 +37,9 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public int Id { get; set; }
         public string Name { get; set; } = null!;
         public int ZoneId { get; set; }
+        public decimal? LengthM { get; set; }
+        public decimal? WidthM { get; set; }
+        public decimal? FloorAreaM2 { get; set; }
     }
 
     public class CreateSlotRequest
@@ -38,6 +50,10 @@ namespace AgriIDMS.Application.DTOs.Warehouse
 
         [Range(0.0001, double.MaxValue)]
         public decimal Capacity { get; set; }
+        public decimal? LengthCm { get; set; }
+        public decimal? WidthCm { get; set; }
+        public decimal? HeightCm { get; set; }
+        public decimal? VolumeM3 { get; set; }
 
         [MaxLength(200)]
         public string? QrCode { get; set; }
@@ -54,6 +70,10 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public string? ProductName { get; set; }
         public decimal Capacity { get; set; }
         public decimal CurrentCapacity { get; set; }
+        public decimal? LengthCm { get; set; }
+        public decimal? WidthCm { get; set; }
+        public decimal? HeightCm { get; set; }
+        public decimal? VolumeM3 { get; set; }
         /// <summary>Name của rack chứa slot (phục vụ màn scan nhanh).</summary>
         public string? RackName { get; set; }
         public int RackId { get; set; }

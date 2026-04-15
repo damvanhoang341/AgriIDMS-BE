@@ -18,6 +18,7 @@ namespace AgriIDMS.Application.DTOs.Lot
         public string Status { get; set; } = string.Empty;
         public int GoodsReceiptId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        public int ProductVariantId { get; set; }
         public string ProductVariantName { get; set; } = string.Empty;
         public string WarehouseName { get; set; } = string.Empty;
     }
@@ -72,6 +73,7 @@ namespace AgriIDMS.Application.DTOs.Lot
         public int BoxId { get; set; }
         public string BoxCode { get; set; } = string.Empty;
         public decimal Weight { get; set; }
+        public decimal VolumeM3 { get; set; }
         public string Status { get; set; } = string.Empty;
         public int? SlotId { get; set; }
         public string? SlotCode { get; set; }

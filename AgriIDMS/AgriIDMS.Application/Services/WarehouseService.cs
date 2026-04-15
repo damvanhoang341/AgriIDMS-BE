@@ -65,6 +65,12 @@ namespace AgriIDMS.Application.Services
                 Name = normalizedName,
                 Location = request.Location.Trim(),
                 TitleWarehouse = request.TitleWarehouse,
+                LengthM = request.LengthM,
+                WidthM = request.WidthM,
+                FloorAreaM2 = request.FloorAreaM2 ?? (
+                    request.LengthM.HasValue && request.WidthM.HasValue
+                        ? request.LengthM.Value * request.WidthM.Value
+                        : null),
                 MinColdStorageHours = request.TitleWarehouse == TitleWarehouse.Cold
                     ? (request.MinColdStorageHours ?? 48)
                     : null,
@@ -85,9 +91,9 @@ namespace AgriIDMS.Application.Services
             foreach (var w in warehouses)
             {
                 var totalCapacity = await _warehouseRepository.GetTotalCapacityByWarehouseIdAsync(w.Id);
-                var totalStock = await _boxRepository.GetTotalStockWeightByWarehouseIdAsync(w.Id);
-                var storedInSlots = await _boxRepository.GetAssignedStockWeightByWarehouseIdAsync(w.Id);
-                var unassignedWeight = await _boxRepository.GetUnassignedStockWeightByWarehouseIdAsync(w.Id);
+                var storedInSlots = await _boxRepository.GetAssignedStockVolumeByWarehouseIdAsync(w.Id);
+                var unassignedWeight = await _boxRepository.GetUnassignedStockVolumeByWarehouseIdAsync(w.Id);
+                var totalStock = storedInSlots + unassignedWeight;
 
                 result.Add(new WarehouseDto
                 {
@@ -95,6 +101,9 @@ namespace AgriIDMS.Application.Services
                     Name = w.Name,
                     Location = w.Location,
                     TitleWarehouse = w.TitleWarehouse,
+                    LengthM = w.LengthM,
+                    WidthM = w.WidthM,
+                    FloorAreaM2 = w.FloorAreaM2,
                     MinColdStorageHours = w.MinColdStorageHours,
                     MinReceiptWeight = w.MinReceiptWeight,
                     TotalCapacity = totalCapacity,
@@ -117,9 +126,9 @@ namespace AgriIDMS.Application.Services
             }
 
             var totalCapacity = await _warehouseRepository.GetTotalCapacityByWarehouseIdAsync(warehouse.Id);
-            var totalStock = await _boxRepository.GetTotalStockWeightByWarehouseIdAsync(warehouse.Id);
-            var storedInSlots = await _boxRepository.GetAssignedStockWeightByWarehouseIdAsync(warehouse.Id);
-            var unassignedWeight = await _boxRepository.GetUnassignedStockWeightByWarehouseIdAsync(warehouse.Id);
+            var storedInSlots = await _boxRepository.GetAssignedStockVolumeByWarehouseIdAsync(warehouse.Id);
+            var unassignedWeight = await _boxRepository.GetUnassignedStockVolumeByWarehouseIdAsync(warehouse.Id);
+            var totalStock = storedInSlots + unassignedWeight;
 
             return new WarehouseDto
             {
@@ -127,6 +136,9 @@ namespace AgriIDMS.Application.Services
                 Name = warehouse.Name,
                 Location = warehouse.Location,
                 TitleWarehouse = warehouse.TitleWarehouse,
+                LengthM = warehouse.LengthM,
+                WidthM = warehouse.WidthM,
+                FloorAreaM2 = warehouse.FloorAreaM2,
                 MinColdStorageHours = warehouse.MinColdStorageHours,
                 MinReceiptWeight = warehouse.MinReceiptWeight,
                 TotalCapacity = totalCapacity,
@@ -153,9 +165,26 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Tên kho đã tồn tại");
             }
 
+            // Chỉ cho phép cập nhật thông tin kho khi kho không còn hàng.
+            var assignedVolume = await _boxRepository.GetAssignedStockVolumeByWarehouseIdAsync(id);
+            var unassignedVolume = await _boxRepository.GetUnassignedStockVolumeByWarehouseIdAsync(id);
+            var assignedWeight = await _boxRepository.GetAssignedStockWeightByWarehouseIdAsync(id);
+            var unassignedWeight = await _boxRepository.GetUnassignedStockWeightByWarehouseIdAsync(id);
+            var hasAnyStock = (assignedVolume + unassignedVolume) > 0m || (assignedWeight + unassignedWeight) > 0m;
+            if (hasAnyStock)
+            {
+                throw new InvalidBusinessRuleException("Chỉ được cập nhật kho khi trong kho không có sản phẩm.");
+            }
+
             warehouse.Name = normalizedName;
             warehouse.Location = request.Location.Trim();
             warehouse.TitleWarehouse = request.TitleWarehouse;
+            warehouse.LengthM = request.LengthM;
+            warehouse.WidthM = request.WidthM;
+            warehouse.FloorAreaM2 = request.FloorAreaM2 ?? (
+                request.LengthM.HasValue && request.WidthM.HasValue
+                    ? request.LengthM.Value * request.WidthM.Value
+                    : null);
             warehouse.MinColdStorageHours = request.TitleWarehouse == TitleWarehouse.Cold
                 ? (request.MinColdStorageHours ?? 48)
                 : null;

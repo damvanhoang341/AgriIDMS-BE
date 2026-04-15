@@ -55,7 +55,7 @@ namespace AgriIDMS.API.Controllers
         /// Lấy PurchaseOrder theo Id
         /// </summary>
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff,WarehouseStaff")]
         public async Task<IActionResult> GetPurchaseOrderById(int id)
         {
             _logger.LogInformation("Fetching PurchaseOrder {PurchaseOrderId}", id);
@@ -115,7 +115,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet()]
-        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff,WarehouseStaff")]
         public async Task<IActionResult> GetAll()
         {
             var result = await _purchaseOrderService.GetAllAsync();

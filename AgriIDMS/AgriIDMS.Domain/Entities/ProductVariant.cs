@@ -23,6 +23,8 @@ namespace AgriIDMS.Domain.Entities
         public string? ImageUrl { get; set; }
         /// <summary>Định mức tối thiểu (kg) cho mỗi dòng nhập sản phẩm này. Null = không bắt buộc.</summary>
         public decimal? MinReceiptWeight { get; set; }
+        /// <summary>Khối lượng riêng sản phẩm (kg/m3).</summary>
+        public decimal DensityKgPerM3 { get; set; }
 
         public bool IsActive { get; set; } = true;
 

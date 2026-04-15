@@ -106,8 +106,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(b =>
                     b.SlotId == slotId &&
                     b.Status != BoxStatus.Exported &&
-                    b.Weight > 0)
-                .SumAsync(b => (decimal?)b.Weight) ?? 0m;
+                    b.VolumeM3 > 0)
+                .SumAsync(b => (decimal?)b.VolumeM3) ?? 0m;
 
             slot.CurrentCapacity = actual;
         }
@@ -126,9 +126,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Slot != null &&
                     b.Slot.Rack.Zone.WarehouseId == warehouseId &&
                     b.Status != BoxStatus.Exported &&
-                    b.Weight > 0)
+                    b.VolumeM3 > 0)
                 .GroupBy(b => b.SlotId!.Value)
-                .Select(g => new { SlotId = g.Key, Total = g.Sum(x => x.Weight) })
+                .Select(g => new { SlotId = g.Key, Total = g.Sum(x => x.VolumeM3) })
                 .ToDictionaryAsync(x => x.SlotId, x => x.Total);
 
             foreach (var slot in slots)

@@ -54,7 +54,8 @@ namespace AgriIDMS.Application.Services
                 IsActive = true,
                 ShelfLifeDays = dto.ShelfLifeDays,
                 ImageUrl = dto.ImageUrl,
-                MinReceiptWeight = dto.MinReceiptWeight
+                MinReceiptWeight = dto.MinReceiptWeight,
+                DensityKgPerM3 = dto.DensityKgPerM3
             };
 
             await _repo.AddAsync(variant);
@@ -95,6 +96,7 @@ namespace AgriIDMS.Application.Services
                     ShelfLifeDays = x.ShelfLifeDays,
                     ImageUrl = x.ImageUrl,
                     MinReceiptWeight = x.MinReceiptWeight,
+                    DensityKgPerM3 = x.DensityKgPerM3,
                     AvailableBoxCount = boxCount,
                     ManualNearExpiryDiscountPercent = x.ManualNearExpiryDiscountPercent
                 });
@@ -124,6 +126,7 @@ namespace AgriIDMS.Application.Services
                 ShelfLifeDays = variant.ShelfLifeDays,
                 ImageUrl = variant.ImageUrl,
                 MinReceiptWeight = variant.MinReceiptWeight,
+                DensityKgPerM3 = variant.DensityKgPerM3,
                 AvailableBoxCount = boxCount,
                 ManualNearExpiryDiscountPercent = variant.ManualNearExpiryDiscountPercent
             };
@@ -154,6 +157,8 @@ namespace AgriIDMS.Application.Services
                 variant.ImageUrl = dto.ImageUrl;
 
             variant.MinReceiptWeight = dto.MinReceiptWeight;
+            if (dto.DensityKgPerM3.HasValue)
+                variant.DensityKgPerM3 = dto.DensityKgPerM3.Value;
 
             _repo.Update(variant);
 
