@@ -39,6 +39,10 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.ExportReceipts
                 .AsSplitQuery()
                 .Include(e => e.Order)
+                    .ThenInclude(o => o.Details)
+                .Include(e => e.Order)
+                    .ThenInclude(o => o.Allocations)
+                        .ThenInclude(a => a.OrderDetail)
                 .Include(e => e.Details)
                     .ThenInclude(d => d.Box!)
                         .ThenInclude(b => b.Lot)

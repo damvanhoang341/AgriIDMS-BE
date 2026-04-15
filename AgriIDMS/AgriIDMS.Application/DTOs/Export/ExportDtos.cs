@@ -59,6 +59,9 @@ namespace AgriIDMS.Application.DTOs.Export
         public string ProductName { get; set; } = null!;
         public string Grade { get; set; } = null!;
         public decimal BoxWeightKg { get; set; }
+        public decimal RequestedQuantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal LineAmount { get; set; }
         public decimal ActualQuantity { get; set; }
         public string BoxType { get; set; } = null!;
         public bool IsPartial { get; set; }
