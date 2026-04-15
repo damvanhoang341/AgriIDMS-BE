@@ -26,7 +26,7 @@ namespace AgriIDMS.Application.Services
         private readonly INotificationService _notificationService;
         private readonly IPaymentService _paymentService;
         private readonly IUserRepository _userRepo;
-        private readonly INearExpiryDiscountRuleRepository _nearExpiryDiscountRuleRepo;
+        private readonly IDiscountRuleRepository _discountRuleRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
         private const decimal PriceComparisonTolerance = 0.0001m;
@@ -47,7 +47,7 @@ namespace AgriIDMS.Application.Services
             INotificationService notificationService,
             IPaymentService paymentService,
             IUserRepository userRepo,
-            INearExpiryDiscountRuleRepository nearExpiryDiscountRuleRepo,
+            IDiscountRuleRepository discountRuleRepo,
             IUnitOfWork uow,
             IConfiguration config,
             ILogger<OrderService> logger)
@@ -62,7 +62,7 @@ namespace AgriIDMS.Application.Services
             _notificationService = notificationService;
             _paymentService = paymentService;
             _userRepo = userRepo;
-            _nearExpiryDiscountRuleRepo = nearExpiryDiscountRuleRepo;
+            _discountRuleRepo = discountRuleRepo;
             _uow = uow;
             var softLockMinutes = 30;
             if (int.TryParse(config["Ordering:OnlineSoftLockMinutes"], out var olm) && olm > 0)
@@ -1312,7 +1312,7 @@ namespace AgriIDMS.Application.Services
             int productVariantId,
             decimal baseUnitPrice,
             IDictionary<int, (bool IsNearExpiry, decimal EffectivePercent)> eligibilityCache,
-            IReadOnlyList<NearExpiryDiscountRule> nearExpiryRules,
+            IReadOnlyList<DiscountRule> nearExpiryRules,
             bool includeOfflineOnly = false)
         {
             if (baseUnitPrice <= 0 || nearExpiryRules.Count == 0)
@@ -1349,7 +1349,7 @@ namespace AgriIDMS.Application.Services
             return safePrice;
         }
 
-        private static decimal ResolveNearExpiryDiscountPercent(int daysLeft, IReadOnlyList<NearExpiryDiscountRule> rules)
+        private static decimal ResolveNearExpiryDiscountPercent(int daysLeft, IReadOnlyList<DiscountRule> rules)
         {
             if (daysLeft < 0 || rules.Count == 0)
                 return 0m;
@@ -1359,7 +1359,7 @@ namespace AgriIDMS.Application.Services
                 if (!rule.IsActive)
                     continue;
 
-                if (daysLeft <= rule.MaxDaysLeft)
+                if (rule.MaxDaysLeft.HasValue && daysLeft <= rule.MaxDaysLeft.Value)
                     return rule.DiscountPercent;
             }
 
@@ -1370,9 +1370,9 @@ namespace AgriIDMS.Application.Services
         /// Use the same active rule source as near-expiry dashboard
         /// so order pricing and dashboard suggestions stay consistent.
         /// </summary>
-        private async Task<IReadOnlyList<NearExpiryDiscountRule>> GetActiveNearExpiryRulesForPricingAsync()
+        private async Task<IReadOnlyList<DiscountRule>> GetActiveNearExpiryRulesForPricingAsync()
         {
-            var rules = await _nearExpiryDiscountRuleRepo.GetActiveRulesAsync();
+            var rules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.NearExpiry);
             return rules;
         }
 

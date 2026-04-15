@@ -104,7 +104,7 @@ public static class ServiceRegistration
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IBoxRepository, BoxRepository>();
         services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
-        services.AddScoped<INearExpiryDiscountRuleRepository, NearExpiryDiscountRuleRepository>();
+        services.AddScoped<IDiscountRuleRepository, DiscountRuleRepository>();
         services.AddScoped<IDisposalRequestRepository, DisposalRequestRepository>();
         services.AddScoped<IStockCheckRepository, StockCheckRepository>();
         services.AddScoped<IStockCheckDetailRepository, StockCheckDetailRepository>();

@@ -15,13 +15,13 @@ namespace AgriIDMS.Application.Services
     {
         private readonly ILotRepository _lotRepository;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly INearExpiryDiscountRuleRepository _nearExpiryRuleRepo;
+        private readonly IDiscountRuleRepository _discountRuleRepo;
 
-        public LotService(ILotRepository lotRepository, IUnitOfWork unitOfWork, INearExpiryDiscountRuleRepository nearExpiryRuleRepo)
+        public LotService(ILotRepository lotRepository, IUnitOfWork unitOfWork, IDiscountRuleRepository discountRuleRepo)
         {
             _lotRepository = lotRepository;
             _unitOfWork = unitOfWork;
-            _nearExpiryRuleRepo = nearExpiryRuleRepo;
+            _discountRuleRepo = discountRuleRepo;
         }
 
         public async Task<List<LotListItemDto>> GetAllLotsAsync()
@@ -156,7 +156,7 @@ namespace AgriIDMS.Application.Services
 
             var todayUtc = DateTime.UtcNow.Date;
             var lots = await _lotRepository.GetNearExpiryLotsAsync(days, warehouseId);
-            var rules = await _nearExpiryRuleRepo.GetActiveRulesAsync();
+            var rules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.NearExpiry);
             if (lots == null || !lots.Any())
             {
                 return new NearExpiryDashboardDto
@@ -219,14 +219,14 @@ namespace AgriIDMS.Application.Services
 
         public async Task<List<NearExpiryDiscountRuleDto>> GetNearExpiryDiscountRulesAsync()
         {
-            var rules = await _nearExpiryRuleRepo.GetAllRulesAsync();
+            var rules = await _discountRuleRepo.GetAllRulesAsync(DiscountRuleType.NearExpiry);
             return rules
                 .OrderBy(r => r.MaxDaysLeft)
                 .ThenBy(r => r.Id)
                 .Select(r => new NearExpiryDiscountRuleDto
                 {
                     Id = r.Id,
-                    MaxDaysLeft = r.MaxDaysLeft,
+                    MaxDaysLeft = r.MaxDaysLeft ?? 0,
                     DiscountPercent = r.DiscountPercent,
                     IsActive = r.IsActive,
                     CreatedAt = r.CreatedAt,
@@ -260,20 +260,23 @@ namespace AgriIDMS.Application.Services
             var now = DateTime.UtcNow;
             var entities = normalized
                 .OrderBy(r => r.MaxDaysLeft)
-                .Select(r => new NearExpiryDiscountRule
+                .Select(r => new DiscountRule
                 {
+                    RuleType = DiscountRuleType.NearExpiry,
+                    Name = $"Near-expiry <= {r.MaxDaysLeft} day(s)",
                     MaxDaysLeft = r.MaxDaysLeft,
                     DiscountPercent = r.DiscountPercent,
+                    Priority = r.MaxDaysLeft,
                     IsActive = r.IsActive,
                     CreatedAt = now,
                     CreatedBy = userId
                 })
                 .ToList();
 
-            await _nearExpiryRuleRepo.ReplaceAllRulesAsync(entities);
+            await _discountRuleRepo.ReplaceAllRulesAsync(entities, DiscountRuleType.NearExpiry);
         }
 
-        private static decimal GetSuggestedDiscountPercent(int daysLeft, List<NearExpiryDiscountRule> rules)
+        private static decimal GetSuggestedDiscountPercent(int daysLeft, List<DiscountRule> rules)
         {
             if (rules == null || rules.Count == 0)
                 return 0m;
@@ -284,7 +287,7 @@ namespace AgriIDMS.Application.Services
             foreach (var rule in rules.OrderBy(r => r.MaxDaysLeft))
             {
                 if (!rule.IsActive) continue;
-                if (daysLeft <= rule.MaxDaysLeft)
+                if (rule.MaxDaysLeft.HasValue && daysLeft <= rule.MaxDaysLeft.Value)
                     return rule.DiscountPercent;
             }
 
