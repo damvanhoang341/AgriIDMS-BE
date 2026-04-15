@@ -20,7 +20,7 @@ namespace AgriIDMS.Application.Interfaces
         Task DeleteAsync(int id);
         Task UpdateStatusAsync(int id, UpdateProductVariantStatusDto dto);
 
-        /// <summary>Manager đặt % giảm giá gần hết hạn cho biến thể (ghi đè config chung).</summary>
+        /// <summary>Manager đặt % giảm giá gần hết hạn cho biến thể.</summary>
         Task SetManualNearExpiryDiscountAsync(int productVariantId, decimal? discountPercent);
     }
 }

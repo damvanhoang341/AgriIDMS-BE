@@ -9,7 +9,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -27,10 +26,9 @@ namespace AgriIDMS.Application.Services
         private readonly INotificationService _notificationService;
         private readonly IPaymentService _paymentService;
         private readonly IUserRepository _userRepo;
+        private readonly INearExpiryDiscountRuleRepository _nearExpiryDiscountRuleRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<OrderService> _logger;
-        private readonly int _nearExpiryDiscountDays;
-        private readonly decimal _nearExpiryDiscountPercent;
         private const decimal PriceComparisonTolerance = 0.0001m;
         private const int CompleteAfterDeliveredDays = 4;
 
@@ -49,6 +47,7 @@ namespace AgriIDMS.Application.Services
             INotificationService notificationService,
             IPaymentService paymentService,
             IUserRepository userRepo,
+            INearExpiryDiscountRuleRepository nearExpiryDiscountRuleRepo,
             IUnitOfWork uow,
             IConfiguration config,
             ILogger<OrderService> logger)
@@ -63,17 +62,8 @@ namespace AgriIDMS.Application.Services
             _notificationService = notificationService;
             _paymentService = paymentService;
             _userRepo = userRepo;
+            _nearExpiryDiscountRuleRepo = nearExpiryDiscountRuleRepo;
             _uow = uow;
-            _nearExpiryDiscountDays = int.TryParse(config["Pricing:NearExpiryDiscountDays"], out var days)
-                ? days
-                : 0;
-            _nearExpiryDiscountPercent = decimal.TryParse(
-                config["Pricing:NearExpiryDiscountPercent"],
-                NumberStyles.Number,
-                CultureInfo.InvariantCulture,
-                out var percent)
-                ? percent
-                : 0m;
             var softLockMinutes = 30;
             if (int.TryParse(config["Ordering:OnlineSoftLockMinutes"], out var olm) && olm > 0)
                 softLockMinutes = Math.Min(olm, 7 * 24 * 60);
@@ -878,6 +868,7 @@ namespace AgriIDMS.Application.Services
             {
                 decimal estimatedTotal = 0;
                 var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
+                var nearExpiryRules = await GetActiveNearExpiryRulesForPricingAsync();
                 var unitPriceByType = new Dictionary<(int ProductVariantId, decimal BoxWeight, bool IsPartial), decimal>();
                 var order = new Order
                 {
@@ -895,7 +886,8 @@ namespace AgriIDMS.Application.Services
                     var unitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
                         item.ProductVariantId,
                         cartUnitPricePerKg,
-                        nearExpiryEligibilityCache);
+                        nearExpiryEligibilityCache,
+                        nearExpiryRules);
 
                     var detail = new OrderDetail
                     {
@@ -1006,6 +998,7 @@ namespace AgriIDMS.Application.Services
             {
                 decimal estimatedTotal = 0;
                 var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
+                var nearExpiryRules = await GetActiveNearExpiryRulesForPricingAsync();
 
                 var order = new Order
                 {
@@ -1065,7 +1058,8 @@ namespace AgriIDMS.Application.Services
                             UnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
                                 item.ProductVariantId,
                                 NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price),
-                                nearExpiryEligibilityCache),
+                                nearExpiryEligibilityCache,
+                                nearExpiryRules),
                             FulfilledQuantity = 0,
                             ShortageQuantity = 0
                         };
@@ -1142,6 +1136,7 @@ namespace AgriIDMS.Application.Services
 
             var now = DateTime.UtcNow;
             var nearExpiryEligibilityCache = new Dictionary<int, (bool IsNearExpiry, decimal EffectivePercent)>();
+            var nearExpiryRules = await GetActiveNearExpiryRulesForPricingAsync();
             CreateOrderFromCartResponse response = null!;
             await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
@@ -1203,6 +1198,7 @@ namespace AgriIDMS.Application.Services
                             item.ProductVariantId,
                             baseUnitPrice,
                             nearExpiryEligibilityCache,
+                            nearExpiryRules,
                             includeOfflineOnly: true);
                     if (unitPrice <= 0)
                         throw new InvalidBusinessRuleException("Đơn giá phải lớn hơn 0");
@@ -1316,18 +1312,14 @@ namespace AgriIDMS.Application.Services
             int productVariantId,
             decimal baseUnitPrice,
             IDictionary<int, (bool IsNearExpiry, decimal EffectivePercent)> eligibilityCache,
+            IReadOnlyList<NearExpiryDiscountRule> nearExpiryRules,
             bool includeOfflineOnly = false)
         {
-            if (baseUnitPrice <= 0 || _nearExpiryDiscountDays <= 0)
+            if (baseUnitPrice <= 0 || nearExpiryRules.Count == 0)
                 return baseUnitPrice;
 
             if (!eligibilityCache.TryGetValue(productVariantId, out var cached))
             {
-                var variantMap = await _variantRepo.GetByIdsAsync(new[] { productVariantId });
-                var manualPercent = variantMap.TryGetValue(productVariantId, out var pv)
-                    ? pv.ManualNearExpiryDiscountPercent
-                    : null;
-
                 var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(
                     productVariantId,
                     includeOfflineOnly);
@@ -1338,12 +1330,12 @@ namespace AgriIDMS.Application.Services
                     .DefaultIfEmpty(DateTime.MaxValue)
                     .Min();
 
-                var daysLeft = (nearestExpiry - DateTime.UtcNow).TotalDays;
-                var isNearExpiry = nearestExpiry != DateTime.MaxValue && daysLeft <= _nearExpiryDiscountDays;
+                var daysLeft = nearestExpiry == DateTime.MaxValue
+                    ? int.MaxValue
+                    : (nearestExpiry.Date - DateTime.UtcNow.Date).Days;
 
-                var effectivePercent = 0m;
-                if (isNearExpiry)
-                    effectivePercent = manualPercent ?? _nearExpiryDiscountPercent;
+                var effectivePercent = ResolveNearExpiryDiscountPercent(daysLeft, nearExpiryRules);
+                var isNearExpiry = effectivePercent > 0m;
 
                 cached = (isNearExpiry, effectivePercent);
                 eligibilityCache[productVariantId] = cached;
@@ -1355,6 +1347,33 @@ namespace AgriIDMS.Application.Services
             var discountedPrice = baseUnitPrice * (1 - (cached.EffectivePercent / 100m));
             var safePrice = Math.Round(Math.Max(discountedPrice, 0.01m), 2, MidpointRounding.AwayFromZero);
             return safePrice;
+        }
+
+        private static decimal ResolveNearExpiryDiscountPercent(int daysLeft, IReadOnlyList<NearExpiryDiscountRule> rules)
+        {
+            if (daysLeft < 0 || rules.Count == 0)
+                return 0m;
+
+            foreach (var rule in rules.OrderBy(r => r.MaxDaysLeft))
+            {
+                if (!rule.IsActive)
+                    continue;
+
+                if (daysLeft <= rule.MaxDaysLeft)
+                    return rule.DiscountPercent;
+            }
+
+            return 0m;
+        }
+
+        /// <summary>
+        /// Use the same active rule source as near-expiry dashboard
+        /// so order pricing and dashboard suggestions stay consistent.
+        /// </summary>
+        private async Task<IReadOnlyList<NearExpiryDiscountRule>> GetActiveNearExpiryRulesForPricingAsync()
+        {
+            var rules = await _nearExpiryDiscountRuleRepo.GetActiveRulesAsync();
+            return rules;
         }
 
         private static decimal NormalizeCartUnitPricePerKg(decimal storedUnitPrice, decimal boxWeight, decimal? variantPricePerKg)
