@@ -201,27 +201,5 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("ProductVariant deleted {Id}", id);
         }
 
-        public async Task SetManualNearExpiryDiscountAsync(int productVariantId, decimal? discountPercent)
-        {
-            _logger.LogInformation(
-                "Setting manual near-expiry discount for ProductVariant {Id} to {Percent}",
-                productVariantId,
-                discountPercent);
-
-            var variants = await _repo.GetByIdsAsync(new[] { productVariantId });
-            if (!variants.TryGetValue(productVariantId, out var variant))
-                throw new NotFoundException("ProductVariant không tồn tại");
-
-            if (discountPercent.HasValue)
-            {
-                var p = discountPercent.Value;
-                if (p < 0 || p > 100)
-                    throw new InvalidBusinessRuleException("DiscountPercent phải từ 0 đến 100");
-            }
-
-            variant.ManualNearExpiryDiscountPercent = discountPercent;
-            _repo.Update(variant);
-            await _uow.SaveChangesAsync();
-        }
     }
 }

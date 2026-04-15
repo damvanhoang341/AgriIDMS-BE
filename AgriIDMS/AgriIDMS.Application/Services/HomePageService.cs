@@ -1,7 +1,6 @@
 using AgriIDMS.Application.DTOs.Home;
 using AgriIDMS.Application.DTOs.ProductVariant;
 using AgriIDMS.Application.Interfaces;
-using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -17,20 +16,23 @@ namespace AgriIDMS.Application.Services
     {
         private readonly ICategoryRepository _categoryRepo;
         private readonly IBoxRepository _boxRepo;
-        private readonly IDiscountRuleRepository _discountRuleRepo;
+        private readonly INearExpiryDiscountRuleRepository _nearExpiryRuleRepo;
+        private readonly IProductVariantDiscountOverrideRepository _variantOverrideRepo;
         private readonly ILogger<HomePageService> _logger;
         private readonly IProductVariantRepository _repo;
 
         public HomePageService(
             ICategoryRepository categoryRepo,
             IBoxRepository boxRepo,
-            IDiscountRuleRepository discountRuleRepo,
+            INearExpiryDiscountRuleRepository nearExpiryRuleRepo,
+            IProductVariantDiscountOverrideRepository variantOverrideRepo,
             ILogger<HomePageService> logger,
             IProductVariantRepository repo)
         {
             _categoryRepo = categoryRepo;
             _boxRepo = boxRepo;
-            _discountRuleRepo = discountRuleRepo;
+            _nearExpiryRuleRepo = nearExpiryRuleRepo;
+            _variantOverrideRepo = variantOverrideRepo;
             _logger = logger;
             _repo = repo;
         }
@@ -40,14 +42,19 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("Getting all product variants");
 
             var variants = await _repo.GetAllAsync();
-            var activeRules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.NearExpiry);
+            var now = DateTime.UtcNow;
+            var activeRules = await _nearExpiryRuleRepo.GetActiveRulesAsync(now);
+            var activeOverrides = await _variantOverrideRepo.GetActiveOverridesByVariantIdsAsync(
+                variants.Select(v => v.Id),
+                now);
             var result = new List<ProductVariantResponseCustomerHomeDto>();
             foreach (var x in variants)
             {
                 var pricing = await BuildNearExpiryPricingAsync(
                     x.Id,
                     x.Price,
-                    activeRules);
+                    activeRules,
+                    activeOverrides.TryGetValue(x.Id, out var ov) ? ov : null);
                 result.Add(new ProductVariantResponseCustomerHomeDto
                 {
                     Id = x.Id,
@@ -74,11 +81,14 @@ namespace AgriIDMS.Application.Services
             if (variant == null)
                 throw new Exception("Product variant not found");
 
-            var activeRules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.NearExpiry);
+            var now = DateTime.UtcNow;
+            var activeRules = await _nearExpiryRuleRepo.GetActiveRulesAsync(now);
+            var activeOverride = await _variantOverrideRepo.GetActiveOverrideForVariantAsync(variant.Id, now);
             var pricing = await BuildNearExpiryPricingAsync(
                 variant.Id,
                 variant.Price,
-                activeRules);
+                activeRules,
+                activeOverride);
 
             var boxTypeSummaries = await _boxRepo.GetAvailableBoxTypeSummaryByVariantIdAsync(variant.Id);
 
@@ -119,20 +129,22 @@ namespace AgriIDMS.Application.Services
         private async Task<(bool HasNearExpiryStock, decimal? NearExpiryDiscountPercent, decimal? NearExpiryPricePerKg, List<NearExpiryPriceTierDto> Tiers)> BuildNearExpiryPricingAsync(
             int productVariantId,
             decimal basePricePerKg,
-            List<DiscountRule> activeRules)
+            List<Domain.Entities.NearExpiryDiscountRule> activeRules,
+            Domain.Entities.ProductVariantDiscountOverride? activeOverride)
         {
             if (basePricePerKg <= 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
-            var orderedRules = (activeRules ?? new List<DiscountRule>())
-                .Where(r => r.IsActive && r.MaxDaysLeft.HasValue && r.MaxDaysLeft.Value > 0)
-                .OrderBy(r => r.MaxDaysLeft)
+            var orderedRules = (activeRules ?? new List<Domain.Entities.NearExpiryDiscountRule>())
+                .Where(r => r.IsActive && r.MaxDaysLeft > 0)
+                .OrderBy(r => r.Priority)
+                .ThenBy(r => r.MaxDaysLeft)
                 .ToList();
 
             if (orderedRules.Count == 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
-            var maxRuleDays = orderedRules.Max(r => r.MaxDaysLeft!.Value);
+            var maxRuleDays = orderedRules.Max(r => r.MaxDaysLeft);
             var today = DateTime.UtcNow.Date;
             var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(productVariantId, includeOfflineOnly: false);
             if (boxes == null || boxes.Count == 0)
@@ -148,41 +160,61 @@ namespace AgriIDMS.Application.Services
             if (nearExpiryDaysLeft.Count == 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
-            var tiers = orderedRules
-                .Select(rule =>
+            List<NearExpiryPriceTierDto> tiers;
+            if (activeOverride != null && activeOverride.OverrideNearExpiryDiscountPercent > 0)
+            {
+                var percent = activeOverride.OverrideNearExpiryDiscountPercent;
+                var pricePerKg = Math.Round(
+                    Math.Max(basePricePerKg * (1 - (percent / 100m)), 0.01m),
+                    2,
+                    MidpointRounding.AwayFromZero);
+                tiers = new List<NearExpiryPriceTierDto>
                 {
-                    var lowerBoundExclusive = orderedRules
-                        .Where(r => r.MaxDaysLeft < rule.MaxDaysLeft && r.IsActive)
-                        .Select(r => r.MaxDaysLeft)
-                        .DefaultIfEmpty(-1)
-                        .Max();
-                    var boxCount = nearExpiryDaysLeft.Count(daysLeft =>
-                        daysLeft > lowerBoundExclusive &&
-                        daysLeft <= rule.MaxDaysLeft!.Value);
-                    if (boxCount <= 0) return null;
-
-                    var effectivePercent = rule.DiscountPercent;
-                    var pricePerKg = Math.Round(
-                        Math.Max(basePricePerKg * (1 - (effectivePercent / 100m)), 0.01m),
-                        2,
-                        MidpointRounding.AwayFromZero);
-                    return new NearExpiryPriceTierDto
+                    new NearExpiryPriceTierDto
                     {
-                        MaxDaysLeft = rule.MaxDaysLeft!.Value,
-                        DiscountPercent = effectivePercent,
+                        MaxDaysLeft = maxRuleDays,
+                        DiscountPercent = percent,
                         PricePerKg = pricePerKg,
-                        BoxCount = boxCount
-                    };
-                })
-                .Where(x => x != null)
-                .Select(x => x!)
-                .ToList();
+                        BoxCount = nearExpiryDaysLeft.Count
+                    }
+                };
+            }
+            else
+            {
+                tiers = orderedRules
+                    .Select(rule =>
+                    {
+                        var min = rule.MinDaysLeft ?? 0;
+                        var boxCount = nearExpiryDaysLeft.Count(daysLeft =>
+                            daysLeft >= min &&
+                            daysLeft <= rule.MaxDaysLeft);
+                        if (boxCount <= 0) return null;
+
+                        var effectivePercent = rule.DiscountPercent;
+                        var pricePerKg = Math.Round(
+                            Math.Max(basePricePerKg * (1 - (effectivePercent / 100m)), 0.01m),
+                            2,
+                            MidpointRounding.AwayFromZero);
+                        return new NearExpiryPriceTierDto
+                        {
+                            MaxDaysLeft = rule.MaxDaysLeft,
+                            DiscountPercent = effectivePercent,
+                            PricePerKg = pricePerKg,
+                            BoxCount = boxCount
+                        };
+                    })
+                    .Where(x => x != null)
+                    .Select(x => x!)
+                    .ToList();
+            }
 
             if (tiers.Count == 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
             var nearestDaysLeft = nearExpiryDaysLeft.Min();
-            var suggestedByRule = ResolveDiscountPercentByRule(nearestDaysLeft, orderedRules);
+            var suggestedByRule = activeOverride != null && activeOverride.OverrideNearExpiryDiscountPercent > 0
+                ? activeOverride.OverrideNearExpiryDiscountPercent
+                : ResolveDiscountPercentByRule(nearestDaysLeft, orderedRules);
             var effectiveDiscount = suggestedByRule;
 
             if (effectiveDiscount <= 0)
@@ -195,15 +227,15 @@ namespace AgriIDMS.Application.Services
             return (true, effectiveDiscount, discounted, tiers);
         }
 
-        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<DiscountRule> rules)
+        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<Domain.Entities.NearExpiryDiscountRule> rules)
         {
-            foreach (var rule in rules.OrderBy(r => r.MaxDaysLeft))
-            {
-                if (!rule.IsActive) continue;
-                if (rule.MaxDaysLeft.HasValue && daysLeft <= rule.MaxDaysLeft.Value)
-                    return rule.DiscountPercent;
-            }
-            return 0m;
+            return rules
+                .Where(r => !r.MinDaysLeft.HasValue || daysLeft >= r.MinDaysLeft.Value)
+                .Where(r => daysLeft <= r.MaxDaysLeft)
+                .OrderBy(r => r.Priority)
+                .ThenByDescending(r => r.DiscountPercent)
+                .Select(r => r.DiscountPercent)
+                .FirstOrDefault();
         }
     }
 }
