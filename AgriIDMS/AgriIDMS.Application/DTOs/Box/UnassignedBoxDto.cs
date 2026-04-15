@@ -9,6 +9,7 @@ namespace AgriIDMS.Application.DTOs.Box
         public string? QrCode { get; set; }
         public string? QrImageUrl { get; set; }
         public decimal Weight { get; set; }
+        public decimal VolumeM3 { get; set; }
         public string Status { get; set; } = null!;
 
         public int? SlotId { get; set; }

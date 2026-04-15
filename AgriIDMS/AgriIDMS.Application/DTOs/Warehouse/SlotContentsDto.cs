@@ -10,6 +10,7 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public string? QrCode { get; set; }
         public string? QrImageUrl { get; set; }
         public decimal Weight { get; set; }
+        public decimal VolumeM3 { get; set; }
         public string Status { get; set; } = null!;
 
         public int LotId { get; set; }
@@ -35,6 +36,7 @@ namespace AgriIDMS.Application.DTOs.Warehouse
 
         public int BoxCount { get; set; }
         public decimal TotalBoxWeight { get; set; }
+        public decimal TotalBoxVolumeM3 { get; set; }
         public List<SlotBoxItemDto> Boxes { get; set; } = new();
     }
 }

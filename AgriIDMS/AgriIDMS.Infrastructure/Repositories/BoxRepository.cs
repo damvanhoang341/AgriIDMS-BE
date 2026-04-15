@@ -49,6 +49,9 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.ProductVariant)
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
                         .ThenInclude(d => d!.GoodsReceipt)
                 .Include(b => b.Slot)
                 .FirstOrDefaultAsync(b => b.Id == id);
@@ -67,6 +70,9 @@ namespace AgriIDMS.Infrastructure.Repositories
             var idList = ids.Distinct().ToList();
             if (idList.Count == 0) return new List<Box>();
             return await _context.Boxes
+                .Include(b => b.Lot)
+                    .ThenInclude(l => l.GoodsReceiptDetail)
+                        .ThenInclude(d => d!.ProductVariant)
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                         .ThenInclude(d => d!.GoodsReceipt)
@@ -321,6 +327,46 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Status != BoxStatus.Exported &&
                     b.SlotId == null)
                 .SumAsync(b => (decimal?)b.Weight);
+
+            return total ?? 0m;
+        }
+
+        public async Task<decimal> GetAssignedStockVolumeByWarehouseIdAsync(int warehouseId)
+        {
+            var total = await _context.Boxes
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
+                    b.Status != BoxStatus.Exported &&
+                    b.SlotId != null)
+                .SumAsync(b => (decimal?)(
+                    b.VolumeM3 > 0
+                        ? b.VolumeM3
+                        : (
+                            b.Weight > 0 &&
+                            b.Lot.GoodsReceiptDetail.ProductVariant.DensityKgPerM3 > 0
+                                ? b.Weight / b.Lot.GoodsReceiptDetail.ProductVariant.DensityKgPerM3
+                                : 0m
+                          )));
+
+            return total ?? 0m;
+        }
+
+        public async Task<decimal> GetUnassignedStockVolumeByWarehouseIdAsync(int warehouseId)
+        {
+            var total = await _context.Boxes
+                .Where(b =>
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId &&
+                    b.Status != BoxStatus.Exported &&
+                    b.SlotId == null)
+                .SumAsync(b => (decimal?)(
+                    b.VolumeM3 > 0
+                        ? b.VolumeM3
+                        : (
+                            b.Weight > 0 &&
+                            b.Lot.GoodsReceiptDetail.ProductVariant.DensityKgPerM3 > 0
+                                ? b.Weight / b.Lot.GoodsReceiptDetail.ProductVariant.DensityKgPerM3
+                                : 0m
+                          )));
 
             return total ?? 0m;
         }

@@ -35,7 +35,10 @@ namespace AgriIDMS.Application.Services
                 {
                     Id = r.Id,
                     Name = r.Name,
-                    ZoneId = r.ZoneId
+                    ZoneId = r.ZoneId,
+                    LengthM = r.LengthM,
+                    WidthM = r.WidthM,
+                    FloorAreaM2 = r.FloorAreaM2
                 })
                 .ToList();
         }
@@ -53,11 +56,32 @@ namespace AgriIDMS.Application.Services
             {
                 throw new InvalidBusinessRuleException("Rack đã tồn tại trong zone này");
             }
+            if (!request.LengthM.HasValue || !request.WidthM.HasValue ||
+                request.LengthM.Value <= 0 || request.WidthM.Value <= 0)
+            {
+                throw new InvalidBusinessRuleException("Rack phải có chiều dài và chiều rộng lớn hơn 0.");
+            }
+            var rackArea = request.FloorAreaM2 ??
+                (request.LengthM.Value * request.WidthM.Value);
+            if (zone.FloorAreaM2.HasValue)
+            {
+                var maxRacksArea = zone.FloorAreaM2.Value * 0.7m;
+                var existingRacks = await _rackRepository.GetByZoneAsync(zoneId);
+                var totalOtherRacksArea = existingRacks.Sum(r => r.FloorAreaM2 ?? (
+                    r.LengthM.HasValue && r.WidthM.HasValue ? r.LengthM.Value * r.WidthM.Value : 0m));
+                if (totalOtherRacksArea + rackArea > maxRacksArea)
+                {
+                    throw new InvalidBusinessRuleException("Tổng diện tích các rack không được lớn hơn 70% diện tích zone.");
+                }
+            }
 
             var rack = new Rack
             {
                 Name = name,
-                ZoneId = zoneId
+                ZoneId = zoneId,
+                LengthM = request.LengthM,
+                WidthM = request.WidthM,
+                FloorAreaM2 = rackArea
             };
 
             await _rackRepository.AddAsync(rack);
@@ -80,8 +104,36 @@ namespace AgriIDMS.Application.Services
             {
                 throw new InvalidBusinessRuleException("Rack đã tồn tại trong zone này");
             }
+            if (!request.LengthM.HasValue || !request.WidthM.HasValue ||
+                request.LengthM.Value <= 0 || request.WidthM.Value <= 0)
+            {
+                throw new InvalidBusinessRuleException("Rack phải có chiều dài và chiều rộng lớn hơn 0.");
+            }
+            var zone = await _zoneRepository.GetByIdAsync(rack.ZoneId);
+            if (zone == null)
+            {
+                throw new NotFoundException("Zone không tồn tại");
+            }
+            var rackArea = request.FloorAreaM2 ??
+                (request.LengthM.Value * request.WidthM.Value);
+            if (zone.FloorAreaM2.HasValue)
+            {
+                var maxRacksArea = zone.FloorAreaM2.Value * 0.7m;
+                var existingRacks = await _rackRepository.GetByZoneAsync(rack.ZoneId);
+                var totalOtherRacksArea = existingRacks
+                    .Where(r => r.Id != rack.Id)
+                    .Sum(r => r.FloorAreaM2 ?? (
+                        r.LengthM.HasValue && r.WidthM.HasValue ? r.LengthM.Value * r.WidthM.Value : 0m));
+                if (totalOtherRacksArea + rackArea > maxRacksArea)
+                {
+                    throw new InvalidBusinessRuleException("Tổng diện tích các rack không được lớn hơn 70% diện tích zone.");
+                }
+            }
 
             rack.Name = name;
+            rack.LengthM = request.LengthM;
+            rack.WidthM = request.WidthM;
+            rack.FloorAreaM2 = rackArea;
 
             await _rackRepository.UpdateAsync(rack);
             await _unitOfWork.SaveChangesAsync();

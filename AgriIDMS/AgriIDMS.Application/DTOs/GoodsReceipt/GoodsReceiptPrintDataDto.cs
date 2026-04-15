@@ -48,6 +48,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         public decimal TotalReceivedWeight { get; set; }
         public decimal TotalUsableWeight { get; set; }
+        public decimal? TotalAmount { get; set; }
 
         public string? ApprovedByUserName { get; set; }
         public DateTime? ApprovedAtUtc { get; set; }
@@ -64,6 +65,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         public decimal? OrderedWeightKg { get; set; }
         public decimal ReceivedWeightKg { get; set; }
         public decimal? UsableWeightKg { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? LineTotal { get; set; }
         public string QcResult { get; set; } = null!;
         public string? QcNote { get; set; }
         public string? InspectedBy { get; set; }

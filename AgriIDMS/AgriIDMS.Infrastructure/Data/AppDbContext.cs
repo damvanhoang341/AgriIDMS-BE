@@ -46,6 +46,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DiscountRule> DiscountRules => Set<DiscountRule>();
     public DbSet<DisposalRequest> DisposalRequests => Set<DisposalRequest>();
     public DbSet<DisposalRequestItem> DisposalRequestItems => Set<DisposalRequestItem>();
+    public DbSet<BoxTypeSpec> BoxTypeSpecs => Set<BoxTypeSpec>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -230,6 +231,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.MinReceiptWeight)
                   .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.DensityKgPerM3)
+                  .HasColumnType("decimal(18,2)")
+                  .HasDefaultValue(0m);
 
             entity.Property(x => x.ManualNearExpiryDiscountPercent)
                   .HasColumnType("decimal(5,2)");
@@ -560,6 +565,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasColumnType("decimal(18,2)")
                   .IsRequired();
 
+            entity.Property(x => x.VolumeM3)
+                  .HasColumnType("decimal(18,4)")
+                  .HasDefaultValue(0m)
+                  .IsRequired();
+
             entity.Property(x => x.BoxType)
                   .HasConversion<int>()
                   .IsRequired();
@@ -779,6 +789,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(50)
                   .IsRequired();
 
+            entity.Property(x => x.LengthM)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.WidthM)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.FloorAreaM2)
+                  .HasColumnType("decimal(18,2)");
+
             entity.Property(x => x.MinColdStorageHours)
                   .HasColumnType("decimal(18,2)");
 
@@ -808,6 +827,29 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.Name);
         });
 
+        builder.Entity<BoxTypeSpec>(entity =>
+        {
+            entity.ToTable("BoxTypeSpecs");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.BoxType)
+                  .HasConversion<int>()
+                  .IsRequired();
+
+            entity.Property(x => x.DisplayName)
+                  .HasMaxLength(150)
+                  .IsRequired();
+
+            entity.Property(x => x.LengthCm).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.WidthCm).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.HeightCm).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+            entity.Property(x => x.UpdatedAt);
+
+            entity.HasIndex(x => new { x.BoxType, x.IsActive });
+        });
+
         //Zone
         builder.Entity<Zone>(entity =>
         {
@@ -818,6 +860,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Name)
                   .IsRequired()
                   .HasMaxLength(100);
+
+            entity.Property(x => x.LengthM)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.WidthM)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.FloorAreaM2)
+                  .HasColumnType("decimal(18,2)");
 
             // Warehouse - Zone (1 - many)
             entity.HasOne(x => x.Warehouse)
@@ -840,6 +889,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Name)
                   .IsRequired()
                   .HasMaxLength(100);
+
+            entity.Property(x => x.LengthM)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.WidthM)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.FloorAreaM2)
+                  .HasColumnType("decimal(18,2)");
 
             // Zone - Rack (1 - many)
             entity.HasOne(x => x.Zone)
@@ -875,6 +931,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.Capacity)
                   .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.LengthCm)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.WidthCm)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.HeightCm)
+                  .HasColumnType("decimal(18,2)");
+            entity.Property(x => x.VolumeM3)
+                  .HasColumnType("decimal(18,4)");
 
             // Rack - Slot (1 - many)
             entity.HasOne(x => x.Rack)

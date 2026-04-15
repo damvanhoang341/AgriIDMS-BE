@@ -13,7 +13,6 @@ namespace AgriIDMS.Application.DTOs.Disposal
         [MinLength(1, ErrorMessage = "Phải chọn ít nhất 1 box để tiêu hủy")]
         public List<int> BoxIds { get; set; } = new();
 
-        [Required(ErrorMessage = "Lý do tiêu hủy không được để trống")]
         [MaxLength(1000)]
         public string Reason { get; set; } = string.Empty;
     }

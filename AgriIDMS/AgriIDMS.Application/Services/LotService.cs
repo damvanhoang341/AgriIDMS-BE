@@ -45,6 +45,7 @@ namespace AgriIDMS.Application.Services
                     Status = l.Status.ToString(),
                     GoodsReceiptId = detail?.GoodsReceiptId ?? 0,
                     ProductName = productVariant?.Product?.Name ?? string.Empty,
+                    ProductVariantId = productVariant?.Id ?? 0,
                     ProductVariantName = productVariant?.Name ?? string.Empty,
                     WarehouseName = detail?.GoodsReceipt?.Warehouse?.Name ?? string.Empty
                 };
@@ -81,6 +82,12 @@ namespace AgriIDMS.Application.Services
                     .OrderByDescending(b => b.CreatedAt)
                     .Select(b => new LotBoxItemDto
                     {
+                        // Fallback cho box cũ chưa backfill VolumeM3.
+                        VolumeM3 = b.VolumeM3 > 0
+                            ? b.VolumeM3
+                            : ((productVariant?.DensityKgPerM3 ?? 0m) > 0
+                                ? b.Weight / productVariant!.DensityKgPerM3
+                                : 0m),
                         BoxId = b.Id,
                         BoxCode = b.BoxCode,
                         Weight = b.Weight,
@@ -95,14 +102,34 @@ namespace AgriIDMS.Application.Services
             };
         }
 
-        public async Task<List<Lot>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId)
+        public async Task<List<LotListItemDto>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId)
         {
             var lots = await _lotRepository.GetByGoodsReceiptIdAsync(goodsReceiptId);
 
             if (lots == null || !lots.Any())
-                return new List<Lot>();
+                return new List<LotListItemDto>();
 
-            return lots;
+            return lots.Select(l =>
+            {
+                var detail = l.GoodsReceiptDetail;
+                var productVariant = detail?.ProductVariant;
+                return new LotListItemDto
+                {
+                    LotId = l.Id,
+                    LotCode = l.LotCode,
+                    QrImageUrl = l.QrImageUrl,
+                    TotalQuantity = l.TotalQuantity,
+                    RemainingQuantity = l.RemainingQuantity,
+                    ReceivedDate = l.ReceivedDate,
+                    ExpiryDate = l.ExpiryDate,
+                    Status = l.Status.ToString(),
+                    GoodsReceiptId = detail?.GoodsReceiptId ?? 0,
+                    ProductName = productVariant?.Product?.Name ?? string.Empty,
+                    ProductVariantId = productVariant?.Id ?? 0,
+                    ProductVariantName = productVariant?.Name ?? string.Empty,
+                    WarehouseName = detail?.GoodsReceipt?.Warehouse?.Name ?? string.Empty
+                };
+            }).ToList();
         }
 
         public async Task UpdateQrImageUrlAsync(int lotId, string qrImageUrl)

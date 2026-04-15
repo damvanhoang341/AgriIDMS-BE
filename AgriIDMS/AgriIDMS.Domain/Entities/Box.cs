@@ -16,6 +16,8 @@ namespace AgriIDMS.Domain.Entities
         public Lot Lot { get; set; } = null!;
 
         public decimal Weight { get; set; }
+        /// <summary>Thể tích box (m3) dùng cho tính sức chứa kho.</summary>
+        public decimal VolumeM3 { get; set; }
         /// <summary>Loại bao bì (thùng xốp, carton, bao lưới, sọt...). Khác với <see cref="IsPartial"/>.</summary>
         public BoxType BoxType { get; set; } = BoxType.Unknown;
         /// <summary>Box đầy hay lẻ (khối lượng theo quy cách).</summary>

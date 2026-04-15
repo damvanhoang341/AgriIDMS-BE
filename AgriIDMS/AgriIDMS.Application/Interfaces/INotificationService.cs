@@ -22,6 +22,8 @@ namespace AgriIDMS.Application.Interfaces
         Task NotifyStockCheckApprovedAsync(int stockCheckId);
         Task NotifyStockCheckPendingManagerAsync(int stockCheckId);
         Task NotifyGoodsReceiptPendingManagerAsync(int goodsReceiptId);
+        /// <summary>Phiếu nhập đã duyệt nhập kho (bước 2) — báo nhân viên kho tạo thùng.</summary>
+        Task NotifyWarehouseStaffGoodsReceiptApprovedAsync(int goodsReceiptId);
         Task NotifyNearExpiryLotAsync(int lotId);
         Task NotifyDisposalRequestPendingAdminAsync(int disposalRequestId);
         Task NotifyDisposalRequestApprovedAsync(int disposalRequestId, string requestedByUserId);

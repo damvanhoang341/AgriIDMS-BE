@@ -14,6 +14,7 @@ namespace AgriIDMS.Application.Services
 {
     public class DisposalRequestService : IDisposalRequestService
     {
+        private const decimal CapacityTolerance = 0.0001m;
         private readonly IDisposalRequestRepository _repo;
         private readonly IBoxRepository _boxRepo;
         private readonly ISlotRepository _slotRepo;
@@ -39,13 +40,17 @@ namespace AgriIDMS.Application.Services
 
         public async Task<int> CreateRequestAsync(CreateDisposalRequestDto dto, string userId)
         {
-            var (ids, _) = await ValidateAndLoadBoxesAsync(dto);
+            var (ids, boxes) = await ValidateAndLoadBoxesAsync(dto);
+            var now = DateTime.UtcNow;
+            var hasNonExpired = boxes.Any(b => !IsExpiredByDate(b, now));
+            if (!hasNonExpired)
+                throw new InvalidBusinessRuleException("Box đã hết hạn thì tiêu hủy trực tiếp, không cần gửi yêu cầu duyệt.");
 
             var req = new DisposalRequest
             {
                 WarehouseId = dto.WarehouseId,
                 Status = DisposalRequestStatus.Pending,
-                Reason = dto.Reason.Trim(),
+                Reason = string.IsNullOrWhiteSpace(dto.Reason) ? "Tiêu hủy hàng còn hạn" : dto.Reason.Trim(),
                 RequestedBy = userId,
                 RequestedAt = DateTime.UtcNow,
                 Items = ids.Select(id => new DisposalRequestItem { BoxId = id }).ToList()
@@ -61,6 +66,10 @@ namespace AgriIDMS.Application.Services
         public async Task DirectDisposeAsync(CreateDisposalRequestDto dto, string reviewerUserId)
         {
             var (_, boxes) = await ValidateAndLoadBoxesAsync(dto);
+            var now = DateTime.UtcNow;
+            var hasNonExpired = boxes.Any(b => !IsExpiredByDate(b, now));
+            if (hasNonExpired)
+                throw new InvalidBusinessRuleException("Hàng còn hạn cần gửi yêu cầu duyệt từ Admin/Quản lí, không thể tiêu hủy trực tiếp.");
 
             await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
@@ -179,8 +188,6 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("WarehouseId không hợp lệ");
             if (dto.BoxIds == null || dto.BoxIds.Count == 0)
                 throw new InvalidBusinessRuleException("Danh sách BoxId không được để trống");
-            if (string.IsNullOrWhiteSpace(dto.Reason))
-                throw new InvalidBusinessRuleException("Lý do tiêu hủy không được để trống");
 
             var ids = dto.BoxIds.Where(i => i > 0).Distinct().ToList();
             if (ids.Count == 0)
@@ -202,6 +209,12 @@ namespace AgriIDMS.Application.Services
             return (ids, boxes);
         }
 
+        private static bool IsExpiredByDate(Box box, DateTime nowUtc)
+        {
+            var expiry = box.Lot?.ExpiryDate;
+            return expiry.HasValue && expiry.Value <= nowUtc;
+        }
+
         private async Task ProcessDisposeBoxesAsync(List<Box> boxes, string reviewerUserId, int? requestId)
         {
             var now = DateTime.UtcNow;
@@ -212,6 +225,7 @@ namespace AgriIDMS.Application.Services
                     continue;
 
                 var removedWeight = box.Weight;
+                var removedVolume = CapacityVolume(box);
                 var fromSlotId = box.SlotId;
 
                 if (box.SlotId.HasValue)
@@ -219,7 +233,7 @@ namespace AgriIDMS.Application.Services
                     var slot = await _slotRepo.GetByIdAsync(box.SlotId.Value);
                     if (slot != null)
                     {
-                        slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity - removedWeight);
+                        slot.CurrentCapacity = Math.Max(0, slot.CurrentCapacity - removedVolume);
                         await _slotRepo.UpdateAsync(slot);
                     }
                 }
@@ -230,6 +244,7 @@ namespace AgriIDMS.Application.Services
                 box.SlotId = null;
                 box.Status = BoxStatus.Disposed;
                 box.Weight = 0;
+                box.VolumeM3 = 0;
                 await _boxRepo.UpdateAsync(box);
 
                 await _inventoryTranRepo.CreateAsync(new InventoryTransaction
@@ -245,6 +260,18 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = now
                 });
             }
+        }
+
+        private static decimal CapacityVolume(Box box)
+        {
+            if (box.VolumeM3 > CapacityTolerance) return box.VolumeM3;
+            var density = box.Lot?.GoodsReceiptDetail?.ProductVariant?.DensityKgPerM3 ?? 0m;
+            if (density > CapacityTolerance && box.Weight > CapacityTolerance)
+            {
+                return box.Weight / density;
+            }
+
+            return 0m;
         }
     }
 }
