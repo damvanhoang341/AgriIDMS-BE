@@ -7,12 +7,14 @@ using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
 {
     public class LotService : ILotService
     {
+        private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         private readonly ILotRepository _lotRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IDiscountRuleRepository _discountRuleRepo;
@@ -276,6 +278,109 @@ namespace AgriIDMS.Application.Services
             await _discountRuleRepo.ReplaceAllRulesAsync(entities, DiscountRuleType.NearExpiry);
         }
 
+        public async Task<List<FreeStyleDiscountRuleDto>> GetFreeStyleDiscountRulesAsync()
+        {
+            var rules = await _discountRuleRepo.GetAllRulesAsync(DiscountRuleType.FreeStyle);
+            return rules
+                .OrderBy(r => r.Priority)
+                .ThenBy(r => r.Id)
+                .Select(r => new FreeStyleDiscountRuleDto
+                {
+                    Id = r.Id,
+                    Name = r.Name ?? string.Empty,
+                    DiscountPercent = r.DiscountPercent,
+                    Priority = r.Priority,
+                    IsActive = r.IsActive,
+                    CreatedAt = r.CreatedAt,
+                    UpdatedAt = r.UpdatedAt,
+                    Conditions = ParseFreeStyleConditions(r.ConditionsJson)
+                })
+                .ToList();
+        }
+
+        public async Task UpdateFreeStyleDiscountRulesAsync(string userId, List<UpsertFreeStyleDiscountRuleDto> rules)
+        {
+            if (rules == null)
+                throw new InvalidBusinessRuleException("Rules không hợp lệ");
+
+            var normalized = rules.Select(r => new UpsertFreeStyleDiscountRuleDto
+            {
+                Name = r.Name?.Trim() ?? string.Empty,
+                DiscountPercent = r.DiscountPercent,
+                Priority = r.Priority,
+                IsActive = r.IsActive,
+                Conditions = r.Conditions ?? new FreeStyleDiscountConditionsDto()
+            }).ToList();
+
+            foreach (var r in normalized)
+            {
+                if (string.IsNullOrWhiteSpace(r.Name))
+                    throw new InvalidBusinessRuleException("Name không được để trống");
+                if (r.DiscountPercent < 0 || r.DiscountPercent > 100)
+                    throw new InvalidBusinessRuleException("DiscountPercent phải trong khoảng 0-100");
+                if (r.Priority <= 0)
+                    throw new InvalidBusinessRuleException("Priority phải lớn hơn 0");
+            }
+
+            var now = DateTime.UtcNow;
+            var entities = normalized
+                .OrderBy(r => r.Priority)
+                .ThenBy(r => r.Name)
+                .Select(r => new DiscountRule
+                {
+                    RuleType = DiscountRuleType.FreeStyle,
+                    Name = r.Name,
+                    DiscountPercent = r.DiscountPercent,
+                    Priority = r.Priority,
+                    IsActive = r.IsActive,
+                    ConditionsJson = JsonSerializer.Serialize(r.Conditions, JsonOptions),
+                    CreatedAt = now,
+                    CreatedBy = userId
+                })
+                .ToList();
+
+            await _discountRuleRepo.ReplaceAllRulesAsync(entities, DiscountRuleType.FreeStyle);
+        }
+
+        public async Task<FreeStyleDiscountPreviewResponseDto> PreviewFreeStyleDiscountAsync(FreeStyleDiscountPreviewRequestDto request)
+        {
+            if (request == null)
+                throw new InvalidBusinessRuleException("Request không hợp lệ");
+            if (request.Subtotal < 0)
+                throw new InvalidBusinessRuleException("Subtotal không hợp lệ");
+
+            var activeRules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.FreeStyle);
+            var matchedRule = activeRules
+                .OrderBy(r => r.Priority)
+                .ThenByDescending(r => r.DiscountPercent)
+                .FirstOrDefault(r => IsFreeStyleRuleMatched(r, request));
+
+            if (matchedRule == null)
+            {
+                return new FreeStyleDiscountPreviewResponseDto
+                {
+                    Matched = false,
+                    DiscountPercent = 0m,
+                    SubtotalBefore = request.Subtotal,
+                    SubtotalAfter = request.Subtotal,
+                    Reason = "Không có rule FreeStyle phù hợp."
+                };
+            }
+
+            var discounted = request.Subtotal * (1 - (matchedRule.DiscountPercent / 100m));
+            var safeSubtotal = Math.Round(Math.Max(discounted, 0.01m), 2, MidpointRounding.AwayFromZero);
+            return new FreeStyleDiscountPreviewResponseDto
+            {
+                Matched = true,
+                AppliedRuleId = matchedRule.Id,
+                AppliedRuleName = matchedRule.Name,
+                DiscountPercent = matchedRule.DiscountPercent,
+                SubtotalBefore = request.Subtotal,
+                SubtotalAfter = safeSubtotal,
+                Reason = "Khớp rule theo điều kiện kênh / guest / subtotal / sản phẩm."
+            };
+        }
+
         private static decimal GetSuggestedDiscountPercent(int daysLeft, List<DiscountRule> rules)
         {
             if (rules == null || rules.Count == 0)
@@ -292,6 +397,45 @@ namespace AgriIDMS.Application.Services
             }
 
             return 0m;
+        }
+
+        private static FreeStyleDiscountConditionsDto ParseFreeStyleConditions(string? conditionsJson)
+        {
+            if (string.IsNullOrWhiteSpace(conditionsJson))
+                return new FreeStyleDiscountConditionsDto();
+
+            try
+            {
+                return JsonSerializer.Deserialize<FreeStyleDiscountConditionsDto>(conditionsJson, JsonOptions)
+                    ?? new FreeStyleDiscountConditionsDto();
+            }
+            catch
+            {
+                return new FreeStyleDiscountConditionsDto();
+            }
+        }
+
+        private static bool IsFreeStyleRuleMatched(DiscountRule rule, FreeStyleDiscountPreviewRequestDto request)
+        {
+            var conditions = ParseFreeStyleConditions(rule.ConditionsJson);
+            if (conditions.Channels.Count > 0 &&
+                !conditions.Channels.Any(c => string.Equals(c, request.Channel, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            if (!conditions.IsGuestAllowed && request.IsGuest)
+                return false;
+
+            if (conditions.MinSubtotal.HasValue && request.Subtotal < conditions.MinSubtotal.Value)
+                return false;
+
+            if (conditions.ProductVariantIds.Count > 0)
+            {
+                var requestedIds = request.ProductVariantIds ?? new List<int>();
+                if (!requestedIds.Any(id => conditions.ProductVariantIds.Contains(id)))
+                    return false;
+            }
+
+            return true;
         }
     }
 }

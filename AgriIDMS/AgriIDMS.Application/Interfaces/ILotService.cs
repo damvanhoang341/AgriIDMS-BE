@@ -19,5 +19,8 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<List<NearExpiryDiscountRuleDto>> GetNearExpiryDiscountRulesAsync();
         Task UpdateNearExpiryDiscountRulesAsync(string userId, List<UpsertNearExpiryDiscountRuleDto> rules);
+        Task<List<FreeStyleDiscountRuleDto>> GetFreeStyleDiscountRulesAsync();
+        Task UpdateFreeStyleDiscountRulesAsync(string userId, List<UpsertFreeStyleDiscountRuleDto> rules);
+        Task<FreeStyleDiscountPreviewResponseDto> PreviewFreeStyleDiscountAsync(FreeStyleDiscountPreviewRequestDto request);
     }
 }
