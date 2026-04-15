@@ -104,7 +104,8 @@ public static class ServiceRegistration
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IBoxRepository, BoxRepository>();
         services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
-        services.AddScoped<IDiscountRuleRepository, DiscountRuleRepository>();
+        services.AddScoped<INearExpiryDiscountRuleRepository, NearExpiryDiscountRuleRepository>();
+        services.AddScoped<IProductVariantDiscountOverrideRepository, ProductVariantDiscountOverrideRepository>();
         services.AddScoped<IDisposalRequestRepository, DisposalRequestRepository>();
         services.AddScoped<IStockCheckRepository, StockCheckRepository>();
         services.AddScoped<IStockCheckDetailRepository, StockCheckDetailRepository>();
@@ -140,6 +141,7 @@ public static class ServiceRegistration
         services.AddScoped<ICartItemService, CartItemService>();
         services.AddScoped<ICartService, CartService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<INearExpiryDiscountService, NearExpiryDiscountService>();
         services.AddScoped<IBoxTypeSpecService, BoxTypeSpecService>();
         services.AddScoped<IComplaintService, ComplaintService>();
         services.AddScoped<IReviewService, ReviewService>();

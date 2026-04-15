@@ -43,6 +43,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
+    public DbSet<NearExpiryDiscountRule> NearExpiryDiscountRules => Set<NearExpiryDiscountRule>();
+    public DbSet<ProductVariantDiscountOverride> ProductVariantDiscountOverrides => Set<ProductVariantDiscountOverride>();
     public DbSet<DiscountRule> DiscountRules => Set<DiscountRule>();
     public DbSet<DisposalRequest> DisposalRequests => Set<DisposalRequest>();
     public DbSet<DisposalRequestItem> DisposalRequestItems => Set<DisposalRequestItem>();
@@ -141,7 +143,38 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(x => x.CategoryId);
         });
 
-        // ===================== DiscountRule =====================
+        // ===================== NearExpiryDiscountRule =====================
+        builder.Entity<NearExpiryDiscountRule>(entity =>
+        {
+            entity.ToTable("NearExpiryDiscountRules");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.DiscountPercent).HasPrecision(18, 2).IsRequired();
+            entity.Property(x => x.Priority).HasDefaultValue(100).IsRequired();
+            entity.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
+            entity.Property(x => x.CreatedBy).HasMaxLength(450);
+            entity.Property(x => x.UpdatedBy).HasMaxLength(450);
+            entity.HasIndex(x => new { x.IsActive, x.Priority, x.MaxDaysLeft });
+        });
+
+        // ===================== ProductVariantDiscountOverride =====================
+        builder.Entity<ProductVariantDiscountOverride>(entity =>
+        {
+            entity.ToTable("ProductVariantDiscountOverrides");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.OverrideNearExpiryDiscountPercent).HasPrecision(18, 2).IsRequired();
+            entity.Property(x => x.Reason).HasMaxLength(500);
+            entity.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
+            entity.Property(x => x.CreatedBy).HasMaxLength(450);
+            entity.Property(x => x.UpdatedBy).HasMaxLength(450);
+            entity.HasOne(x => x.ProductVariant)
+                .WithMany(v => v.DiscountOverrides)
+                .HasForeignKey(x => x.ProductVariantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.ProductVariantId, x.IsActive });
+        });
+
+        // ===================== DiscountRule (legacy) =====================
         builder.Entity<DiscountRule>(entity =>
         {
             entity.ToTable("DiscountRules");

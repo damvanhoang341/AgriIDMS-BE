@@ -29,13 +29,14 @@ namespace AgriIDMS.Domain.Entities
         public bool IsActive { get; set; } = true;
 
         /// <summary>
-        /// % giảm giá thủ công cho biến thể gần hết hạn.
-        /// Null = chỉ áp dụng theo bộ rule gần hết hạn trong hệ thống.
+        /// Deprecated: giữ tạm để hỗ trợ dữ liệu cũ.
+        /// Luồng mới dùng ProductVariantDiscountOverrides.
         /// </summary>
         public decimal? ManualNearExpiryDiscountPercent { get; set; }
 
         public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
         public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
+        public ICollection<ProductVariantDiscountOverride> DiscountOverrides { get; set; } = new List<ProductVariantDiscountOverride>();
     }
 }
