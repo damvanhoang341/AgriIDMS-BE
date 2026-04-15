@@ -349,6 +349,9 @@ namespace AgriIDMS.Application.Services
         {
             var order = receipt.Order
                 ?? throw new InvalidBusinessRuleException("Thiếu thông tin đơn hàng trên phiếu xuất.");
+            var allocationByBoxId = order.Allocations
+                .GroupBy(a => a.BoxId)
+                .ToDictionary(g => g.Key, g => g.First());
 
             var lines = new List<ExportPrintLineDto>();
             var n = 0;
@@ -371,6 +374,25 @@ namespace AgriIDMS.Application.Services
                     grade = pv.Grade.ToString();
                 }
 
+                decimal requestedQuantity = 0;
+                decimal unitPrice = 0;
+                if (allocationByBoxId.TryGetValue(d.BoxId, out var alloc))
+                {
+                    requestedQuantity = alloc.ReservedQuantity;
+                    unitPrice = alloc.OrderDetail?.UnitPrice ?? 0;
+                }
+                else
+                {
+                    // Backward-compatible fallback: map by variant when allocation is missing.
+                    var variantId = box?.Lot?.GoodsReceiptDetail?.ProductVariantId;
+                    var orderDetail = variantId.HasValue
+                        ? order.Details.FirstOrDefault(od => od.ProductVariantId == variantId.Value)
+                        : null;
+                    requestedQuantity = d.ActualQuantity;
+                    unitPrice = orderDetail?.UnitPrice ?? 0;
+                }
+                var lineAmount = Math.Round(d.ActualQuantity * unitPrice, 2, MidpointRounding.AwayFromZero);
+
                 lines.Add(new ExportPrintLineDto
                 {
                     LineNo = n,
@@ -380,6 +402,9 @@ namespace AgriIDMS.Application.Services
                     ProductName = productName,
                     Grade = grade,
                     BoxWeightKg = box?.Weight ?? 0,
+                    RequestedQuantity = requestedQuantity,
+                    UnitPrice = unitPrice,
+                    LineAmount = lineAmount,
                     ActualQuantity = d.ActualQuantity,
                     BoxType = box?.BoxType.ToString() ?? "Unknown",
                     IsPartial = box?.IsPartial ?? false
