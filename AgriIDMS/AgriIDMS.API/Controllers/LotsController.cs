@@ -1,6 +1,8 @@
 using AgriIDMS.Application.DTOs.Common;
 using AgriIDMS.Application.DTOs.Lot;
+using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -44,6 +46,14 @@ namespace AgriIDMS.API.Controllers
             return Ok(lots);
         }
 
+        [HttpGet("by-product-variant/{productVariantId:int:min(1)}")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> GetLotsByProductVariantId(int productVariantId)
+        {
+            var lots = await _lotService.GetLotsByProductVariantIdAsync(productVariantId);
+            return Ok(lots);
+        }
+
         /// <summary>Tra cứu Lot theo payload QR (QR Lot = LotCode).</summary>
         [HttpGet("by-qr/{qrCode}")]
         public async Task<IActionResult> GetByQrCode(string qrCode)
@@ -81,17 +91,97 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetNearExpiryDiscountRules()
         {
-            var rules = await _lotService.GetNearExpiryDiscountRulesAsync();
-            return Ok(rules);
+            try
+            {
+                var rules = await _lotService.GetNearExpiryDiscountRulesAsync();
+                return Ok(rules);
+            }
+            catch (InvalidBusinessRuleException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+            }
         }
 
         [HttpPut("near-expiry-discount-rules")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> UpdateNearExpiryDiscountRules([FromBody] List<UpsertNearExpiryDiscountRuleDto> rules)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-            await _lotService.UpdateNearExpiryDiscountRulesAsync(userId, rules ?? new List<UpsertNearExpiryDiscountRuleDto>());
-            return Ok(new { message = "Đã cập nhật cấu hình giảm giá gần hết hạn." });
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+                await _lotService.UpdateNearExpiryDiscountRulesAsync(userId, rules ?? new List<UpsertNearExpiryDiscountRuleDto>());
+                return Ok(new { message = "Đã cập nhật cấu hình giảm giá gần hết hạn." });
+            }
+            catch (InvalidBusinessRuleException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("product-variant-discount-overrides")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetProductVariantDiscountOverrides()
+        {
+            try
+            {
+                var items = await _lotService.GetProductVariantDiscountOverridesAsync();
+                return Ok(items);
+            }
+            catch (InvalidBusinessRuleException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("product-variant-discount-overrides")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> UpdateProductVariantDiscountOverrides(
+            [FromBody] List<UpsertProductVariantDiscountOverrideDto> overrides)
+        {
+            try
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+                await _lotService.UpdateProductVariantDiscountOverridesAsync(
+                    userId,
+                    overrides ?? new List<UpsertProductVariantDiscountOverrideDto>());
+                return Ok(new { message = "Đã cập nhật cấu hình ghi đè giảm giá theo biến thể sản phẩm." });
+            }
+            catch (InvalidBusinessRuleException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+            }
         }
 
     }

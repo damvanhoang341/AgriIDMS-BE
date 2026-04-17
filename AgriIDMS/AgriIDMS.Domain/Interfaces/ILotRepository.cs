@@ -16,6 +16,7 @@ namespace AgriIDMS.Domain.Interfaces
         Task<List<Lot>> GetByGoodsReceiptIdAsync(int goodsReceiptId);
         Task<Lot?> GetByLotCodeAsync(string lotCode);
         Task<List<Lot>> GetAllWithContextAsync();
+        Task<List<Lot>> GetByProductVariantIdAsync(int productVariantId);
         Task<IEnumerable<Lot>> GetAllExpiryDateAsync();
         Task<List<Lot>> GetNearExpiryLotsAsync(int days, int? warehouseId = null);
     }

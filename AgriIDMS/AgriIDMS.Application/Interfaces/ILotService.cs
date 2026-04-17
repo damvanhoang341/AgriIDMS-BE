@@ -10,6 +10,7 @@ namespace AgriIDMS.Application.Interfaces
         Task<List<LotListItemDto>> GetAllLotsAsync();
         Task<LotDetailDto> GetLotDetailAsync(int lotId);
         Task<List<LotListItemDto>> GetLotsByGoodsReceiptIdAsync(int goodsReceiptId);
+        Task<List<LotListItemDto>> GetLotsByProductVariantIdAsync(int productVariantId);
         Task<object?> GetByLotCodeAsync(string lotCode);
         /// <summary>Lưu URL ảnh QR (đã upload Cloudinary từ FE).</summary>
         Task UpdateQrImageUrlAsync(int lotId, string qrImageUrl);
@@ -18,5 +19,7 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<List<NearExpiryDiscountRuleDto>> GetNearExpiryDiscountRulesAsync();
         Task UpdateNearExpiryDiscountRulesAsync(string userId, List<UpsertNearExpiryDiscountRuleDto> rules);
+        Task<List<ProductVariantDiscountOverrideDto>> GetProductVariantDiscountOverridesAsync();
+        Task UpdateProductVariantDiscountOverridesAsync(string userId, List<UpsertProductVariantDiscountOverrideDto> overrides);
     }
 }

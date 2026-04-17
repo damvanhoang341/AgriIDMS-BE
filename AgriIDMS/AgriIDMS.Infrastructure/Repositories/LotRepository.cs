@@ -95,6 +95,21 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<List<Lot>> GetByProductVariantIdAsync(int productVariantId)
+        {
+            return await _context.Lots
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.GoodsReceipt)
+                        .ThenInclude(r => r.Warehouse)
+                .Include(l => l.GoodsReceiptDetail)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Where(l => l.GoodsReceiptDetail.ProductVariantId == productVariantId)
+                .OrderBy(l => l.ExpiryDate)
+                .ThenByDescending(l => l.ReceivedDate)
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<Lot>> GetAllExpiryDateAsync()
         {
             var now = DateTime.UtcNow;
