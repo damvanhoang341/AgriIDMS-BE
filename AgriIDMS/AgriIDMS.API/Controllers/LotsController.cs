@@ -94,29 +94,5 @@ namespace AgriIDMS.API.Controllers
             return Ok(new { message = "Đã cập nhật cấu hình giảm giá gần hết hạn." });
         }
 
-        [HttpGet("free-style-discount-rules")]
-        [Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> GetFreeStyleDiscountRules()
-        {
-            var rules = await _lotService.GetFreeStyleDiscountRulesAsync();
-            return Ok(rules);
-        }
-
-        [HttpPut("free-style-discount-rules")]
-        [Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> UpdateFreeStyleDiscountRules([FromBody] List<UpsertFreeStyleDiscountRuleDto> rules)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-            await _lotService.UpdateFreeStyleDiscountRulesAsync(userId, rules ?? new List<UpsertFreeStyleDiscountRuleDto>());
-            return Ok(new { message = "Đã cập nhật cấu hình giảm giá FreeStyle." });
-        }
-
-        [HttpPost("free-style-discount-rules/preview")]
-        [Authorize(Roles = "Admin,Manager")]
-        public async Task<IActionResult> PreviewFreeStyleDiscount([FromBody] FreeStyleDiscountPreviewRequestDto request)
-        {
-            var result = await _lotService.PreviewFreeStyleDiscountAsync(request ?? new FreeStyleDiscountPreviewRequestDto());
-            return Ok(result);
-        }
     }
 }

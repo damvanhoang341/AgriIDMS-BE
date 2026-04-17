@@ -8,8 +8,7 @@ namespace AgriIDMS.Domain.Entities
         public int Id { get; set; }
 
         /// <summary>
-        /// NearExpiry: giảm theo số ngày còn hạn.
-        /// FreeStyle: giảm linh hoạt theo campaign.
+        /// Loại rule giảm giá (runtime hiện dùng NearExpiry).
         /// </summary>
         public DiscountRuleType RuleType { get; set; } = DiscountRuleType.NearExpiry;
 
@@ -34,7 +33,8 @@ namespace AgriIDMS.Domain.Entities
         public int Priority { get; set; } = 100;
 
         /// <summary>
-        /// JSON điều kiện mở rộng cho FreeStyle (optional).
+        /// Trường điều kiện mở rộng legacy.
+        /// Giữ lại để tương thích dữ liệu cũ, hiện không dùng trong runtime giảm giá.
         /// </summary>
         public string? ConditionsJson { get; set; }
 

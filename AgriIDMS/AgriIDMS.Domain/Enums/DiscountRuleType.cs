@@ -3,7 +3,6 @@ namespace AgriIDMS.Domain.Enums
     public enum DiscountRuleType
     {
         Unknown = 0,
-        NearExpiry = 1,
-        FreeStyle = 2
+        NearExpiry = 1
     }
 }
