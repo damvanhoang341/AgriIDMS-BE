@@ -328,6 +328,19 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: recipients);
         }
 
+        public async Task NotifyDamageReportPendingManagerAsync(int damageReportId)
+        {
+            var message = $"Có phiếu báo hỏng #{damageReportId} đang chờ Quản lý/Admin duyệt.";
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("Manager", "Admin");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "DamageReport",
+                referenceId: damageReportId,
+                recipientUserIds: recipients);
+        }
+
         public async Task NotifyDisposalRequestPendingAdminAsync(int disposalRequestId)
         {
             var message = $"Có yêu cầu tiêu hủy hàng hóa #{disposalRequestId} đang chờ Quản lí duyệt.";
@@ -399,14 +412,18 @@ namespace AgriIDMS.Application.Services
 
         public async Task MarkAsReadAsync(string userId, int notificationId)
         {
-            var un = await _userNotificationRepo.GetByUserAndNotificationAsync(userId, notificationId)
-                ?? throw new NotFoundException("Thông báo không tồn tại");
-
-            if (!un.IsRead)
+            var markedCount = await _userNotificationRepo.MarkAsReadByNotificationAsync(userId, notificationId);
+            if (markedCount == 0)
             {
-                un.MarkAsRead();
-                await _uow.SaveChangesAsync();
+                // Fallback check để giữ thông báo lỗi "không tồn tại" như cũ.
+                var existing = await _userNotificationRepo.GetByUserAndNotificationAsync(userId, notificationId);
+                if (existing is null)
+                    throw new NotFoundException("Thông báo không tồn tại");
+                if (existing.IsRead)
+                    return;
             }
+
+            await _uow.SaveChangesAsync();
         }
 
         public async Task MarkAllAsReadAsync(string userId)

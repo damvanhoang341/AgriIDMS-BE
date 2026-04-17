@@ -81,6 +81,7 @@ namespace AgriIDMS.Application.Services
             _logger.LogInformation("User {UserId} tạo phiếu nhập kho", userId);
             var receiptIdResult = 0;
             var notifyPendingManager = false;
+            var shouldApplyPrivilegedFirstApproval = false;
             await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
             {
                 var po = await _purchaseOrderRepo.GetByIdAsync(request.PurchaseOrderId);
@@ -129,14 +130,15 @@ namespace AgriIDMS.Application.Services
                     }
                 }
 
-                if (autoApproveWhenCreatedByManager)
-                {
-                    await AutoApproveCreatedReceiptByManagerAsync(receipt.Id, userId);
-                }
+                // Không gọi auto approve ngay trong transaction hiện tại để tránh nested transaction.
+                shouldApplyPrivilegedFirstApproval = autoApproveWhenCreatedByManager;
 
                 receiptIdResult = receipt.Id;
                 notifyPendingManager = !autoApproveWhenCreatedByManager;
             });
+
+            if (shouldApplyPrivilegedFirstApproval && receiptIdResult > 0)
+                await AutoApproveCreatedReceiptByManagerAsync(receiptIdResult, userId);
 
             if (notifyPendingManager)
                 await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receiptIdResult);
@@ -147,7 +149,7 @@ namespace AgriIDMS.Application.Services
         // ===============================
         // QC INSPECTION (tự tính RejectWeight, QCResult theo dung sai từng dòng; sau QC check dung sai tổng + định mức kho)
         // ===============================
-        public async Task QCInspectionAsync(QCInspectionRequest request, string userId)
+        public async Task QCInspectionAsync(QCInspectionRequest request, string userId, bool autoApproveWhenEligible = false)
         {
             var detail = await _detailRepo.GetByIdAsync(request.DetailId);
             if (detail == null)
@@ -220,6 +222,12 @@ namespace AgriIDMS.Application.Services
                 await _unitOfWork.SaveChangesAsync();
                 await _notificationService.NotifyGoodsReceiptPendingManagerAsync(receipt.Id);
                 await PersistPrintSnapshotAfterQcAsync(receipt.Id);
+
+                // Admin/Manager: tự duyệt bước 2 ngay khi QC hoàn tất và đủ điều kiện.
+                if (autoApproveWhenEligible)
+                {
+                    await ApproveGoodsReceiptAsync(receipt.Id, userId);
+                }
             }
         }
 

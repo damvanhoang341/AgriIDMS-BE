@@ -107,6 +107,7 @@ public static class ServiceRegistration
         services.AddScoped<INearExpiryDiscountRuleRepository, NearExpiryDiscountRuleRepository>();
         services.AddScoped<IProductVariantDiscountOverrideRepository, ProductVariantDiscountOverrideRepository>();
         services.AddScoped<IDisposalRequestRepository, DisposalRequestRepository>();
+        services.AddScoped<IDamageReportRepository, DamageReportRepository>();
         services.AddScoped<IStockCheckRepository, StockCheckRepository>();
         services.AddScoped<IStockCheckDetailRepository, StockCheckDetailRepository>();
         services.AddScoped<IInventoryRequestRepository, InventoryRequestRepository>();
@@ -151,6 +152,7 @@ public static class ServiceRegistration
         services.AddScoped<IHomePageService, HomePageService>();
         services.AddScoped<ILotService, LotService>();
         services.AddScoped<IDisposalRequestService, DisposalRequestService>();
+        services.AddScoped<IDamageReportService, DamageReportService>();
 
         // Background workers
         services.AddHostedService<PayBeforeDeadlineScannerService>();
