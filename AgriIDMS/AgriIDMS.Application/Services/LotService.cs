@@ -301,8 +301,6 @@ namespace AgriIDMS.Application.Services
                     DiscountPercent = r.DiscountPercent,
                     Priority = r.Priority > 0 ? r.Priority : 1,
                     IsActive = r.IsActive,
-                    StartAtUtc = r.StartAtUtc,
-                    EndAtUtc = r.EndAtUtc,
                     CreatedAt = r.CreatedAt,
                     UpdatedAt = r.UpdatedAt
                 })
@@ -314,6 +312,8 @@ namespace AgriIDMS.Application.Services
             if (rules == null)
                 throw new InvalidBusinessRuleException("Danh sách quy tắc giảm giá không hợp lệ.");
 
+            // NearExpiryDiscountRule.StartAtUtc / EndAtUtc: vẫn có trên entity/DB nhưng không còn dùng cho màn cấu hình;
+            // luôn ghi null khi replace. (Có thể migration drop cột sau nếu muốn dọn schema.)
             var normalized = rules
                 .Select(r => new UpsertNearExpiryDiscountRuleDto
                 {
@@ -322,9 +322,7 @@ namespace AgriIDMS.Application.Services
                     MaxDaysLeft = r.MaxDaysLeft,
                     DiscountPercent = r.DiscountPercent,
                     Priority = r.Priority,
-                    IsActive = r.IsActive,
-                    StartAtUtc = r.StartAtUtc,
-                    EndAtUtc = r.EndAtUtc
+                    IsActive = r.IsActive
                 })
                 .ToList();
 
@@ -340,11 +338,6 @@ namespace AgriIDMS.Application.Services
                     throw new InvalidBusinessRuleException("Phần trăm giảm giá phải nằm trong khoảng từ 0 đến 100.");
                 if (r.Priority <= 0)
                     throw new InvalidBusinessRuleException("Độ ưu tiên phải lớn hơn 0.");
-                if (!r.StartAtUtc.HasValue || !r.EndAtUtc.HasValue)
-                    throw new InvalidBusinessRuleException(
-                        "Thời gian hiệu lực là bắt buộc: phải nhập đủ thời gian bắt đầu và kết thúc (kèm giờ).");
-                if (r.StartAtUtc > r.EndAtUtc)
-                    throw new InvalidBusinessRuleException("Thời gian hiệu lực không hợp lệ: thời gian bắt đầu phải nhỏ hơn hoặc bằng thời gian kết thúc.");
             }
 
             var now = DateTime.UtcNow;
@@ -361,8 +354,8 @@ namespace AgriIDMS.Application.Services
                     DiscountPercent = r.DiscountPercent,
                     Priority = r.Priority,
                     IsActive = r.IsActive,
-                    StartAtUtc = r.StartAtUtc,
-                    EndAtUtc = r.EndAtUtc,
+                    StartAtUtc = null,
+                    EndAtUtc = null,
                     CreatedAt = now,
                     CreatedBy = userId
                 })
@@ -384,6 +377,7 @@ namespace AgriIDMS.Application.Services
                     Id = rule.Id,
                     ProductVariantId = rule.ProductVariantId,
                     LotId = lotId,
+                    Priority = rule.Priority,
                     OverrideNearExpiryDiscountPercent = rule.OverrideNearExpiryDiscountPercent,
                     Reason = reason,
                     IsActive = rule.IsActive,
@@ -395,7 +389,8 @@ namespace AgriIDMS.Application.Services
             }
 
             return result
-                .OrderBy(x => x.ProductVariantId)
+                .OrderBy(x => x.Priority)
+                .ThenBy(x => x.ProductVariantId)
                 .ThenBy(x => x.LotId ?? int.MaxValue)
                 .ThenBy(x => x.Id)
                 .ToList();
@@ -412,6 +407,7 @@ namespace AgriIDMS.Application.Services
             {
                 ProductVariantId = x.ProductVariantId,
                 LotId = x.LotId,
+                Priority = x.Priority,
                 OverrideNearExpiryDiscountPercent = x.OverrideNearExpiryDiscountPercent,
                 Reason = string.IsNullOrWhiteSpace(x.Reason) ? null : x.Reason.Trim(),
                 IsActive = x.IsActive,
@@ -419,15 +415,28 @@ namespace AgriIDMS.Application.Services
                 EndAtUtc = x.EndAtUtc
             }).ToList();
 
+            var priorityGroups = normalized
+                .GroupBy(x => x.Priority)
+                .Where(g => g.Key > 0 && g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+            if (priorityGroups.Count > 0)
+                throw new InvalidBusinessRuleException("Độ ưu tiên không được trùng nhau giữa các dòng cấu hình.");
+
             foreach (var item in normalized)
             {
                 if (item.ProductVariantId <= 0)
                     throw new InvalidBusinessRuleException("Mã biến thể sản phẩm phải lớn hơn 0.");
+                if (item.Priority <= 0)
+                    throw new InvalidBusinessRuleException("Độ ưu tiên phải là số nguyên dương.");
                 if (item.OverrideNearExpiryDiscountPercent < 0 || item.OverrideNearExpiryDiscountPercent > 100)
                     throw new InvalidBusinessRuleException("Mức giảm giá ghi đè phải trong khoảng 0-100.");
-                if (item.StartAtUtc.HasValue && item.EndAtUtc.HasValue && item.StartAtUtc > item.EndAtUtc)
-                    throw new InvalidBusinessRuleException("Thời gian hiệu lực không hợp lệ: thời gian bắt đầu phải nhỏ hơn hoặc bằng thời gian kết thúc.");
+                if (!item.StartAtUtc.HasValue || !item.EndAtUtc.HasValue)
+                    throw new InvalidBusinessRuleException("Thời gian bắt đầu và kết thúc hiệu lực là bắt buộc.");
+                if (item.StartAtUtc.Value >= item.EndAtUtc.Value)
+                    throw new InvalidBusinessRuleException("Thời gian hiệu lực không hợp lệ: thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
 
+                DateTime? referenceReceiptDate = null;
                 if (item.LotId.HasValue && item.LotId.Value > 0)
                 {
                     var lot = await _lotRepository.GetByIdWithDetailAndReceiptAsync(item.LotId.Value)
@@ -436,6 +445,20 @@ namespace AgriIDMS.Application.Services
                     if (lotProductVariantId != item.ProductVariantId)
                         throw new InvalidBusinessRuleException(
                             $"Lot #{item.LotId.Value} không thuộc biến thể sản phẩm #{item.ProductVariantId}.");
+                    referenceReceiptDate = lot.ReceivedDate;
+                }
+                else
+                {
+                    var variantLots = await _lotRepository.GetByProductVariantIdAsync(item.ProductVariantId);
+                    if (variantLots.Count > 0)
+                        referenceReceiptDate = variantLots.Min(l => l.ReceivedDate);
+                }
+
+                if (referenceReceiptDate.HasValue
+                    && !EffectiveStartCalendarDayIsAfterReceiptDay(item.StartAtUtc.Value, referenceReceiptDate.Value))
+                {
+                    throw new InvalidBusinessRuleException(
+                        "Ngày bắt đầu hiệu lực phải sau ngày nhập hàng.");
                 }
             }
 
@@ -444,6 +467,7 @@ namespace AgriIDMS.Application.Services
                 .Select(item => new ProductVariantDiscountOverride
                 {
                     ProductVariantId = item.ProductVariantId,
+                    Priority = item.Priority,
                     OverrideNearExpiryDiscountPercent = item.OverrideNearExpiryDiscountPercent,
                     Reason = BuildEmbeddedLotReason(item.LotId, item.Reason),
                     IsActive = item.IsActive,
@@ -455,6 +479,18 @@ namespace AgriIDMS.Application.Services
                 .ToList();
 
             await _variantOverrideRepo.ReplaceAllAsync(entities);
+        }
+
+        /// <summary>
+        /// So sánh theo ngày lịch (UTC date) để khớp FE chỉ chọn ngày — StartAtUtc/EndAtUtc là mốc UTC từ đầu/cuối ngày local.
+        /// </summary>
+        private static bool EffectiveStartCalendarDayIsAfterReceiptDay(DateTime startUtc, DateTime received)
+        {
+            var s = startUtc.Kind == DateTimeKind.Utc ? startUtc : startUtc.ToUniversalTime();
+            var r = received.Kind == DateTimeKind.Utc ? received : received.ToUniversalTime();
+            var startDay = new DateTime(s.Year, s.Month, s.Day, 0, 0, 0, DateTimeKind.Utc);
+            var receiptDay = new DateTime(r.Year, r.Month, r.Day, 0, 0, 0, DateTimeKind.Utc);
+            return startDay > receiptDay;
         }
 
         private static decimal GetSuggestedDiscountPercent(int daysLeft, List<NearExpiryDiscountRule> rules)

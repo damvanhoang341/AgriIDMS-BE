@@ -25,7 +25,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(x => x.ProductVariantId == productVariantId && x.IsActive)
                 .Where(x => !x.StartAtUtc.HasValue || x.StartAtUtc.Value <= asOfUtc)
                 .Where(x => !x.EndAtUtc.HasValue || x.EndAtUtc.Value >= asOfUtc)
-                .OrderByDescending(x => x.StartAtUtc ?? DateTime.MinValue)
+                .OrderBy(x => x.Priority)
+                .ThenByDescending(x => x.StartAtUtc ?? DateTime.MinValue)
                 .ThenByDescending(x => x.CreatedAt)
                 .ThenByDescending(x => x.Id)
                 .FirstOrDefaultAsync();
@@ -44,7 +45,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(x => ids.Contains(x.ProductVariantId) && x.IsActive)
                 .Where(x => !x.StartAtUtc.HasValue || x.StartAtUtc.Value <= asOfUtc)
                 .Where(x => !x.EndAtUtc.HasValue || x.EndAtUtc.Value >= asOfUtc)
-                .OrderByDescending(x => x.StartAtUtc ?? DateTime.MinValue)
+                .OrderBy(x => x.Priority)
+                .ThenByDescending(x => x.StartAtUtc ?? DateTime.MinValue)
                 .ThenByDescending(x => x.CreatedAt)
                 .ThenByDescending(x => x.Id)
                 .ToListAsync();
@@ -58,7 +60,8 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return _db.ProductVariantDiscountOverrides
                 .AsNoTracking()
-                .OrderBy(x => x.ProductVariantId)
+                .OrderBy(x => x.Priority)
+                .ThenBy(x => x.ProductVariantId)
                 .ThenByDescending(x => x.StartAtUtc ?? DateTime.MinValue)
                 .ThenByDescending(x => x.CreatedAt)
                 .ThenByDescending(x => x.Id)

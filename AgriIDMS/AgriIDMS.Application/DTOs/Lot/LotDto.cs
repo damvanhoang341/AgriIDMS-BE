@@ -106,6 +106,7 @@ namespace AgriIDMS.Application.DTOs.Lot
         public int Id { get; set; }
         public int ProductVariantId { get; set; }
         public int? LotId { get; set; }
+        public int Priority { get; set; }
         public decimal OverrideNearExpiryDiscountPercent { get; set; }
         public string? Reason { get; set; }
         public bool IsActive { get; set; }
@@ -119,6 +120,7 @@ namespace AgriIDMS.Application.DTOs.Lot
     {
         public int ProductVariantId { get; set; }
         public int? LotId { get; set; }
+        public int Priority { get; set; }
         public decimal OverrideNearExpiryDiscountPercent { get; set; }
         public string? Reason { get; set; }
         public bool IsActive { get; set; } = true;
