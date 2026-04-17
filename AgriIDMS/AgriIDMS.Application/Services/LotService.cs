@@ -1,6 +1,7 @@
 using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
@@ -13,7 +14,6 @@ namespace AgriIDMS.Application.Services
 {
     public class LotService : ILotService
     {
-        private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
         private readonly ILotRepository _lotRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly INearExpiryDiscountRuleRepository _nearExpiryRuleRepo;
@@ -287,25 +287,22 @@ namespace AgriIDMS.Application.Services
         {
             var rules = await _nearExpiryRuleRepo.GetAllRulesAsync();
             return rules
-                .OrderBy(r => r.MaxDaysLeft)
+                .OrderBy(r => r.Priority)
+                .ThenBy(r => r.MaxDaysLeft)
                 .ThenBy(r => r.Id)
-                .Select(r =>
+                .Select(r => new NearExpiryDiscountRuleDto
                 {
-                    var payload = ParseNearExpiryPayload(r.ConditionsJson);
-                    return new NearExpiryDiscountRuleDto
-                    {
-                        Id = r.Id,
-                        Name = r.Name,
-                        MinDaysLeft = payload?.MinDaysLeft,
-                        MaxDaysLeft = r.MaxDaysLeft ?? 0,
-                        DiscountPercent = r.DiscountPercent,
-                        Priority = r.Priority > 0 ? r.Priority : 1,
-                        IsActive = r.IsActive,
-                        StartAtUtc = payload?.StartAtUtc,
-                        EndAtUtc = payload?.EndAtUtc,
-                        CreatedAt = r.CreatedAt,
-                        UpdatedAt = r.UpdatedAt
-                    };
+                    Id = r.Id,
+                    Name = r.Name,
+                    MinDaysLeft = r.MinDaysLeft,
+                    MaxDaysLeft = r.MaxDaysLeft,
+                    DiscountPercent = r.DiscountPercent,
+                    Priority = r.Priority > 0 ? r.Priority : 1,
+                    IsActive = r.IsActive,
+                    StartAtUtc = r.StartAtUtc,
+                    EndAtUtc = r.EndAtUtc,
+                    CreatedAt = r.CreatedAt,
+                    UpdatedAt = r.UpdatedAt
                 })
                 .ToList();
         }
@@ -353,22 +350,18 @@ namespace AgriIDMS.Application.Services
             var entities = normalized
                 .OrderBy(r => r.Priority)
                 .ThenBy(r => r.MaxDaysLeft)
-                .Select(r => new DiscountRule
+                .Select(r => new NearExpiryDiscountRule
                 {
-                    RuleType = DiscountRuleType.NearExpiry,
                     Name = string.IsNullOrWhiteSpace(r.Name)
                         ? $"Near-expiry <= {r.MaxDaysLeft} day(s)"
                         : r.Name,
                     MaxDaysLeft = r.MaxDaysLeft,
+                    MinDaysLeft = r.MinDaysLeft,
                     DiscountPercent = r.DiscountPercent,
                     Priority = r.Priority,
                     IsActive = r.IsActive,
-                    ConditionsJson = JsonSerializer.Serialize(new NearExpiryRulePayload
-                    {
-                        MinDaysLeft = r.MinDaysLeft,
-                        StartAtUtc = r.StartAtUtc,
-                        EndAtUtc = r.EndAtUtc
-                    }, JsonOptions),
+                    StartAtUtc = r.StartAtUtc,
+                    EndAtUtc = r.EndAtUtc,
                     CreatedAt = now,
                     CreatedBy = userId
                 })
@@ -379,24 +372,22 @@ namespace AgriIDMS.Application.Services
 
         public async Task<List<ProductVariantDiscountOverrideDto>> GetProductVariantDiscountOverridesAsync()
         {
-            var rules = await _discountRuleRepo.GetAllRulesAsync(DiscountRuleType.Unknown);
+            var rules = await _variantOverrideRepo.GetAllAsync();
             var result = new List<ProductVariantDiscountOverrideDto>();
             foreach (var rule in rules)
             {
-                var payload = ParseProductVariantOverridePayload(rule.ConditionsJson);
-                if (payload == null || payload.ProductVariantId <= 0)
-                    continue;
+                var (lotId, reason) = ParseEmbeddedLot(rule.Reason);
 
                 result.Add(new ProductVariantDiscountOverrideDto
                 {
                     Id = rule.Id,
-                    ProductVariantId = payload.ProductVariantId,
-                    LotId = payload.LotId,
-                    OverrideNearExpiryDiscountPercent = rule.DiscountPercent,
-                    Reason = payload.Reason,
+                    ProductVariantId = rule.ProductVariantId,
+                    LotId = lotId,
+                    OverrideNearExpiryDiscountPercent = rule.OverrideNearExpiryDiscountPercent,
+                    Reason = reason,
                     IsActive = rule.IsActive,
-                    StartAtUtc = payload.StartAtUtc,
-                    EndAtUtc = payload.EndAtUtc,
+                    StartAtUtc = rule.StartAtUtc,
+                    EndAtUtc = rule.EndAtUtc,
                     CreatedAt = rule.CreatedAt,
                     UpdatedAt = rule.UpdatedAt
                 });
@@ -449,134 +440,66 @@ namespace AgriIDMS.Application.Services
 
             var now = DateTime.UtcNow;
             var entities = normalized
-                .Select((item, index) => new DiscountRule
+                .Select(item => new ProductVariantDiscountOverride
                 {
-                    RuleType = DiscountRuleType.Unknown,
-                    Name = $"{ProductVariantOverrideRuleNamePrefix}-{item.ProductVariantId}",
-                    MaxDaysLeft = null,
-                    DiscountPercent = item.OverrideNearExpiryDiscountPercent,
-                    Priority = index + 1,
+                    ProductVariantId = item.ProductVariantId,
+                    OverrideNearExpiryDiscountPercent = item.OverrideNearExpiryDiscountPercent,
+                    Reason = BuildEmbeddedLotReason(item.LotId, item.Reason),
                     IsActive = item.IsActive,
-                    ConditionsJson = JsonSerializer.Serialize(new ProductVariantOverridePayload
-                    {
-                        ProductVariantId = item.ProductVariantId,
-                        LotId = item.LotId,
-                        Reason = item.Reason,
-                        StartAtUtc = item.StartAtUtc,
-                        EndAtUtc = item.EndAtUtc
-                    }, JsonOptions),
+                    StartAtUtc = item.StartAtUtc,
+                    EndAtUtc = item.EndAtUtc,
                     CreatedAt = now,
                     CreatedBy = userId
                 })
                 .ToList();
 
-            await _discountRuleRepo.ReplaceAllRulesAsync(entities, DiscountRuleType.Unknown);
+            await _variantOverrideRepo.ReplaceAllAsync(entities);
         }
 
-        public async Task<FreeStyleDiscountPreviewResponseDto> PreviewFreeStyleDiscountAsync(FreeStyleDiscountPreviewRequestDto request)
+        private static decimal GetSuggestedDiscountPercent(int daysLeft, List<NearExpiryDiscountRule> rules)
         {
-            if (request == null)
-                throw new InvalidBusinessRuleException("Request không hợp lệ");
-            if (request.Subtotal < 0)
-                throw new InvalidBusinessRuleException("Subtotal không hợp lệ");
-
-
+            if (rules == null || rules.Count == 0)
+                return 0m;
+            if (daysLeft < 0)
+                return 0m;
             foreach (var rule in rules.OrderBy(r => r.Priority).ThenBy(r => r.MaxDaysLeft))
             {
                 if (!rule.IsActive) continue;
-                var payload = ParseNearExpiryPayload(rule.ConditionsJson);
-                var nowUtc = DateTime.UtcNow;
-                if (payload?.StartAtUtc.HasValue == true && nowUtc < payload.StartAtUtc.Value) continue;
-                if (payload?.EndAtUtc.HasValue == true && nowUtc > payload.EndAtUtc.Value) continue;
-                if (payload?.MinDaysLeft.HasValue == true && daysLeft < payload.MinDaysLeft.Value) continue;
-                if (rule.MaxDaysLeft.HasValue && daysLeft <= rule.MaxDaysLeft.Value)
+                if (rule.MinDaysLeft.HasValue && daysLeft < rule.MinDaysLeft.Value) continue;
+                if (daysLeft <= rule.MaxDaysLeft)
                     return rule.DiscountPercent;
             }
 
             return 0m;
         }
 
-        private static ProductVariantOverridePayload? ParseProductVariantOverridePayload(string? json)
+        private static string? BuildEmbeddedLotReason(int? lotId, string? reason)
         {
-            if (string.IsNullOrWhiteSpace(json))
-                return null;
-            try
-            {
-                return JsonSerializer.Deserialize<ProductVariantOverridePayload>(json, JsonOptions);
-            }
-            catch
-            {
-                return null;
-            }
+            var cleanReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+            if (!lotId.HasValue || lotId.Value <= 0)
+                return cleanReason;
+            return cleanReason == null
+                ? $"[LOT:{lotId.Value}]"
+                : $"[LOT:{lotId.Value}] {cleanReason}";
         }
 
-        private static NearExpiryRulePayload? ParseNearExpiryPayload(string? json)
+        private static (int? lotId, string? reason) ParseEmbeddedLot(string? rawReason)
         {
-            if (string.IsNullOrWhiteSpace(json))
-                return null;
-            try
-            {
-                return JsonSerializer.Deserialize<NearExpiryRulePayload>(json, JsonOptions);
-            }
-            catch
-            {
-                return null;
-            }
-        }
+            if (string.IsNullOrWhiteSpace(rawReason))
+                return (null, null);
+            var text = rawReason.Trim();
+            if (!text.StartsWith("[LOT:", StringComparison.OrdinalIgnoreCase))
+                return (null, text);
 
-        private sealed class NearExpiryRulePayload
-        {
-            public int? MinDaysLeft { get; set; }
-            public DateTime? StartAtUtc { get; set; }
-            public DateTime? EndAtUtc { get; set; }
-        }
+            var closeBracket = text.IndexOf(']');
+            if (closeBracket <= 5)
+                return (null, text);
+            var numberPart = text.Substring(5, closeBracket - 5);
+            if (!int.TryParse(numberPart, out var lotId) || lotId <= 0)
+                return (null, text);
 
-        private sealed class ProductVariantOverridePayload
-        {
-            public int ProductVariantId { get; set; }
-            public int? LotId { get; set; }
-            public string? Reason { get; set; }
-            public DateTime? StartAtUtc { get; set; }
-            public DateTime? EndAtUtc { get; set; }
-        }
-
-        private static FreeStyleDiscountConditionsDto ParseFreeStyleConditions(string? conditionsJson)
-        {
-            if (string.IsNullOrWhiteSpace(conditionsJson))
-                return new FreeStyleDiscountConditionsDto();
-
-            try
-            {
-                return JsonSerializer.Deserialize<FreeStyleDiscountConditionsDto>(conditionsJson, JsonOptions)
-                    ?? new FreeStyleDiscountConditionsDto();
-            }
-            catch
-            {
-                return new FreeStyleDiscountConditionsDto();
-            }
-        }
-
-        private static bool IsFreeStyleRuleMatched(DiscountRule rule, FreeStyleDiscountPreviewRequestDto request)
-        {
-            var conditions = ParseFreeStyleConditions(rule.ConditionsJson);
-            if (conditions.Channels.Count > 0 &&
-                !conditions.Channels.Any(c => string.Equals(c, request.Channel, StringComparison.OrdinalIgnoreCase)))
-                return false;
-
-            if (!conditions.IsGuestAllowed && request.IsGuest)
-                return false;
-
-            if (conditions.MinSubtotal.HasValue && request.Subtotal < conditions.MinSubtotal.Value)
-                return false;
-
-            if (conditions.ProductVariantIds.Count > 0)
-            {
-                var requestedIds = request.ProductVariantIds ?? new List<int>();
-                if (!requestedIds.Any(id => conditions.ProductVariantIds.Contains(id)))
-                    return false;
-            }
-
-            return true;
+            var reasonPart = text[(closeBracket + 1)..].Trim();
+            return (lotId, string.IsNullOrWhiteSpace(reasonPart) ? null : reasonPart);
         }
     }
 }
