@@ -1,14 +1,12 @@
 using AgriIDMS.Application.DTOs.Lot;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
-using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
 using AgriIDMS.Domain.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Application.Services
@@ -16,16 +14,21 @@ namespace AgriIDMS.Application.Services
     public class LotService : ILotService
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-        private const string ProductVariantOverrideRuleNamePrefix = "ProductVariantOverride";
         private readonly ILotRepository _lotRepository;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IDiscountRuleRepository _discountRuleRepo;
+        private readonly INearExpiryDiscountRuleRepository _nearExpiryRuleRepo;
+        private readonly IProductVariantDiscountOverrideRepository _variantOverrideRepo;
 
-        public LotService(ILotRepository lotRepository, IUnitOfWork unitOfWork, IDiscountRuleRepository discountRuleRepo)
+        public LotService(
+            ILotRepository lotRepository,
+            IUnitOfWork unitOfWork,
+            INearExpiryDiscountRuleRepository nearExpiryRuleRepo,
+            IProductVariantDiscountOverrideRepository variantOverrideRepo)
         {
             _lotRepository = lotRepository;
             _unitOfWork = unitOfWork;
-            _discountRuleRepo = discountRuleRepo;
+            _nearExpiryRuleRepo = nearExpiryRuleRepo;
+            _variantOverrideRepo = variantOverrideRepo;
         }
 
         public async Task<List<LotListItemDto>> GetAllLotsAsync()
@@ -219,7 +222,7 @@ namespace AgriIDMS.Application.Services
 
             var todayUtc = DateTime.UtcNow.Date;
             var lots = await _lotRepository.GetNearExpiryLotsAsync(days, warehouseId);
-            var rules = await _discountRuleRepo.GetActiveRulesAsync(DiscountRuleType.NearExpiry);
+            var rules = await _nearExpiryRuleRepo.GetActiveRulesAsync(DateTime.UtcNow);
             if (lots == null || !lots.Any())
             {
                 return new NearExpiryDashboardDto
@@ -282,10 +285,9 @@ namespace AgriIDMS.Application.Services
 
         public async Task<List<NearExpiryDiscountRuleDto>> GetNearExpiryDiscountRulesAsync()
         {
-            var rules = await _discountRuleRepo.GetAllRulesAsync(DiscountRuleType.NearExpiry);
+            var rules = await _nearExpiryRuleRepo.GetAllRulesAsync();
             return rules
-                .OrderBy(r => r.Priority)
-                .ThenBy(r => r.MaxDaysLeft)
+                .OrderBy(r => r.MaxDaysLeft)
                 .ThenBy(r => r.Id)
                 .Select(r =>
                 {
@@ -372,7 +374,7 @@ namespace AgriIDMS.Application.Services
                 })
                 .ToList();
 
-            await _discountRuleRepo.ReplaceAllRulesAsync(entities, DiscountRuleType.NearExpiry);
+            await _nearExpiryRuleRepo.ReplaceAllRulesAsync(entities);
         }
 
         public async Task<List<ProductVariantDiscountOverrideDto>> GetProductVariantDiscountOverridesAsync()
@@ -471,13 +473,13 @@ namespace AgriIDMS.Application.Services
             await _discountRuleRepo.ReplaceAllRulesAsync(entities, DiscountRuleType.Unknown);
         }
 
-        private static decimal GetSuggestedDiscountPercent(int daysLeft, List<DiscountRule> rules)
+        public async Task<FreeStyleDiscountPreviewResponseDto> PreviewFreeStyleDiscountAsync(FreeStyleDiscountPreviewRequestDto request)
         {
-            if (rules == null || rules.Count == 0)
-                return 0m;
+            if (request == null)
+                throw new InvalidBusinessRuleException("Request không hợp lệ");
+            if (request.Subtotal < 0)
+                throw new InvalidBusinessRuleException("Subtotal không hợp lệ");
 
-            if (daysLeft < 0)
-                return 0m;
 
             foreach (var rule in rules.OrderBy(r => r.Priority).ThenBy(r => r.MaxDaysLeft))
             {
@@ -536,6 +538,45 @@ namespace AgriIDMS.Application.Services
             public string? Reason { get; set; }
             public DateTime? StartAtUtc { get; set; }
             public DateTime? EndAtUtc { get; set; }
+        }
+
+        private static FreeStyleDiscountConditionsDto ParseFreeStyleConditions(string? conditionsJson)
+        {
+            if (string.IsNullOrWhiteSpace(conditionsJson))
+                return new FreeStyleDiscountConditionsDto();
+
+            try
+            {
+                return JsonSerializer.Deserialize<FreeStyleDiscountConditionsDto>(conditionsJson, JsonOptions)
+                    ?? new FreeStyleDiscountConditionsDto();
+            }
+            catch
+            {
+                return new FreeStyleDiscountConditionsDto();
+            }
+        }
+
+        private static bool IsFreeStyleRuleMatched(DiscountRule rule, FreeStyleDiscountPreviewRequestDto request)
+        {
+            var conditions = ParseFreeStyleConditions(rule.ConditionsJson);
+            if (conditions.Channels.Count > 0 &&
+                !conditions.Channels.Any(c => string.Equals(c, request.Channel, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            if (!conditions.IsGuestAllowed && request.IsGuest)
+                return false;
+
+            if (conditions.MinSubtotal.HasValue && request.Subtotal < conditions.MinSubtotal.Value)
+                return false;
+
+            if (conditions.ProductVariantIds.Count > 0)
+            {
+                var requestedIds = request.ProductVariantIds ?? new List<int>();
+                if (!requestedIds.Any(id => conditions.ProductVariantIds.Contains(id)))
+                    return false;
+            }
+
+            return true;
         }
     }
 }

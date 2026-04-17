@@ -1,15 +1,15 @@
 using AgriIDMS.Domain.Entities;
-using AgriIDMS.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace AgriIDMS.Domain.Interfaces
 {
-    public interface IDiscountRuleRepository
+    public interface INearExpiryDiscountRuleRepository
     {
-        Task<List<DiscountRule>> GetActiveRulesAsync(DiscountRuleType? ruleType = null);
-        Task<List<DiscountRule>> GetAllRulesAsync(DiscountRuleType? ruleType = null);
-        Task ReplaceAllRulesAsync(IEnumerable<DiscountRule> rules, DiscountRuleType? ruleType = null);
+        Task<List<NearExpiryDiscountRule>> GetActiveRulesAsync(DateTime asOfUtc);
+        Task<List<NearExpiryDiscountRule>> GetAllRulesAsync();
+        Task ReplaceAllRulesAsync(IEnumerable<NearExpiryDiscountRule> rules);
     }
 }
 
