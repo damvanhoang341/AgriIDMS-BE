@@ -57,6 +57,7 @@ namespace AgriIDMS.API.Middleware
 
             return context.Response.WriteAsJsonAsync(new
             {
+                message = message,
                 error = message,
                 detail = isDev ? exception.ToString() : null
             });
