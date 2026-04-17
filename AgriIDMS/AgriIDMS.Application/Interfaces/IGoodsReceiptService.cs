@@ -12,7 +12,7 @@ namespace AgriIDMS.Application.Interfaces
             bool autoApproveWhenCreatedByManager = false);
         /// <summary>Admin/Manager: bỏ qua duyệt bước 1 (Draft → Received) khi đã có dòng chi tiết. Không QC, không duyệt nhập kho.</summary>
         Task ApplyPrivilegedFirstApprovalIfDraftAsync(int goodsReceiptId);
-        Task QCInspectionAsync(QCInspectionRequest request, string userId);
+        Task QCInspectionAsync(QCInspectionRequest request, string userId, bool autoApproveWhenEligible = false);
         Task<IReadOnlyList<BoxCreatedItemDto>> GenerateBoxesAsync(CreateBoxesRequest request, string userId);
         Task ApproveGoodsReceiptAsync(int receiptId, string userId);
         Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId);

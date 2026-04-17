@@ -18,7 +18,29 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task AddRangeAsync(IEnumerable<UserNotification> userNotifications)
         {
-            await _context.UserNotifications.AddRangeAsync(userNotifications);
+            var incoming = userNotifications.ToList();
+            if (incoming.Count == 0) return;
+
+            var userIds = incoming.Select(x => x.UserId).Distinct().ToList();
+            var notificationIds = incoming.Select(x => x.NotificationId).Distinct().ToList();
+
+            var existingPairs = await _context.UserNotifications
+                .Where(x => userIds.Contains(x.UserId) && notificationIds.Contains(x.NotificationId))
+                .Select(x => new { x.UserId, x.NotificationId })
+                .ToListAsync();
+
+            var existing = existingPairs
+                .Select(x => $"{x.UserId}|{x.NotificationId}")
+                .ToHashSet();
+
+            var toAdd = incoming
+                .Where(x => !existing.Contains($"{x.UserId}|{x.NotificationId}"))
+                .ToList();
+
+            if (toAdd.Count > 0)
+            {
+                await _context.UserNotifications.AddRangeAsync(toAdd);
+            }
         }
 
         public async Task<(int total, List<UserNotification> items)> GetByUserIdAsync(
@@ -57,6 +79,18 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .FirstOrDefaultAsync(un =>
                     un.UserId == userId
                     && un.NotificationId == notificationId);
+        }
+
+        public async Task<int> MarkAsReadByNotificationAsync(string userId, int notificationId)
+        {
+            var records = await _context.UserNotifications
+                .Where(un => un.UserId == userId && un.NotificationId == notificationId && !un.IsRead)
+                .ToListAsync();
+
+            foreach (var record in records)
+                record.MarkAsRead();
+
+            return records.Count;
         }
 
         public async Task MarkAllAsReadAsync(string userId)

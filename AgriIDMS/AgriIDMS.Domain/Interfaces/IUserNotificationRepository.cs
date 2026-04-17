@@ -19,6 +19,11 @@ namespace AgriIDMS.Domain.Interfaces
         /// <summary>Lấy bản ghi inbox theo khóa nghiệp vụ (UserId + NotificationId). Cột UserNotifications.Id không dùng làm khóa tra cứu.</summary>
         Task<UserNotification?> GetByUserAndNotificationAsync(string userId, int notificationId);
 
+        /// <summary>
+        /// Đánh dấu đã đọc toàn bộ bản ghi cùng cặp (UserId, NotificationId) để xử lý dữ liệu lịch sử bị trùng.
+        /// </summary>
+        Task<int> MarkAsReadByNotificationAsync(string userId, int notificationId);
+
         Task MarkAllAsReadAsync(string userId);
     }
 }

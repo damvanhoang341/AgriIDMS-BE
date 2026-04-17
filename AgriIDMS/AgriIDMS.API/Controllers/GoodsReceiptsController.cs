@@ -1,10 +1,13 @@
 using AgriIDMS.Application.DTOs.GoodsReceipt;
 using AgriIDMS.Application.Interfaces;
 using AgriIDMS.Application.Services;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
 using AgriIDMS.Domain.Exceptions;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -17,11 +20,59 @@ namespace AgriIDMS.API.Controllers
     {
         private readonly ILogger<GoodsReceiptsController> _logger;
         private readonly IGoodsReceiptService _goodsReceiptService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public GoodsReceiptsController(ILogger<GoodsReceiptsController> logger, IGoodsReceiptService receiptService)
+        public GoodsReceiptsController(
+            ILogger<GoodsReceiptsController> logger,
+            IGoodsReceiptService receiptService,
+            UserManager<ApplicationUser> userManager)
         {
             _logger = logger;
             _goodsReceiptService = receiptService;
+            _userManager = userManager;
+        }
+
+        private async Task<string> ResolveCurrentUserIdOrThrowAsync()
+        {
+            var candidateId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                User.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
+                User.FindFirstValue("sub");
+
+            if (!string.IsNullOrWhiteSpace(candidateId))
+            {
+                // Chỉ chấp nhận trực tiếp khi candidate đúng là AspNetUsers.Id.
+                var byId = await _userManager.FindByIdAsync(candidateId);
+                if (byId != null && !string.IsNullOrWhiteSpace(byId.Id))
+                    return byId.Id;
+            }
+
+            // Fallback cho token chỉ có username nhưng thiếu NameIdentifier/Sub.
+            var userName =
+                User.FindFirstValue(ClaimTypes.Name) ??
+                User.FindFirstValue(JwtRegisteredClaimNames.UniqueName) ??
+                User.FindFirstValue("unique_name");
+
+            if (!string.IsNullOrWhiteSpace(userName))
+            {
+                var user = await _userManager.FindByNameAsync(userName);
+                if (user != null && !string.IsNullOrWhiteSpace(user.Id))
+                    return user.Id;
+            }
+
+            // Một số token/custom provider có thể nhét username vào sub.
+            if (!string.IsNullOrWhiteSpace(candidateId))
+            {
+                var byName = await _userManager.FindByNameAsync(candidateId);
+                if (byName != null && !string.IsNullOrWhiteSpace(byName.Id))
+                    return byName.Id;
+
+                var byEmail = await _userManager.FindByEmailAsync(candidateId);
+                if (byEmail != null && !string.IsNullOrWhiteSpace(byEmail.Id))
+                    return byEmail.Id;
+            }
+
+            throw new UnauthorizedAccessException("Không xác định được UserId từ access token.");
         }
 
         // ===============================
@@ -77,7 +128,7 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> CreateReceipt([FromBody] CreateGoodsReceiptRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
             // Admin/Manager: bỏ qua duyệt bước 1 (Draft → Received), vẫn phải QC và duyệt bước 2 như phiếu thường.
             var autoSkipFirstApproval = User.IsInRole("Admin") || User.IsInRole("Manager");
 
@@ -100,9 +151,10 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> QCInspection([FromBody] QCInspectionRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
+            var autoApproveWhenEligible = User.IsInRole("Admin") || User.IsInRole("Manager");
 
-            await _goodsReceiptService.QCInspectionAsync(request, userId);
+            await _goodsReceiptService.QCInspectionAsync(request, userId, autoApproveWhenEligible);
 
             return Ok(new
             {
@@ -117,7 +169,7 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> UpdateWarehouse(int receiptId, [FromBody] UpdateGoodsReceiptWarehouseRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
             await _goodsReceiptService.UpdateWarehouseAsync(receiptId, request, userId);
             return Ok(new { Message = "Đã cập nhật kho đích của phiếu nhập" });
         }
@@ -129,7 +181,7 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GenerateBoxes([FromBody] CreateBoxesRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
             var created = await _goodsReceiptService.GenerateBoxesAsync(request, userId);
 
             return Ok(new { message = "Tạo box thành công", boxes = created });
@@ -142,7 +194,7 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ApproveReceipt(int receiptId)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
             await _goodsReceiptService.ApproveGoodsReceiptAsync(receiptId, userId);
             return Ok(new { Message = "Phiếu nhập đã được xử lý (duyệt hoặc chuyển chờ Manager)" });
         }
@@ -159,7 +211,7 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ManagerReviewMin(int receiptId, [FromBody] ManagerReviewMinWeightRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
             await _goodsReceiptService.ManagerReviewMinWeightAsync(receiptId, request.Approve, userId);
 
             return Ok(new
@@ -182,7 +234,7 @@ namespace AgriIDMS.API.Controllers
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ManagerReviewTolerance(int receiptId, [FromBody] ManagerReviewToleranceRequest request)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
             await _goodsReceiptService.ManagerReviewToleranceAsync(receiptId, request.Approve, userId);
 
             return Ok(new
