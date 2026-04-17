@@ -30,6 +30,7 @@ namespace AgriIDMS.Domain.Entities
 
     public class DisposalRequestItem
     {
+        //demo push code
         public int Id { get; set; }
 
         public int DisposalRequestId { get; set; }
