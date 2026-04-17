@@ -8,6 +8,7 @@ namespace AgriIDMS.Domain.Entities
         public int ProductVariantId { get; set; }
         public ProductVariant ProductVariant { get; set; } = null!;
         public decimal OverrideNearExpiryDiscountPercent { get; set; }
+        public int Priority { get; set; }
         public string? Reason { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime? StartAtUtc { get; set; }

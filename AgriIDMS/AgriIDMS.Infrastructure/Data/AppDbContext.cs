@@ -163,6 +163,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.ToTable("ProductVariantDiscountOverrides");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.OverrideNearExpiryDiscountPercent).HasPrecision(18, 2).IsRequired();
+            entity.Property(x => x.Priority).IsRequired();
             entity.Property(x => x.Reason).HasMaxLength(500);
             entity.Property(x => x.IsActive).HasDefaultValue(true).IsRequired();
             entity.Property(x => x.CreatedBy).HasMaxLength(450);
