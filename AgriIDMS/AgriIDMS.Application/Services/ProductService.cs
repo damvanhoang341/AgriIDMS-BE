@@ -72,7 +72,7 @@ namespace AgriIDMS.Application.Services
                 x.ImageUrl
             });
         }
-
+        //
         public async Task<object> GetByIdAsync(int id)
         {
             _logger.LogInformation("Getting product by id: {Id}", id);
