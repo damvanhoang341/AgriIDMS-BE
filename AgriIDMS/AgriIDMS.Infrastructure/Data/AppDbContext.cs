@@ -48,6 +48,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DiscountRule> DiscountRules => Set<DiscountRule>();
     public DbSet<DisposalRequest> DisposalRequests => Set<DisposalRequest>();
     public DbSet<DisposalRequestItem> DisposalRequestItems => Set<DisposalRequestItem>();
+    public DbSet<DamageReport> DamageReports => Set<DamageReport>();
     public DbSet<BoxTypeSpec> BoxTypeSpecs => Set<BoxTypeSpec>();
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -243,6 +244,60 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(x => x.BoxId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ===================== DamageReport =====================
+        builder.Entity<DamageReport>(entity =>
+        {
+            entity.ToTable("DamageReports");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.TargetType).HasConversion<int>().IsRequired();
+            entity.Property(x => x.TargetCode).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.ProductName).HasMaxLength(200);
+            entity.Property(x => x.LotCode).HasMaxLength(100);
+            entity.Property(x => x.WarehouseName).HasMaxLength(200);
+            entity.Property(x => x.DamageReason).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.DamagePercent).HasPrecision(5, 2).IsRequired();
+            entity.Property(x => x.SuggestedDiscountPercent).HasPrecision(5, 2).IsRequired();
+            entity.Property(x => x.Note).HasMaxLength(1000);
+            entity.Property(x => x.EvidenceImageUrl).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ReportedByUserId).HasMaxLength(450).IsRequired();
+            entity.Property(x => x.ReportedByUsername).HasMaxLength(256).IsRequired();
+            entity.Property(x => x.Status).HasConversion<int>().IsRequired();
+            entity.Property(x => x.ReviewedByUserId).HasMaxLength(450);
+            entity.Property(x => x.ReviewedByUsername).HasMaxLength(256);
+            entity.Property(x => x.ReviewNote).HasMaxLength(1000);
+            entity.Property(x => x.AppliedDiscountPercent).HasPrecision(5, 2);
+
+            entity.HasOne(x => x.ProductVariant)
+                .WithMany()
+                .HasForeignKey(x => x.ProductVariantId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Lot)
+                .WithMany()
+                .HasForeignKey(x => x.LotId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.Warehouse)
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ReportedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReportedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.ReportedByUserId);
+            entity.HasIndex(x => x.ReportedAt);
         });
 
         // ===================== ProductVariant =====================

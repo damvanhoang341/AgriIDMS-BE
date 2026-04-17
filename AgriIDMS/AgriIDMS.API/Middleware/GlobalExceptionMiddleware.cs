@@ -30,6 +30,7 @@ namespace AgriIDMS.API.Middleware
             var statusCode = exception switch
             {
                 Application.Exceptions.UnauthorizedException => StatusCodes.Status401Unauthorized,
+                UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
                 Application.Exceptions.LockedException => StatusCodes.Status423Locked,
                 Application.Exceptions.NotFoundException => StatusCodes.Status404NotFound,
                 Application.Exceptions.ConflictException => StatusCodes.Status409Conflict,
@@ -47,6 +48,12 @@ namespace AgriIDMS.API.Middleware
             var message = statusCode == StatusCodes.Status500InternalServerError
                 ? "Đã xảy ra lỗi hệ thống"
                 : exception.Message;
+
+            // Trong môi trường Dev: luôn hiển thị message thật để debug nhanh 500.
+            if (isDev)
+            {
+                message = exception.Message;
+            }
 
             // Nếu là lỗi EF, ưu tiên hiển thị inner exception để biết rõ nguyên nhân (FK/unique/constraint...)
             var inner = exception.InnerException?.Message;
