@@ -1,10 +1,32 @@
 using AgriIDMS.API.Middleware;
+using Microsoft.AspNetCore.Mvc;
 using AgriIDMS.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
 builder.Services.AddControllers();
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(x => x.Value?.Errors.Count > 0)
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+            );
+
+        var firstError = errors.SelectMany(x => x.Value).FirstOrDefault()
+                         ?? "Dữ liệu gửi lên không hợp lệ.";
+
+        return new BadRequestObjectResult(new
+        {
+            message = firstError,
+            errors
+        });
+    };
+});
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();

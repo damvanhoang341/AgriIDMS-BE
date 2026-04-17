@@ -41,6 +41,8 @@ namespace AgriIDMS.Application.DTOs.Lot
 
         public int ProductVariantId { get; set; }
         public string ProductName { get; set; } = string.Empty;
+        /// <summary>Tên biến thể (SKU / mô tả phân loại).</summary>
+        public string ProductVariantName { get; set; } = string.Empty;
         public string Grade { get; set; } = string.Empty;
 
         public decimal RemainingQuantity { get; set; }

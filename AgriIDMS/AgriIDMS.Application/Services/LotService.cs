@@ -253,13 +253,15 @@ namespace AgriIDMS.Application.Services
                 var daysLeft = (l.ExpiryDate.Date - todayUtc).Days;
                 var suggestedDiscountPercent = GetSuggestedDiscountPercent(daysLeft, rules);
 
+                var variant = l.GoodsReceiptDetail.ProductVariant;
                 return new NearExpiryLotDto
                 {
                     LotId = l.Id,
                     LotCode = l.LotCode,
-                    ProductVariantId = l.GoodsReceiptDetail.ProductVariant.Id,
-                    ProductName = l.GoodsReceiptDetail.ProductVariant.Product.Name,
-                    Grade = l.GoodsReceiptDetail.ProductVariant.Grade.ToString(),
+                    ProductVariantId = variant.Id,
+                    ProductName = variant.Product?.Name ?? string.Empty,
+                    ProductVariantName = variant.Name ?? string.Empty,
+                    Grade = variant.Grade.ToString(),
                     // RemainingQuantity should reflect boxes that are still "usable":
                     // Stored/Reserved with weight > 0. (Don't trust Lot.RemainingQuantity after stock-check.)
                     RemainingQuantity = nearExpiryBoxes.Sum(b => b.Weight),
@@ -338,11 +340,10 @@ namespace AgriIDMS.Application.Services
                     throw new InvalidBusinessRuleException("Phần trăm giảm giá phải nằm trong khoảng từ 0 đến 100.");
                 if (r.Priority <= 0)
                     throw new InvalidBusinessRuleException("Độ ưu tiên phải lớn hơn 0.");
-                var hasStart = r.StartAtUtc.HasValue;
-                var hasEnd = r.EndAtUtc.HasValue;
-                if (hasStart != hasEnd)
-                    throw new InvalidBusinessRuleException("Thời gian hiệu lực không hợp lệ: phải nhập đủ cả thời gian bắt đầu và kết thúc.");
-                if (hasStart && hasEnd && r.StartAtUtc > r.EndAtUtc)
+                if (!r.StartAtUtc.HasValue || !r.EndAtUtc.HasValue)
+                    throw new InvalidBusinessRuleException(
+                        "Thời gian hiệu lực là bắt buộc: phải nhập đủ thời gian bắt đầu và kết thúc (kèm giờ).");
+                if (r.StartAtUtc > r.EndAtUtc)
                     throw new InvalidBusinessRuleException("Thời gian hiệu lực không hợp lệ: thời gian bắt đầu phải nhỏ hơn hoặc bằng thời gian kết thúc.");
             }
 
