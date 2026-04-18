@@ -31,6 +31,9 @@ namespace AgriIDMS.Domain.Enums
         Order = 2,
         ExportReceipt = 3,
         StockCheck = 4,
-        StockCheckDetail = 5
+        StockCheckDetail = 5,
+
+        /// <summary>Tham chiếu phiếu báo hỏng (DamageReports.Id).</summary>
+        DamageReport = 6
     }
 }

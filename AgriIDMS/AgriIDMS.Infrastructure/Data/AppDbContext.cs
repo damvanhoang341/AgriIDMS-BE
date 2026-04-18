@@ -261,6 +261,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.DamageReason).HasMaxLength(500).IsRequired();
             entity.Property(x => x.DamagePercent).HasPrecision(5, 2).IsRequired();
             entity.Property(x => x.SuggestedDiscountPercent).HasPrecision(5, 2).IsRequired();
+            entity.Property(x => x.RequestedProcessingOutcome).HasConversion<int>();
+            entity.Property(x => x.RequestedDamagedWeightKg).HasPrecision(18, 3);
+            entity.Property(x => x.BoxWeightAtReportKg).HasPrecision(18, 3);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.EvidenceImageUrl).HasMaxLength(500).IsRequired();
             entity.Property(x => x.ReportedByUserId).HasMaxLength(450).IsRequired();
@@ -270,6 +273,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ReviewedByUsername).HasMaxLength(256);
             entity.Property(x => x.ReviewNote).HasMaxLength(1000);
             entity.Property(x => x.AppliedDiscountPercent).HasPrecision(5, 2);
+            entity.Property(x => x.ProcessingOutcome).HasConversion<int>();
+            entity.Property(x => x.ApprovedDamagedWeightKg).HasPrecision(18, 3);
+            entity.Property(x => x.BoxWeightSnapshotKg).HasPrecision(18, 3);
 
             entity.HasOne(x => x.ProductVariant)
                 .WithMany()

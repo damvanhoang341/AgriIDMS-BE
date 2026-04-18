@@ -23,6 +23,15 @@ namespace AgriIDMS.Domain.Entities
         public string DamageReason { get; set; } = string.Empty;
         public decimal DamagePercent { get; set; }
         public decimal SuggestedDiscountPercent { get; set; }
+
+        /// <summary>Loại xử lý đề xuất khi tạo phiếu (Manager duyệt phải khớp).</summary>
+        public DamageProcessingOutcome? RequestedProcessingOutcome { get; set; }
+
+        /// <summary>Khối lượng hỏng đề xuất (kg); null = hỏng hoàn toàn / toàn bộ thùng.</summary>
+        public decimal? RequestedDamagedWeightKg { get; set; }
+
+        /// <summary>Trọng lượng thùng tại thời điểm tạo phiếu (để hiển thị phần còn tốt dự kiến khi chờ duyệt).</summary>
+        public decimal? BoxWeightAtReportKg { get; set; }
         public string? Note { get; set; }
         public string EvidenceImageUrl { get; set; } = string.Empty;
 
@@ -37,6 +46,17 @@ namespace AgriIDMS.Domain.Entities
         public string? ReviewedByUsername { get; set; }
         public DateTime? ReviewedAt { get; set; }
         public string? ReviewNote { get; set; }
+
+        /// <summary>Kết quả xử lý sau duyệt (null khi chưa duyệt hoặc từ chối).</summary>
+        public DamageProcessingOutcome? ProcessingOutcome { get; set; }
+
+        /// <summary>Khối lượng hỏng đã duyệt loại (kg); với Complete = toàn bộ thùng tại thời điểm duyệt.</summary>
+        public decimal? ApprovedDamagedWeightKg { get; set; }
+
+        /// <summary>Snapshot trọng lượng thùng trước khi xử lý (audit).</summary>
+        public decimal? BoxWeightSnapshotKg { get; set; }
+
+        /// <summary>Giữ cột legacy; luồng mới không áp giảm giá — luôn null sau duyệt.</summary>
         public decimal? AppliedDiscountPercent { get; set; }
     }
 }

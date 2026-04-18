@@ -243,7 +243,13 @@ namespace AgriIDMS.Application.Services
                     }
 
                     if (d.VarianceType == VarianceType.Shortage && d.VarianceReason == VarianceReason.Damaged)
-                        box.Status = BoxStatus.Damaged;
+                    {
+                        // Đồng bộ với luồng hỏng: hết khối lượng → disposed; còn kg → Damaged (không còn Stored → không available online).
+                        if (box.Weight <= 0m)
+                            box.Status = BoxStatus.Disposed;
+                        else
+                            box.Status = BoxStatus.Damaged;
+                    }
 
                     // Keep Lot.RemainingQuantity consistent with what "còn lại" dashboard counts
                     // (Stored/Reserved and weight > 0).

@@ -37,6 +37,13 @@ namespace AgriIDMS.Application.DTOs.DamageReport
         [Range(0, 100)]
         public decimal SuggestedDiscountPercent { get; set; }
 
+        /// <summary>Loại hỏng đề xuất khi gửi phiếu.</summary>
+        [Required]
+        public DamageProcessingOutcome RequestedProcessingOutcome { get; set; }
+
+        /// <summary>Khi <see cref="RequestedProcessingOutcome"/> = PartialDamaged — kg hỏng (bắt buộc).</summary>
+        public decimal? RequestedDamagedWeightKg { get; set; }
+
         [MaxLength(1000)]
         public string? Note { get; set; }
 
@@ -47,8 +54,11 @@ namespace AgriIDMS.Application.DTOs.DamageReport
 
     public class ApproveDamageReportRequest
     {
-        [Range(0, 100)]
-        public decimal DiscountPercent { get; set; }
+        [Required]
+        public DamageProcessingOutcome Outcome { get; set; }
+
+        /// <summary>Chỉ dùng khi <see cref="Outcome"/> = PartialDamaged — kg hỏng (phần còn tốt hệ thống tự tính).</summary>
+        public decimal? DamagedWeightKg { get; set; }
 
         [MaxLength(1000)]
         public string? ReviewNote { get; set; }
@@ -56,8 +66,10 @@ namespace AgriIDMS.Application.DTOs.DamageReport
 
     public class RejectDamageReportRequest
     {
+        [Required]
+        [MinLength(1)]
         [MaxLength(1000)]
-        public string? ReviewNote { get; set; }
+        public string ReviewNote { get; set; } = string.Empty;
     }
 
     public class DamageReportResponseDto
@@ -86,6 +98,12 @@ namespace AgriIDMS.Application.DTOs.DamageReport
         public DateTime? ReviewedAt { get; set; }
         public string? ReviewNote { get; set; }
         public decimal? AppliedDiscountPercent { get; set; }
+        public string? ProcessingOutcome { get; set; }
+        public decimal? ApprovedDamagedWeightKg { get; set; }
+        public decimal? BoxWeightSnapshotKg { get; set; }
+        public string? RequestedProcessingOutcome { get; set; }
+        public decimal? RequestedDamagedWeightKg { get; set; }
+        public decimal? BoxWeightAtReportKg { get; set; }
     }
 }
 

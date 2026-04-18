@@ -11,6 +11,9 @@ namespace AgriIDMS.Domain.Interfaces
         Task<List<OrderAllocation>> GetByOrderIdAsync(int orderId, AllocationStatus? status = null);
         Task<List<OrderAllocation>> GetByOrderIdWithDetailsAsync(int orderId, AllocationStatus? status = null);
         Task<OrderAllocation?> GetByOrderIdAndBoxIdAsync(int orderId, int boxId);
+
+        /// <summary>Đơn đã giữ thùng (Reserved/Picked) — không cho báo hỏng / duyệt loại thùng.</summary>
+        Task<bool> HasReservedOrPickedAllocationForBoxAsync(int boxId);
     }
 }
 
