@@ -63,6 +63,9 @@ namespace AgriIDMS.Application.Interfaces
 
         Task<OrderDetailDto> GetMyOrderByIdAsync(int orderId, string userId);
 
+        /// <summary>Chi tiết đơn cho sale/admin/manager (không kiểm tra chủ đơn).</summary>
+        Task<OrderDetailDto> GetStaffOrderByIdAsync(int orderId);
+
 
 
         /// <summary>Đơn online đã Confirmed: khách chọn trả trước / trả sau (một lần).</summary>
@@ -112,6 +115,9 @@ namespace AgriIDMS.Application.Interfaces
         /// </summary>
 
         Task<SaleRejectOrderResponseDto> SaleRejectOrderAsync(int orderId, string rejectedByUserId);
+
+        /// <summary>Đơn online PayBefore đã Confirmed: quá 24h hạn thanh toán mà chưa Paid — sale hủy đơn và nhả kho.</summary>
+        Task<SaleRejectOrderResponseDto> SaleCancelOverdueUnpaidPayBeforeOrderAsync(int orderId, string cancelledByUserId);
 
 
 

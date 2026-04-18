@@ -112,6 +112,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Chi tiết đơn cho sale/admin/manager (mọi đơn). Kèm cờ <c>staffCanCancelOverduePayBefore</c> khi áp dụng.</summary>
+        [HttpGet("staff/{id:int:min(1)}")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> GetStaffOrderById(int id)
+        {
+            var result = await _orderService.GetStaffOrderByIdAsync(id);
+            return Ok(result);
+        }
+
         /// <summary>Sau khi sale xác nhận (Confirmed): khách chọn PayBefore (trả trước) hoặc PayAfter (trả sau). Chỉ gọi một lần.</summary>
         [HttpPatch("{id:int:min(1)}/online/payment-timing")]
         [Authorize(Roles = "Customer")]
@@ -228,6 +237,18 @@ namespace AgriIDMS.API.Controllers
         {
             var staffUserId = GetCurrentUserId();
             var result = await _orderService.SaleRejectOrderAsync(id, staffUserId);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Đơn online PayBefore đã Confirmed: quá 24h hạn thanh toán mà chưa Paid — sale hủy đơn và nhả kho (đồng bộ với <c>staffCanCancelOverduePayBefore</c> trên chi tiết đơn).
+        /// </summary>
+        [HttpPatch("{id:int:min(1)}/staff/cancel-overdue-paybefore")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager")]
+        public async Task<IActionResult> StaffCancelOverduePayBefore(int id)
+        {
+            var staffUserId = GetCurrentUserId();
+            var result = await _orderService.SaleCancelOverdueUnpaidPayBeforeOrderAsync(id, staffUserId);
             return Ok(result);
         }
 
