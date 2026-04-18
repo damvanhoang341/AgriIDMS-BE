@@ -17,8 +17,12 @@ namespace AgriIDMS.Application.Services
         private readonly ICategoryRepository _categoryRepo;
         private readonly IBoxRepository _boxRepo;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         private readonly INearExpiryDiscountRuleRepository _nearExpiryRuleRepo;
         private readonly IProductVariantDiscountOverrideRepository _variantOverrideRepo;
+=======
+        private readonly IDiscountRuleRepository _nearExpiryRuleRepo;
+>>>>>>> Stashed changes
 =======
         private readonly IDiscountRuleRepository _nearExpiryRuleRepo;
 >>>>>>> Stashed changes
@@ -29,8 +33,12 @@ namespace AgriIDMS.Application.Services
             ICategoryRepository categoryRepo,
             IBoxRepository boxRepo,
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             INearExpiryDiscountRuleRepository nearExpiryRuleRepo,
             IProductVariantDiscountOverrideRepository variantOverrideRepo,
+=======
+            IDiscountRuleRepository nearExpiryRuleRepo,
+>>>>>>> Stashed changes
 =======
             IDiscountRuleRepository nearExpiryRuleRepo,
 >>>>>>> Stashed changes
@@ -143,13 +151,20 @@ namespace AgriIDMS.Application.Services
 =======
             decimal? manualNearExpiryDiscountPercent,
             List<DiscountRule> activeRules)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         {
             if (basePricePerKg <= 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
             var orderedRules = (activeRules ?? new List<Domain.Entities.NearExpiryDiscountRule>())
+=======
+            var orderedRules = (activeRules ?? new List<DiscountRule>())
+>>>>>>> Stashed changes
 =======
             var orderedRules = (activeRules ?? new List<DiscountRule>())
 >>>>>>> Stashed changes
@@ -191,9 +206,12 @@ namespace AgriIDMS.Application.Services
                     new NearExpiryPriceTierDto
                     {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
                         MaxDaysLeft = maxRuleDays,
                         DiscountPercent = percent,
 =======
+=======
+>>>>>>> Stashed changes
                         MaxDaysLeft = rule.MaxDaysLeft ?? 0,
                         DiscountPercent = effectivePercent,
 >>>>>>> Stashed changes
@@ -213,6 +231,7 @@ namespace AgriIDMS.Application.Services
                             daysLeft <= rule.MaxDaysLeft);
                         if (boxCount <= 0) return null;
 
+<<<<<<< Updated upstream
                         var effectivePercent = rule.DiscountPercent;
                         var pricePerKg = Math.Round(
                             Math.Max(basePricePerKg * (1 - (effectivePercent / 100m)), 0.01m),
@@ -231,6 +250,8 @@ namespace AgriIDMS.Application.Services
                     .ToList();
             }
 
+=======
+>>>>>>> Stashed changes
             if (!tiers.Any())
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
@@ -251,7 +272,11 @@ namespace AgriIDMS.Application.Services
         }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         private static decimal ResolveDiscountPercentByRule(int daysLeft, List<Domain.Entities.NearExpiryDiscountRule> rules)
+=======
+        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<DiscountRule> rules)
+>>>>>>> Stashed changes
 =======
         private static decimal ResolveDiscountPercentByRule(int daysLeft, List<DiscountRule> rules)
 >>>>>>> Stashed changes
