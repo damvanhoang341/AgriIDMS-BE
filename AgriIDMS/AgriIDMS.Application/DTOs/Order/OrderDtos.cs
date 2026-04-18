@@ -245,6 +245,13 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? PaymentTiming { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? LatestPaymentStatus { get; set; }
+
+        /// <summary>Đơn online PayBefore: mốc hết hạn thanh toán (UTC) theo min ExpiredAt của allocation Reserved. Null nếu không áp dụng.</summary>
+        public DateTime? PayBeforeOnlinePaymentDeadlineUtc { get; set; }
+
+        /// <summary>True khi sale/admin/manager được phép hủy đơn vì quá hạn PayBefore mà chưa thanh toán thành công (đồng bộ với API hủy).</summary>
+        public bool StaffCanCancelOverduePayBefore { get; set; }
+
         public OrderRecipientSnapshotDto? Recipient { get; set; }
         public IList<OrderDetailItemDto> Items { get; set; } = new List<OrderDetailItemDto>();
     }

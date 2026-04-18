@@ -10,8 +10,6 @@ namespace AgriIDMS.Domain.Enums
         /// <summary>Thùng carton.</summary>
         Carton = 2,
         /// <summary>Bao lưới.</summary>
-        MeshBag = 3,
-        /// <summary>Sọt.</summary>
-        Crate = 4
+        MeshBag = 3
     }
 }

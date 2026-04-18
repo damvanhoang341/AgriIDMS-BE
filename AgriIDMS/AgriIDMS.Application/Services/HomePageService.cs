@@ -1,7 +1,7 @@
 using AgriIDMS.Application.DTOs.Home;
 using AgriIDMS.Application.DTOs.ProductVariant;
 using AgriIDMS.Application.Interfaces;
-using AgriIDMS.Domain.Enums;
+using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -16,32 +16,16 @@ namespace AgriIDMS.Application.Services
     {
         private readonly ICategoryRepository _categoryRepo;
         private readonly IBoxRepository _boxRepo;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
         private readonly INearExpiryDiscountRuleRepository _nearExpiryRuleRepo;
         private readonly IProductVariantDiscountOverrideRepository _variantOverrideRepo;
-=======
-        private readonly IDiscountRuleRepository _nearExpiryRuleRepo;
->>>>>>> Stashed changes
-=======
-        private readonly IDiscountRuleRepository _nearExpiryRuleRepo;
->>>>>>> Stashed changes
         private readonly ILogger<HomePageService> _logger;
         private readonly IProductVariantRepository _repo;
 
         public HomePageService(
             ICategoryRepository categoryRepo,
             IBoxRepository boxRepo,
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
             INearExpiryDiscountRuleRepository nearExpiryRuleRepo,
             IProductVariantDiscountOverrideRepository variantOverrideRepo,
-=======
-            IDiscountRuleRepository nearExpiryRuleRepo,
->>>>>>> Stashed changes
-=======
-            IDiscountRuleRepository nearExpiryRuleRepo,
->>>>>>> Stashed changes
             ILogger<HomePageService> logger,
             IProductVariantRepository repo)
         {
@@ -145,29 +129,13 @@ namespace AgriIDMS.Application.Services
         private async Task<(bool HasNearExpiryStock, decimal? NearExpiryDiscountPercent, decimal? NearExpiryPricePerKg, List<NearExpiryPriceTierDto> Tiers)> BuildNearExpiryPricingAsync(
             int productVariantId,
             decimal basePricePerKg,
-<<<<<<< Updated upstream
-            List<Domain.Entities.NearExpiryDiscountRule> activeRules,
-            Domain.Entities.ProductVariantDiscountOverride? activeOverride)
-=======
-            decimal? manualNearExpiryDiscountPercent,
-            List<DiscountRule> activeRules)
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+            List<NearExpiryDiscountRule> activeRules,
+            ProductVariantDiscountOverride? activeOverride)
         {
             if (basePricePerKg <= 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            var orderedRules = (activeRules ?? new List<Domain.Entities.NearExpiryDiscountRule>())
-=======
-            var orderedRules = (activeRules ?? new List<DiscountRule>())
->>>>>>> Stashed changes
-=======
-            var orderedRules = (activeRules ?? new List<DiscountRule>())
->>>>>>> Stashed changes
+            var orderedRules = (activeRules ?? new List<NearExpiryDiscountRule>())
                 .Where(r => r.IsActive && r.MaxDaysLeft > 0)
                 .OrderBy(r => r.Priority)
                 .ThenBy(r => r.MaxDaysLeft)
@@ -205,16 +173,8 @@ namespace AgriIDMS.Application.Services
                 {
                     new NearExpiryPriceTierDto
                     {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
                         MaxDaysLeft = maxRuleDays,
                         DiscountPercent = percent,
-=======
-=======
->>>>>>> Stashed changes
-                        MaxDaysLeft = rule.MaxDaysLeft ?? 0,
-                        DiscountPercent = effectivePercent,
->>>>>>> Stashed changes
                         PricePerKg = pricePerKg,
                         BoxCount = nearExpiryDaysLeft.Count
                     }
@@ -231,7 +191,6 @@ namespace AgriIDMS.Application.Services
                             daysLeft <= rule.MaxDaysLeft);
                         if (boxCount <= 0) return null;
 
-<<<<<<< Updated upstream
                         var effectivePercent = rule.DiscountPercent;
                         var pricePerKg = Math.Round(
                             Math.Max(basePricePerKg * (1 - (effectivePercent / 100m)), 0.01m),
@@ -250,9 +209,7 @@ namespace AgriIDMS.Application.Services
                     .ToList();
             }
 
-=======
->>>>>>> Stashed changes
-            if (!tiers.Any())
+            if (tiers.Count == 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
             var nearestDaysLeft = nearExpiryDaysLeft.Min();
@@ -271,15 +228,7 @@ namespace AgriIDMS.Application.Services
             return (true, effectiveDiscount, discounted, tiers);
         }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<Domain.Entities.NearExpiryDiscountRule> rules)
-=======
-        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<DiscountRule> rules)
->>>>>>> Stashed changes
-=======
-        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<DiscountRule> rules)
->>>>>>> Stashed changes
+        private static decimal ResolveDiscountPercentByRule(int daysLeft, List<NearExpiryDiscountRule> rules)
         {
             return rules
                 .Where(r => !r.MinDaysLeft.HasValue || daysLeft >= r.MinDaysLeft.Value)
@@ -296,7 +245,7 @@ namespace AgriIDMS.Application.Services
         private async Task<(bool HasNearExpiryStock, decimal? NearExpiryDiscountPercent, decimal? NearExpiryPricePerKg, List<NearExpiryPriceTierDto> Tiers)> BuildPricingWhenNoSystemRulesAsync(
             int productVariantId,
             decimal basePricePerKg,
-            Domain.Entities.ProductVariantDiscountOverride? activeOverride)
+            ProductVariantDiscountOverride? activeOverride)
         {
             if (basePricePerKg <= 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());

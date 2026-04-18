@@ -451,7 +451,15 @@ namespace AgriIDMS.Application.Services
             if (order.UserId != userId)
                 throw new ForbiddenException("Bạn không có quyền xem đơn hàng này");
 
-            return MapOrderToDetailDto(order);
+            return await MapOrderToDetailDtoAsync(order);
+        }
+
+        public async Task<OrderDetailDto> GetStaffOrderByIdAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            return await MapOrderToDetailDtoAsync(order);
         }
 
         public async Task<OrderDetailDto> UpdateOrderShippingStatusAsStaffAsync(int orderId, ShippingStatus newShippingStatus, string operatorUserId)
@@ -490,7 +498,7 @@ namespace AgriIDMS.Application.Services
             if (newShippingStatus == ShippingStatus.ShippingInProgress)
                 await _notificationService.NotifyOrderShippingInProgressAsync(orderId);
 
-            return MapOrderToDetailDto(order);
+            return await MapOrderToDetailDtoAsync(order);
         }
 
         public async Task<OrderDetailDto> SetOnlineOrderPaymentTimingAsync(int orderId, string userId, PaymentTiming paymentTiming)
@@ -790,6 +798,34 @@ namespace AgriIDMS.Application.Services
             };
         }
 
+        /// <summary>Đơn online PayBefore đã Confirmed: quá hạn giữ hàng để thanh toán (24h sau sale confirm) mà chưa Paid — hủy và nhả kho.</summary>
+        public async Task<SaleRejectOrderResponseDto> SaleCancelOverdueUnpaidPayBeforeOrderAsync(int orderId, string cancelledByUserId)
+        {
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var reserved = await _allocationRepo.GetByOrderIdAsync(orderId, AllocationStatus.Reserved);
+            if (!await CanStaffCancelOverduePayBeforeAsync(order, reserved))
+            {
+                throw new InvalidBusinessRuleException(
+                    "Chỉ hủy được khi đơn online giao hàng, trả trước (PayBefore), đã xác nhận (Confirmed), chưa thanh toán thành công, "
+                    + "chưa có phiếu xuất kho, và đã quá thời hạn thanh toán trả trước (24h kể từ khi sale xác nhận đơn).");
+            }
+
+            await CommitCancelOrderReleaseStockAsync(order);
+
+            _logger.LogInformation(
+                "Order {OrderId} cancelled by staff {UserId} (overdue PayBefore, unpaid)",
+                orderId, cancelledByUserId);
+
+            return new SaleRejectOrderResponseDto
+            {
+                Message = "Đã hủy đơn quá hạn thanh toán trả trước và nhả thùng (Release box).",
+                OrderId = orderId,
+                Status = OrderStatus.Cancelled.ToString()
+            };
+        }
+
         private async Task CommitCancelOrderReleaseStockAsync(Order order)
         {
             var orderId = order.Id;
@@ -880,11 +916,8 @@ namespace AgriIDMS.Application.Services
 
                 foreach (var item in cart.Items)
                 {
-                    var cartUnitPricePerKg = NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price);
-                    var unitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
-                        item.ProductVariantId,
-                        cartUnitPricePerKg,
-                        includeOfflineOnly: false);
+                    // Giỏ đã lưu đơn giá/kg sau NearExpiry (CartService.ResolveCartUnitPricePerKgAsync) — không gọi lại ApplyNearExpiry để tránh double discount.
+                    var unitPrice = NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price);
 
                     var detail = new OrderDetail
                     {
@@ -1054,11 +1087,11 @@ namespace AgriIDMS.Application.Services
                             FulfilledQuantity = 0,
                             ShortageQuantity = 0
                         };
-                        var nearExpiryUnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
-                            item.ProductVariantId,
-                            NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price),
-                            includeOfflineOnly: false);
-                        detail.UnitPrice = nearExpiryUnitPrice;
+                        // Đồng bộ CreateOrderFromCartAsync: giỏ đã có giá/kg sau NearExpiry — không apply lần hai.
+                        detail.UnitPrice = NormalizeCartUnitPricePerKg(
+                            item.UnitPrice,
+                            item.BoxWeight,
+                            item.ProductVariant?.Price);
 
                         order.Details.Add(detail);
                         estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
@@ -2053,8 +2086,18 @@ namespace AgriIDMS.Application.Services
             }
         }
         
-        private OrderDetailDto MapOrderToDetailDto(Order order)
+        private async Task<OrderDetailDto> MapOrderToDetailDtoAsync(Order order)
         {
+            DateTime? payBeforeDeadlineUtc = null;
+            var staffCanCancelOverdue = false;
+
+            if (order.Source == OrderSource.Online && order.PaymentTiming == PaymentTiming.PayBefore)
+            {
+                var reserved = await _allocationRepo.GetByOrderIdAsync(order.Id, AllocationStatus.Reserved);
+                payBeforeDeadlineUtc = GetOnlinePayBeforeReservedDeadlineUtc(reserved);
+                staffCanCancelOverdue = await CanStaffCancelOverduePayBeforeAsync(order, reserved);
+            }
+
             return new OrderDetailDto
             {
                 OrderId = order.Id,
@@ -2071,6 +2114,8 @@ namespace AgriIDMS.Application.Services
                     .FirstOrDefault()?
                     .PaymentStatus
                     .ToString(),
+                PayBeforeOnlinePaymentDeadlineUtc = payBeforeDeadlineUtc,
+                StaffCanCancelOverduePayBefore = staffCanCancelOverdue,
                 Recipient = ToRecipientSnapshot(order),
                 Items = order.Details.Select(d => new OrderDetailItemDto
                 {
@@ -2086,6 +2131,46 @@ namespace AgriIDMS.Application.Services
                     ShortageQuantity = d.ShortageQuantity
                 }).ToList()
             };
+        }
+
+        /// <summary>Cùng quy tắc với <c>PaymentService</c> cho hạn thanh toán PayBefore online.</summary>
+        private static DateTime? GetOnlinePayBeforeReservedDeadlineUtc(IReadOnlyList<OrderAllocation> reserved)
+        {
+            if (reserved == null || reserved.Count == 0)
+                return null;
+
+            var expiries = reserved
+                .Where(a => a.ExpiredAt.HasValue)
+                .Select(a => a.ExpiredAt!.Value)
+                .ToList();
+
+            return expiries.Count == 0 ? null : expiries.Min();
+        }
+
+        private static bool IsOnlinePayBeforePaymentDeadlinePassed(IReadOnlyList<OrderAllocation> reserved, DateTime utcNow)
+        {
+            var min = GetOnlinePayBeforeReservedDeadlineUtc(reserved);
+            return min.HasValue && min.Value <= utcNow;
+        }
+
+        private async Task<bool> CanStaffCancelOverduePayBeforeAsync(Order order, IReadOnlyList<OrderAllocation> reserved)
+        {
+            if (order.Source != OrderSource.Online)
+                return false;
+            if (order.FulfillmentType != FulfillmentType.Delivery)
+                return false;
+            if (order.Status != OrderStatus.Confirmed)
+                return false;
+            if (order.PaymentTiming != PaymentTiming.PayBefore)
+                return false;
+            if (order.Payments != null && order.Payments.Any(p =>
+                    p.PaymentStatus == PaymentStatus.Paid ||
+                    p.PaymentStatus == PaymentStatus.Refunded))
+                return false;
+            if (await _exportRepo.ExistsForOrderAsync(order.Id))
+                return false;
+
+            return IsOnlinePayBeforePaymentDeadlinePassed(reserved, DateTime.UtcNow);
         }
 
         private static bool TryParseLegacyOrderStatusForFilter(string status, out OrderStatus parsed)
