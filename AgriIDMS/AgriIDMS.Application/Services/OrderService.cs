@@ -916,11 +916,8 @@ namespace AgriIDMS.Application.Services
 
                 foreach (var item in cart.Items)
                 {
-                    var cartUnitPricePerKg = NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price);
-                    var unitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
-                        item.ProductVariantId,
-                        cartUnitPricePerKg,
-                        includeOfflineOnly: false);
+                    // Giỏ đã lưu đơn giá/kg sau NearExpiry (CartService.ResolveCartUnitPricePerKgAsync) — không gọi lại ApplyNearExpiry để tránh double discount.
+                    var unitPrice = NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price);
 
                     var detail = new OrderDetail
                     {
@@ -1090,11 +1087,11 @@ namespace AgriIDMS.Application.Services
                             FulfilledQuantity = 0,
                             ShortageQuantity = 0
                         };
-                        var nearExpiryUnitPrice = await ApplyNearExpiryDiscountIfEligibleAsync(
-                            item.ProductVariantId,
-                            NormalizeCartUnitPricePerKg(item.UnitPrice, item.BoxWeight, item.ProductVariant?.Price),
-                            includeOfflineOnly: false);
-                        detail.UnitPrice = nearExpiryUnitPrice;
+                        // Đồng bộ CreateOrderFromCartAsync: giỏ đã có giá/kg sau NearExpiry — không apply lần hai.
+                        detail.UnitPrice = NormalizeCartUnitPricePerKg(
+                            item.UnitPrice,
+                            item.BoxWeight,
+                            item.ProductVariant?.Price);
 
                         order.Details.Add(detail);
                         estimatedTotal += detail.Quantity * detail.BoxWeight * detail.UnitPrice;
