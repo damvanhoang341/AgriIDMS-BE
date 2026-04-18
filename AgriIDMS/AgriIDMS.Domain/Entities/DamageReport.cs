@@ -29,6 +29,9 @@ namespace AgriIDMS.Domain.Entities
 
         /// <summary>Khối lượng hỏng đề xuất (kg); null = hỏng hoàn toàn / toàn bộ thùng.</summary>
         public decimal? RequestedDamagedWeightKg { get; set; }
+
+        /// <summary>Trọng lượng thùng tại thời điểm tạo phiếu (để hiển thị phần còn tốt dự kiến khi chờ duyệt).</summary>
+        public decimal? BoxWeightAtReportKg { get; set; }
         public string? Note { get; set; }
         public string EvidenceImageUrl { get; set; } = string.Empty;
 

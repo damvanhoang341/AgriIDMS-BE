@@ -103,6 +103,7 @@ namespace AgriIDMS.Application.DTOs.DamageReport
         public decimal? BoxWeightSnapshotKg { get; set; }
         public string? RequestedProcessingOutcome { get; set; }
         public decimal? RequestedDamagedWeightKg { get; set; }
+        public decimal? BoxWeightAtReportKg { get; set; }
     }
 }
 

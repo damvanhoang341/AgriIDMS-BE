@@ -263,6 +263,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.SuggestedDiscountPercent).HasPrecision(5, 2).IsRequired();
             entity.Property(x => x.RequestedProcessingOutcome).HasConversion<int>();
             entity.Property(x => x.RequestedDamagedWeightKg).HasPrecision(18, 3);
+            entity.Property(x => x.BoxWeightAtReportKg).HasPrecision(18, 3);
             entity.Property(x => x.Note).HasMaxLength(1000);
             entity.Property(x => x.EvidenceImageUrl).HasMaxLength(500).IsRequired();
             entity.Property(x => x.ReportedByUserId).HasMaxLength(450).IsRequired();

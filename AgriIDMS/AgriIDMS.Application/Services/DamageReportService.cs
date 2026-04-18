@@ -73,6 +73,17 @@ namespace AgriIDMS.Application.Services
             if (await _allocationRepo.HasReservedOrPickedAllocationForBoxAsync(box.Id))
                 throw new InvalidBusinessRuleException("Thùng đang được giữ/xuất trên đơn (Reserved/Picked), không thể báo hỏng.");
 
+            if (request.RequestedProcessingOutcome == DamageProcessingOutcome.PartialDamaged)
+            {
+                if (!request.RequestedDamagedWeightKg.HasValue)
+                    throw new InvalidBusinessRuleException("Hỏng một phần cần nhập khối lượng hỏng (RequestedDamagedWeightKg).");
+                var rw = request.RequestedDamagedWeightKg.Value;
+                if (rw <= 0 || rw > box.Weight)
+                    throw new InvalidBusinessRuleException("Khối lượng hỏng phải > 0 và không vượt quá khối lượng hiện có của thùng.");
+            }
+            else if (request.RequestedProcessingOutcome != DamageProcessingOutcome.CompleteDamaged)
+                throw new InvalidBusinessRuleException("RequestedProcessingOutcome không hợp lệ.");
+
             var warehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId ?? 0;
             if (warehouseId <= 0)
                 throw new InvalidBusinessRuleException("Không xác định được kho của thùng.");
@@ -98,6 +109,11 @@ namespace AgriIDMS.Application.Services
                 DamageReason = request.DamageReason.Trim(),
                 DamagePercent = ClampPercent(request.DamagePercent),
                 SuggestedDiscountPercent = 0,
+                RequestedProcessingOutcome = request.RequestedProcessingOutcome,
+                RequestedDamagedWeightKg = request.RequestedProcessingOutcome == DamageProcessingOutcome.PartialDamaged
+                    ? request.RequestedDamagedWeightKg
+                    : null,
+                BoxWeightAtReportKg = box.Weight,
                 Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
                 EvidenceImageUrl = request.EvidenceImageUrl.Trim(),
                 ReportedByUserId = userId,
@@ -116,10 +132,28 @@ namespace AgriIDMS.Application.Services
         public async Task<IReadOnlyList<DamageReportResponseDto>> GetListAsync(
             DamageReportStatus? status = null,
             int? warehouseId = null,
-            string? reportedByUserId = null)
+            string? reportedByUserId = null,
+            DamageProcessingOutcome? requestedOutcome = null)
         {
-            var list = await _damageReportRepo.GetListAsync(status, warehouseId, reportedByUserId);
+            var list = await _damageReportRepo.GetListAsync(status, warehouseId, reportedByUserId, requestedOutcome);
             return list.Select(Map).ToList();
+        }
+
+        public async Task<DamageReportResponseDto?> GetByIdAsync(int id, string currentUserId, bool canViewAll)
+        {
+            var r = await _damageReportRepo.GetByIdAsync(id);
+            if (r == null || r.IsDeleted)
+                return null;
+            if (!canViewAll && r.ReportedByUserId != currentUserId)
+                return null;
+            return Map(r);
+        }
+
+        public Task<bool> HasPendingDamageForBoxAsync(int boxId)
+        {
+            if (boxId <= 0)
+                return Task.FromResult(false);
+            return _damageReportRepo.HasPendingForBoxAsync(boxId);
         }
 
         public async Task<DamageReportResponseDto> ApproveAsync(int id, ApproveDamageReportRequest request, string reviewerUserId, string reviewerUsername)
@@ -147,6 +181,20 @@ namespace AgriIDMS.Application.Services
                     throw new InvalidBusinessRuleException("Thùng không còn khối lượng.");
                 if (await _allocationRepo.HasReservedOrPickedAllocationForBoxAsync(box.Id))
                     throw new InvalidBusinessRuleException("Thùng đang Reserved/Picked trên đơn, không thể duyệt loại hỏng.");
+
+                if (report.RequestedProcessingOutcome.HasValue)
+                {
+                    if (request.Outcome != report.RequestedProcessingOutcome.Value)
+                        throw new InvalidBusinessRuleException("Kết quả duyệt phải khớp loại hỏng đã ghi trên phiếu.");
+                    if (report.RequestedProcessingOutcome == DamageProcessingOutcome.PartialDamaged)
+                    {
+                        var expected = report.RequestedDamagedWeightKg
+                            ?? throw new InvalidBusinessRuleException("Phiếu thiếu khối lượng hỏng đề xuất.");
+                        if (!request.DamagedWeightKg.HasValue ||
+                            Math.Abs(request.DamagedWeightKg.Value - expected) > 0.0001m)
+                            throw new InvalidBusinessRuleException("Khối lượng hỏng duyệt phải khớp đề xuất trên phiếu.");
+                    }
+                }
 
                 var snapshotWeight = box.Weight;
                 report.BoxWeightSnapshotKg = snapshotWeight;
@@ -208,17 +256,20 @@ namespace AgriIDMS.Application.Services
 
             if (report.Status != DamageReportStatus.Pending)
                 throw new InvalidBusinessRuleException("Chỉ được từ chối phiếu đang chờ xử lý.");
+            if (string.IsNullOrWhiteSpace(request.ReviewNote))
+                throw new InvalidBusinessRuleException("Vui lòng nhập lý do từ chối.");
 
             report.Status = DamageReportStatus.Rejected;
             report.ReviewedByUserId = reviewerUserId;
             report.ReviewedByUsername = reviewerUsername;
             report.ReviewedAt = DateTime.UtcNow;
-            report.ReviewNote = string.IsNullOrWhiteSpace(request.ReviewNote)
-                ? "Từ chối xử lý hỏng."
-                : request.ReviewNote.Trim();
+            report.ReviewNote = request.ReviewNote.Trim();
             report.ProcessingOutcome = null;
             report.ApprovedDamagedWeightKg = null;
             report.BoxWeightSnapshotKg = null;
+            report.RequestedProcessingOutcome = null;
+            report.RequestedDamagedWeightKg = null;
+            report.BoxWeightAtReportKg = null;
             report.AppliedDiscountPercent = null;
             report.UpdatedAt = DateTime.UtcNow;
 
@@ -398,7 +449,10 @@ namespace AgriIDMS.Application.Services
                 AppliedDiscountPercent = x.AppliedDiscountPercent,
                 ProcessingOutcome = x.ProcessingOutcome?.ToString(),
                 ApprovedDamagedWeightKg = x.ApprovedDamagedWeightKg,
-                BoxWeightSnapshotKg = x.BoxWeightSnapshotKg
+                BoxWeightSnapshotKg = x.BoxWeightSnapshotKg,
+                RequestedProcessingOutcome = x.RequestedProcessingOutcome?.ToString(),
+                RequestedDamagedWeightKg = x.RequestedDamagedWeightKg,
+                BoxWeightAtReportKg = x.BoxWeightAtReportKg
             };
         }
     }
