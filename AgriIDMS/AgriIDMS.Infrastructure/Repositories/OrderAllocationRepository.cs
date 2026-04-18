@@ -58,6 +58,14 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(a => a.OrderDetail)
                 .FirstOrDefaultAsync(a => a.OrderId == orderId && a.BoxId == boxId);
         }
+
+        public Task<bool> HasReservedOrPickedAllocationForBoxAsync(int boxId)
+        {
+            return _context.OrderAllocations.AnyAsync(a =>
+                a.BoxId == boxId &&
+                a.Status != AllocationStatus.Cancelled &&
+                (a.Status == AllocationStatus.Reserved || a.Status == AllocationStatus.Picked));
+        }
     }
 }
 

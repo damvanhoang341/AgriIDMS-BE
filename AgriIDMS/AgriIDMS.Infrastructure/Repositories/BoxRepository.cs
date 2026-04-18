@@ -34,6 +34,16 @@ namespace AgriIDMS.Infrastructure.Repositories
                  (a.Status == AllocationStatus.SoftLocked &&
                   (!a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)))));
         }
+
+        /// <summary>Phiếu DamageReport Pending → thùng không được coi là khả dụng để bán/allocate.</summary>
+        private static IQueryable<Box> WhereNoPendingDamageReport(IQueryable<Box> query, AppDbContext ctx)
+        {
+            return query.Where(b => !ctx.DamageReports.Any(dr =>
+                !dr.IsDeleted &&
+                dr.TargetType == DamageTargetType.Box &&
+                dr.TargetId == b.Id &&
+                dr.Status == DamageReportStatus.Pending));
+        }
         public async Task CreateAsync(Box box)
         {
             await _context.Boxes.AddAsync(box);
@@ -109,7 +119,7 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<List<Box>> GetUnassignedBoxesByWarehouseIdAsync(int warehouseId)
         {
             var now = DateTime.UtcNow;
-            return await _context.Boxes
+            var query = _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
                         .ThenInclude(d => d!.GoodsReceipt)
@@ -124,8 +134,11 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Weight > 0 &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > now &&
-                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId)
-                .ToListAsync();
+                    b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId);
+
+            query = WhereNoPendingDamageReport(query, _context);
+
+            return await query.ToListAsync();
         }
 
         public async Task<List<Box>> GetDamagedBoxesAsync(int? warehouseId = null)
@@ -222,6 +235,7 @@ namespace AgriIDMS.Infrastructure.Repositories
             }
 
             var utcNow = DateTime.UtcNow;
+            query = WhereNoPendingDamageReport(query, _context);
             query = WhereNotBlockedByOrderAllocation(query, _context, utcNow);
 
             return await query
@@ -251,6 +265,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > utcNow);
 
+            query = WhereNoPendingDamageReport(query, _context);
             query = WhereNotBlockedByOrderAllocation(query, _context, utcNow);
 
             return await query.CountAsync();
@@ -283,6 +298,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                     d.VarianceType != VarianceType.Match));
             }
 
+            query = WhereNoPendingDamageReport(query, _context);
             query = WhereNotBlockedByOrderAllocation(query, _context, now);
 
             // 1) Kiểm tra nhanh xem có box hết hạn / ExpiryDate <= now không
@@ -388,7 +404,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                         d.VarianceType.HasValue &&
                         d.VarianceType != VarianceType.Match));
 
-            var query = WhereNotBlockedByOrderAllocation(baseQuery, _context, utcNow);
+            var query = WhereNoPendingDamageReport(baseQuery, _context);
+            query = WhereNotBlockedByOrderAllocation(query, _context, utcNow);
 
             return await query
                 .GroupBy(b => new { b.IsPartial, b.Weight })
