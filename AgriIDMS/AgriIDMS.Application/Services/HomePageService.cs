@@ -141,8 +141,9 @@ namespace AgriIDMS.Application.Services
                 .ThenBy(r => r.MaxDaysLeft)
                 .ToList();
 
+            // Không có rule hệ thống: vẫn hiển thị giá ưu đãi nếu Manager bật ghi đè variant (khớp hướng áp dụng của NearExpiryDiscountService khi checkout).
             if (orderedRules.Count == 0)
-                return (false, null, null, new List<NearExpiryPriceTierDto>());
+                return await BuildPricingWhenNoSystemRulesAsync(productVariantId, basePricePerKg, activeOverride);
 
             var maxRuleDays = orderedRules.Max(r => r.MaxDaysLeft);
             var today = DateTime.UtcNow.Date;
@@ -236,6 +237,63 @@ namespace AgriIDMS.Application.Services
                 .ThenByDescending(r => r.DiscountPercent)
                 .Select(r => r.DiscountPercent)
                 .FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Khi chưa cấu hình NearExpiryDiscountRule nhưng có ProductVariantDiscountOverride đang hiệu lực — trả dữ liệu hiển thị shop (không đổi logic tính tiền ở OrderService).
+        /// </summary>
+        private async Task<(bool HasNearExpiryStock, decimal? NearExpiryDiscountPercent, decimal? NearExpiryPricePerKg, List<NearExpiryPriceTierDto> Tiers)> BuildPricingWhenNoSystemRulesAsync(
+            int productVariantId,
+            decimal basePricePerKg,
+            Domain.Entities.ProductVariantDiscountOverride? activeOverride)
+        {
+            if (basePricePerKg <= 0)
+                return (false, null, null, new List<NearExpiryPriceTierDto>());
+
+            if (activeOverride == null || activeOverride.OverrideNearExpiryDiscountPercent <= 0)
+                return (false, null, null, new List<NearExpiryPriceTierDto>());
+
+            var today = DateTime.UtcNow.Date;
+            var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(productVariantId, includeOfflineOnly: false);
+            if (boxes == null || boxes.Count == 0)
+                return (false, null, null, new List<NearExpiryPriceTierDto>());
+
+            var nearExpiryDaysLeft = boxes
+                .Select(b => b.Lot?.ExpiryDate.Date)
+                .Where(d => d.HasValue)
+                .Select(d => (d!.Value - today).Days)
+                .Where(daysLeft => daysLeft >= 0)
+                .ToList();
+
+            if (nearExpiryDaysLeft.Count == 0)
+                return (false, null, null, new List<NearExpiryPriceTierDto>());
+
+            var percent = activeOverride.OverrideNearExpiryDiscountPercent;
+            var pricePerKg = Math.Round(
+                Math.Max(basePricePerKg * (1 - (percent / 100m)), 0.01m),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            var tiers = new List<NearExpiryPriceTierDto>
+            {
+                new NearExpiryPriceTierDto
+                {
+                    MaxDaysLeft = nearExpiryDaysLeft.Max(),
+                    DiscountPercent = percent,
+                    PricePerKg = pricePerKg,
+                    BoxCount = nearExpiryDaysLeft.Count
+                }
+            };
+
+            if (percent <= 0)
+                return (true, 0m, basePricePerKg, tiers);
+
+            var discounted = Math.Round(
+                Math.Max(basePricePerKg * (1 - (percent / 100m)), 0.01m),
+                2,
+                MidpointRounding.AwayFromZero);
+
+            return (true, percent, discounted, tiers);
         }
     }
 }
