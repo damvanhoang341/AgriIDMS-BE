@@ -13,7 +13,7 @@ public class PurchaseOrderService : IPurchaseOrderService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<PurchaseOrderService> _logger;
     private readonly ISupplierService _supplierRepository;
-    private readonly IProductVariantRepository _productVariantRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IUserRepository _userRepository;
 
     public PurchaseOrderService(
@@ -21,14 +21,14 @@ public class PurchaseOrderService : IPurchaseOrderService
         IUnitOfWork unitOfWork,
         ILogger<PurchaseOrderService> logger,
         ISupplierService supplierRepository,
-        IProductVariantRepository productVariantRepository,
+        IProductRepository productRepository,
         IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _logger = logger;
         _supplierRepository = supplierRepository;
-        _productVariantRepository = productVariantRepository;
+        _productRepository = productRepository;
         _userRepository = userRepository;
 
     }
@@ -43,24 +43,24 @@ public class PurchaseOrderService : IPurchaseOrderService
         if (request.Details == null || !request.Details.Any())
             throw new InvalidBusinessRuleException("Đơn hàng phải có ít nhất một sản phẩm");
 
-        // Không cho phép trùng ProductVariantId trong cùng một đơn mua
-        var duplicateVariantIds = request.Details
-            .GroupBy(d => d.ProductVariantId)
+        // Không cho phép trùng ProductId trong cùng một đơn mua
+        var duplicateProductIds = request.Details
+            .GroupBy(d => d.ProductId)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
             .ToList();
-        if (duplicateVariantIds.Any())
-            throw new InvalidBusinessRuleException("Không được tạo nhiều dòng cho cùng một sản phẩm (ProductVariant) trong một đơn mua");
+        if (duplicateProductIds.Any())
+            throw new InvalidBusinessRuleException("Không được tạo nhiều dòng cho cùng một sản phẩm trong một đơn mua");
 
         var supplier = await _supplierRepository.GetSupplierByIdAsync(request.SupplierId);
         if (supplier == null) throw new NotFoundException("Supplier không tồn tại");
 
-        var variantIds = request.Details.Select(d => d.ProductVariantId).Distinct().ToList();
-        var variantsById = await _productVariantRepository.GetByIdsAsync(variantIds);
-        if (variantsById.Count != variantIds.Count)
+        var productIds = request.Details.Select(d => d.ProductId).Distinct().ToList();
+        foreach (var productId in productIds)
         {
-            var missing = variantIds.FirstOrDefault(id => !variantsById.ContainsKey(id));
-            throw new NotFoundException($"ProductVariant {missing} không tồn tại");
+            var product = await _productRepository.GetProductByIdAsync(productId);
+            if (product == null)
+                throw new NotFoundException($"Product {productId} không tồn tại");
         }
 
         int createdOrderId = 0;
@@ -96,7 +96,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 }
                 order.Details.Add(new PurchaseOrderDetail
                 {
-                    ProductVariantId = item.ProductVariantId,
+                    ProductId = item.ProductId,
                     OrderedWeight = item.OrderedWeight,
                     UnitPrice = item.UnitPrice,
                     TolerancePercent = item.TolerancePercent,
@@ -133,8 +133,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                 Details = order.Details.Select(d => new PurchaseOrderDetailResponse
                 {
                     Id = d.Id,
-                    ProductVariantId = d.ProductVariantId,
-                    ProductName = d.ProductVariant.Product.Name,
+                    ProductId = d.ProductId,
+                    ProductName = d.Product.Name,
                     OrderedWeight = d.OrderedWeight,
                     UnitPrice = d.UnitPrice,
                     TolerancePercent = d.TolerancePercent,
@@ -196,21 +196,21 @@ public class PurchaseOrderService : IPurchaseOrderService
                 if (!request.Details.Any())
                     throw new InvalidBusinessRuleException("Đơn mua phải có ít nhất một dòng chi tiết");
 
-                // Không cho phép trùng ProductVariantId trong cùng một đơn mua
-                var duplicateVariantIds = request.Details
-                    .GroupBy(d => d.ProductVariantId)
+                // Không cho phép trùng ProductId trong cùng một đơn mua
+                var duplicateProductIds = request.Details
+                    .GroupBy(d => d.ProductId)
                     .Where(g => g.Count() > 1)
                     .Select(g => g.Key)
                     .ToList();
-                if (duplicateVariantIds.Any())
-                    throw new InvalidBusinessRuleException("Không được tạo nhiều dòng cho cùng một sản phẩm (ProductVariant) trong một đơn mua");
+                if (duplicateProductIds.Any())
+                    throw new InvalidBusinessRuleException("Không được tạo nhiều dòng cho cùng một sản phẩm trong một đơn mua");
 
-                var variantIds = request.Details.Select(d => d.ProductVariantId).Distinct().ToList();
-                var variantsById = await _productVariantRepository.GetByIdsAsync(variantIds);
-                if (variantsById.Count != variantIds.Count)
+                var productIds = request.Details.Select(d => d.ProductId).Distinct().ToList();
+                foreach (var productId in productIds)
                 {
-                    var missing = variantIds.FirstOrDefault(vid => !variantsById.ContainsKey(vid));
-                    throw new NotFoundException($"ProductVariant {missing} không tồn tại");
+                    var product = await _productRepository.GetProductByIdAsync(productId);
+                    if (product == null)
+                        throw new NotFoundException($"Product {productId} không tồn tại");
                 }
 
                 var requestDetailIds = request.Details
@@ -238,7 +238,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     {
                         po.Details.Add(new PurchaseOrderDetail
                         {
-                            ProductVariantId = item.ProductVariantId,
+                            ProductId = item.ProductId,
                             OrderedWeight = item.OrderedWeight,
                             UnitPrice = item.UnitPrice,
                             TolerancePercent = item.TolerancePercent,
@@ -253,7 +253,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                             throw new NotFoundException($"Không tìm thấy dòng đơn mua Id={item.Id}");
                         if (existing.ReceivedWeight > 0)
                             throw new InvalidBusinessRuleException($"Không thể sửa dòng đã có nhập kho (Id={existing.Id})");
-                        existing.ProductVariantId = item.ProductVariantId;
+                        existing.ProductId = item.ProductId;
                         existing.OrderedWeight = item.OrderedWeight;
                         existing.UnitPrice = item.UnitPrice;
                         existing.TolerancePercent = item.TolerancePercent;

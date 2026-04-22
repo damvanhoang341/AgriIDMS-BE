@@ -33,9 +33,6 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
         public int PurchaseOrderDetailId { get; set; }
 
-        [Required(ErrorMessage = "ProductVariantId không được để trống")]
-        public int ProductVariantId { get; set; }
-
         [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
         public decimal ReceivedWeight { get; set; }
     }
@@ -50,9 +47,6 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
         public int PurchaseOrderDetailId { get; set; }
-
-        [Required(ErrorMessage = "ProductVariantId không được để trống")]
-        public int ProductVariantId { get; set; }
 
         [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
         public decimal ReceivedWeight { get; set; }
@@ -77,8 +71,24 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Required(ErrorMessage = "DetailId không được để trống")]
         public int DetailId { get; set; }
 
-        [Range(0, double.MaxValue, ErrorMessage = "UsableWeight phải lớn hơn hoặc bằng 0 (bằng 0 khi QC không đạt)")]
-        public decimal UsableWeight { get; set; }
+        [Range(0, double.MaxValue, ErrorMessage = "InspectedWeight phải lớn hơn hoặc bằng 0")]
+        public decimal InspectedWeight { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "DamagedWeight phải lớn hơn hoặc bằng 0")]
+        public decimal DamagedWeight { get; set; }
+
+        [Required(ErrorMessage = "ClassificationDetails không được để trống")]
+        [MinLength(1, ErrorMessage = "Phải có ít nhất 1 classification detail")]
+        public List<QcClassificationRequest> ClassificationDetails { get; set; } = new();
+    }
+
+    public class QcClassificationRequest
+    {
+        [Required(ErrorMessage = "ProductVariantId không được để trống")]
+        public int ProductVariantId { get; set; }
+
+        [Range(0.0001, double.MaxValue, ErrorMessage = "Quantity phải lớn hơn 0")]
+        public decimal Quantity { get; set; }
     }
 
     public class CreateLotRequest
@@ -151,12 +161,23 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
     public class GoodsReceiptDetailLineDto
     {
         public int Id { get; set; }
-        public int ProductVariantId { get; set; }
+        public int ProductId { get; set; }
         public string ProductName { get; set; } = null!;
+        public int? ProductVariantId { get; set; }
         public decimal ReceivedWeight { get; set; }
         public decimal? UsableWeight { get; set; }
         public decimal RejectWeight { get; set; }
         public string QCResult { get; set; } = null!;
+        public decimal? InspectedWeight { get; set; }
+        public decimal? DamagedWeight { get; set; }
+        public List<QcClassificationDetailDto> ClassificationDetails { get; set; } = new();
+    }
+
+    public class QcClassificationDetailDto
+    {
+        public int ProductVariantId { get; set; }
+        public string ProductVariantName { get; set; } = string.Empty;
+        public decimal Quantity { get; set; }
     }
 
     public class GoodsReceiptResponseDto : GoodsReceiptSummaryDto

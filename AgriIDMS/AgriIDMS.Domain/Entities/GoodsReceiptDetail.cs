@@ -11,39 +11,41 @@ namespace AgriIDMS.Domain.Entities
         public int GoodsReceiptId { get; set; }
         public GoodsReceipt GoodsReceipt { get; set; } = null!;
 
-        public int ProductVariantId { get; set; }
-        public ProductVariant ProductVariant { get; set; } = null!;
+        public int ProductId { get; set; }
+        public Product Product { get; set; } = null!;
+        public int? ProductVariantId { get; set; }
+        public ProductVariant? ProductVariant { get; set; }
         public int PurchaseOrderDetailId { get; set; }
         public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
 
         public decimal ReceivedWeight { get; set; }
 
         /// <summary>Kết quả QC (bảng riêng). Nếu null = chưa QC.</summary>
-        public Qc? Qc { get; set; }
+        public QcRecord? QcRecord { get; set; }
 
         /// <summary>Khối lượng sử dụng được sau QC. Trước QC = null.</summary>
         [NotMapped]
-        public decimal? UsableWeight => Qc?.UsableWeight;
+        public decimal? UsableWeight => QcRecord?.PassedWeight;
 
         /// <summary>Khối lượng loại (không âm). Trước QC trả về 0.</summary>
         [NotMapped]
-        public decimal RejectWeight => Qc != null ? Math.Max(0, ReceivedWeight - Qc.UsableWeight) : 0;
+        public decimal RejectWeight => QcRecord?.DamagedWeight ?? 0;
 
         /// <summary>Khối lượng kỳ vọng từ PO (không lưu DB, lấy từ PurchaseOrderDetail.OrderedWeight).</summary>
         [NotMapped]
         public decimal ExpectedWeight => PurchaseOrderDetail?.OrderedWeight ?? 0;
 
         [NotMapped]
-        public QCResult QCResult => Qc?.QCResult ?? QCResult.Pending;
+        public QCResult QCResult => QcRecord?.QCResult ?? QCResult.Pending;
 
         [NotMapped]
-        public string? QCNote => Qc?.QCNote;
+        public string? QCNote => QcRecord?.QCNote;
 
         [NotMapped]
-        public string? InspectedBy => Qc?.InspectedBy;
+        public string? InspectedBy => QcRecord?.InspectedBy;
 
         [NotMapped]
-        public DateTime? InspectedAt => Qc?.InspectedAt;
+        public DateTime? InspectedAt => QcRecord?.InspectedAt;
 
         public decimal UnitPrice { get; set; }
 

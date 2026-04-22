@@ -102,6 +102,7 @@ public static class ServiceRegistration
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IPurchaseRequestRepository, PurchaseRequestRepository>();
         services.AddScoped<IBoxRepository, BoxRepository>();
         services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
         services.AddScoped<INearExpiryDiscountRuleRepository, NearExpiryDiscountRuleRepository>();
@@ -132,6 +133,7 @@ public static class ServiceRegistration
         services.AddScoped<IGoodsReceiptService,GoodsReceiptService>();
         services.AddScoped<IGoodsReceiptDetailService, GoodsReceiptDetailService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+        services.AddScoped<IPurchaseRequestService, PurchaseRequestService>();
         services.AddScoped<AuthService>();
         services.AddScoped<IWarehouseService, WarehouseService>();
         services.AddScoped<IZoneService, ZoneService>();

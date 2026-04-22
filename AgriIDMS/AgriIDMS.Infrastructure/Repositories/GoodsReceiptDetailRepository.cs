@@ -26,7 +26,8 @@ namespace AgriIDMS.Infrastructure.Repositories
         public async Task<GoodsReceiptDetail?> GetByIdAsync(int id)
         {
             return await _context.GoodsReceiptDetails
-                .Include(d => d.Qc)
+                .Include(d => d.QcRecord)
+                    .ThenInclude(q => q.ClassificationDetails)
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 

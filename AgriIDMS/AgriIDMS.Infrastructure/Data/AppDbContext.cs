@@ -18,7 +18,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     //add
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     public DbSet<GoodsReceiptDetail> GoodsReceiptDetails => Set<GoodsReceiptDetail>();
-    public DbSet<Qc> Qcs => Set<Qc>();
+    public DbSet<QcRecord> QcRecords => Set<QcRecord>();
+    public DbSet<QcClassificationDetail> QcClassificationDetails => Set<QcClassificationDetail>();
     public DbSet<Lot> Lots => Set<Lot>();
     public DbSet<Box> Boxes => Set<Box>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
@@ -43,6 +44,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
+    public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
+    public DbSet<PurchaseRequestDetail> PurchaseRequestDetails => Set<PurchaseRequestDetail>();
     public DbSet<NearExpiryDiscountRule> NearExpiryDiscountRules => Set<NearExpiryDiscountRule>();
     public DbSet<ProductVariantDiscountOverride> ProductVariantDiscountOverrides => Set<ProductVariantDiscountOverride>();
     public DbSet<DiscountRule> DiscountRules => Set<DiscountRule>();
@@ -516,10 +519,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasForeignKey(x => x.GoodsReceiptId)
                   .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(x => x.Product)
+                  .WithMany(p => p.GoodsReceiptDetails)
+                  .HasForeignKey(x => x.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasOne(x => x.ProductVariant)
                   .WithMany(pv => pv.GoodsReceiptDetails)
                   .HasForeignKey(x => x.ProductVariantId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .IsRequired(false);
 
             entity.HasMany(x => x.Lots)
                   .WithOne(l => l.GoodsReceiptDetail)
@@ -530,21 +539,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(x => x.GoodsReceiptId);
 
+            entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.ProductVariantId);
-
-            // 1 phiếu không nên có trùng cùng 1 Variant
-            entity.HasIndex(x => new { x.GoodsReceiptId, x.ProductVariantId })
-                  .IsUnique();
         });
 
-        // ===================== Qc (1–1 GoodsReceiptDetail) =====================
-        builder.Entity<Qc>(entity =>
+        // ===================== QcRecord (1–1 GoodsReceiptDetail) =====================
+        builder.Entity<QcRecord>(entity =>
         {
-            entity.ToTable("Qcs");
+            entity.ToTable("QcRecords");
 
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.UsableWeight)
+            entity.Property(x => x.InspectedWeight)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+
+            entity.Property(x => x.DamagedWeight)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+
+            entity.Property(x => x.PassedWeight)
                   .HasPrecision(18, 3)
                   .IsRequired();
 
@@ -561,12 +575,32 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.InspectedAt);
 
             entity.HasOne(x => x.GoodsReceiptDetail)
-                  .WithOne(d => d.Qc)
-                  .HasForeignKey<Qc>(x => x.GoodsReceiptDetailId)
+                  .WithOne(d => d.QcRecord)
+                  .HasForeignKey<QcRecord>(x => x.GoodsReceiptDetailId)
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(x => x.GoodsReceiptDetailId)
                   .IsUnique();
+        });
+
+        builder.Entity<QcClassificationDetail>(entity =>
+        {
+            entity.ToTable("QcClassificationDetails");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Quantity)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+
+            entity.HasOne(x => x.QcRecord)
+                  .WithMany(r => r.ClassificationDetails)
+                  .HasForeignKey(x => x.QcRecordId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany(v => v.QcClassificationDetails)
+                  .HasForeignKey(x => x.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ============================== LOT ==============================
@@ -616,6 +650,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .OnDelete(DeleteBehavior.Cascade);
             // Xóa detail → xóa luôn lot (đúng logic phiếu nhập nháp)
 
+            entity.HasOne(x => x.ProductVariant)
+                  .WithMany(v => v.Lots)
+                  .HasForeignKey(x => x.ProductVariantId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             // Box (1 - N)
             entity.HasMany(x => x.Boxes)
                   .WithOne(b => b.Lot)
@@ -626,6 +665,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             // Tối ưu query theo receipt detail
             entity.HasIndex(x => x.GoodsReceiptDetailId);
+            entity.HasIndex(x => x.ProductVariantId);
 
             // Tối ưu xuất kho FEFO (lọc theo status + hạn)
             entity.HasIndex(x => new { x.Status, x.ExpiryDate });
@@ -1755,9 +1795,52 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.HarvestDate)
                   .IsRequired();
 
-            entity.HasOne(x => x.ProductVariant)
+            entity.HasOne(x => x.Product)
+                  .WithMany(p => p.PurchaseOrderDetails)
+                  .HasForeignKey(x => x.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ===================== PURCHASE REQUEST =====================
+        builder.Entity<PurchaseRequest>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.RequestCode)
+                  .IsRequired()
+                  .HasMaxLength(50);
+            entity.Property(x => x.Status)
+                  .HasConversion<int>()
+                  .IsRequired();
+            entity.Property(x => x.Notes)
+                  .HasMaxLength(500);
+
+            entity.HasOne(x => x.CreatedUser)
                   .WithMany()
-                  .HasForeignKey(x => x.ProductVariantId)
+                  .HasForeignKey(x => x.CreatedBy)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(x => x.Details)
+                  .WithOne(d => d.PurchaseRequest)
+                  .HasForeignKey(d => d.PurchaseRequestId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PurchaseRequestDetail>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.RequestedWeight)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+            entity.Property(x => x.AllocatedWeight)
+                  .HasPrecision(18, 3)
+                  .HasDefaultValue(0);
+            entity.Property(x => x.TargetUnitPrice)
+                  .HasPrecision(18, 2)
+                  .HasDefaultValue(0);
+
+            entity.HasOne(x => x.Product)
+                  .WithMany(p => p.PurchaseRequestDetails)
+                  .HasForeignKey(x => x.ProductId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
     }

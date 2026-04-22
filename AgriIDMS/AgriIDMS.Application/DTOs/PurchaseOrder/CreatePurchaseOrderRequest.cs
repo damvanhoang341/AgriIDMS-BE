@@ -20,9 +20,9 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
 
     public class CreatePurchaseOrderDetailRequest
     {
-        [Required(ErrorMessage = "ProductVariantId không được để trống")]
-        [Range(1, int.MaxValue, ErrorMessage = "ProductVariantId không hợp lệ")]
-        public int ProductVariantId { get; set; }
+        [Required(ErrorMessage = "ProductId không được để trống")]
+        [Range(1, int.MaxValue, ErrorMessage = "ProductId không hợp lệ")]
+        public int ProductId { get; set; }
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Khối lượng đặt (OrderedWeight) phải lớn hơn 0")]
         public decimal OrderedWeight { get; set; }
@@ -51,9 +51,9 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         /// <summary>Id dòng PO (0 hoặc null = thêm mới).</summary>
         public int? Id { get; set; }
 
-        [Required(ErrorMessage = "ProductVariantId không được để trống")]
-        [Range(1, int.MaxValue, ErrorMessage = "ProductVariantId không hợp lệ")]
-        public int ProductVariantId { get; set; }
+        [Required(ErrorMessage = "ProductId không được để trống")]
+        [Range(1, int.MaxValue, ErrorMessage = "ProductId không hợp lệ")]
+        public int ProductId { get; set; }
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Khối lượng đặt (OrderedWeight) phải lớn hơn 0")]
         public decimal OrderedWeight { get; set; }
@@ -108,7 +108,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         /// <summary>Id dòng đơn mua (dùng làm PurchaseOrderDetailId khi thêm chi tiết phiếu nhập).</summary>
         public int Id { get; set; }
 
-        public int ProductVariantId { get; set; }
+        public int ProductId { get; set; }
 
         public string ProductName { get; set; }
 

@@ -33,11 +33,11 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.GoodsReceipt)
                         .ThenInclude(r => r.Warehouse)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
                 .Include(l => l.Boxes)
                     .ThenInclude(b => b.Slot)
                 .FirstOrDefaultAsync(l => l.Id == id);
@@ -47,11 +47,11 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d!.GoodsReceipt)
                         .ThenInclude(gr => gr.Warehouse)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
                 .Include(l => l.Boxes)
                     .ThenInclude(b => b.Slot)
                 .FirstOrDefaultAsync(l => l.Id == id);
@@ -61,11 +61,11 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             return await _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.GoodsReceipt)
                         .ThenInclude(r => r.Warehouse)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
                 .Where(l => l.GoodsReceiptDetail.GoodsReceiptId == goodsReceiptId)
                 .ToListAsync();
         }
@@ -75,9 +75,8 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Lots
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.GoodsReceipt)
-                .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(pv => pv.Product)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(pv => pv.Product)
                 .FirstOrDefaultAsync(l => l.LotCode == lotCode);
 
         }
@@ -88,9 +87,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.GoodsReceipt)
                         .ThenInclude(r => r.Warehouse)
-                .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
                 .OrderByDescending(l => l.ReceivedDate)
                 .ToListAsync();
         }
@@ -101,10 +99,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.GoodsReceipt)
                         .ThenInclude(r => r.Warehouse)
-                .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
-                .Where(l => l.GoodsReceiptDetail.ProductVariantId == productVariantId)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
+                .Where(l => l.ProductVariantId == productVariantId)
                 .OrderBy(l => l.ExpiryDate)
                 .ThenByDescending(l => l.ReceivedDate)
                 .ToListAsync();
@@ -115,9 +112,8 @@ namespace AgriIDMS.Infrastructure.Repositories
             var now = DateTime.UtcNow;
 
             return await _context.Lots
-                .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
                 .Where(l => l.ExpiryDate <= now.AddDays(3)
                          && l.ExpiryDate >= now
                          && l.RemainingQuantity > 0
@@ -132,9 +128,8 @@ namespace AgriIDMS.Infrastructure.Repositories
             var deadline = now.AddDays(days);
 
             var query = _context.Lots
-                .Include(l => l.GoodsReceiptDetail)
-                    .ThenInclude(d => d.ProductVariant)
-                        .ThenInclude(v => v.Product)
+                .Include(l => l.ProductVariant)
+                    .ThenInclude(v => v.Product)
                 .Include(l => l.GoodsReceiptDetail)
                     .ThenInclude(d => d.GoodsReceipt)
                         .ThenInclude(gr => gr.Warehouse)
