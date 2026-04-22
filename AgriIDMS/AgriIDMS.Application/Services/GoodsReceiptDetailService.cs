@@ -44,9 +44,6 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
             if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
                 throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
-            if (request.ProductVariantId != poDetail.ProductVariantId)
-                throw new InvalidBusinessRuleException("Sản phẩm không khớp với dòng đơn mua");
-
             // 3.3: Chi tiết phải thuộc đúng đơn mua của phiếu nhập
             if (receipt.PurchaseOrderId.HasValue && poDetail.PurchaseOrderId != receipt.PurchaseOrderId.Value)
                 throw new InvalidBusinessRuleException("Chi tiết đơn mua phải thuộc đúng đơn mua của phiếu nhập");
@@ -61,7 +58,7 @@ namespace AgriIDMS.Application.Services
             {
                 GoodsReceiptId = request.GoodsReceiptId,
                 PurchaseOrderDetailId = request.PurchaseOrderDetailId,
-                ProductVariantId = poDetail.ProductVariantId,
+                ProductId = poDetail.ProductId,
                 ReceivedWeight = request.ReceivedWeight,
                 UnitPrice = poDetail.UnitPrice
             };
@@ -74,24 +71,7 @@ namespace AgriIDMS.Application.Services
 
             // Check MinReceiptWeight của ProductVariant cho từng dòng: nếu thấp hơn thì vẫn cho nhập,
             // nhưng chuyển status của Receipt sang PendingManagerApprovalQc để Manager xem xét trước khi tiếp tục QC.
-            var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
-            if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
-            {
-                receipt.Status = GoodsReceiptStatus.PendingManagerApprovalQc;
-                var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
-                var warning = $"Dòng sản phẩm [{productName}] vừa nhập {request.ReceivedWeight:N2} kg nhỏ hơn định mức tối thiểu ({minReceiptWeight.Value:N2} kg). Cần Manager xem xét để tiếp tục QC.";
-
-                if (string.IsNullOrWhiteSpace(receipt.PendingReason))
-                {
-                    receipt.PendingReason = warning;
-                }
-                else
-                {
-                    receipt.PendingReason += " " + warning;
-                }
-
-                await _unitOfWork.SaveChangesAsync();
-            }
+            // Định mức tối thiểu sẽ được đánh giá theo ProductVariant sau khi QC phân loại.
         }
 
         // UPDATE / DELETE DETAIL (chỉ khi phiếu còn Draft/Received, chưa QC)
@@ -124,9 +104,6 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
             if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
                 throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
-            if (detail.ProductVariantId != poDetail.ProductVariantId)
-                throw new InvalidBusinessRuleException("Sản phẩm trên chi tiết phiếu nhập không khớp với dòng đơn mua");
-
             // Kiểm tra không vượt OrderedWeight:
             // totalPending hiện tại bao gồm cả detail này → trừ ReceivedWeight cũ, cộng ReceivedWeight mới.
             decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
@@ -139,26 +116,7 @@ namespace AgriIDMS.Application.Services
 
             await _unitOfWork.SaveChangesAsync();
 
-            // Check MinReceiptWeight sau khi sửa: nếu thấp hơn thì cho cập nhật,
-            // nhưng chuyển Receipt sang PendingManagerApprovalQc để Manager xem xét trước khi tiếp tục QC.
-            var minReceiptWeight = poDetail.ProductVariant?.MinReceiptWeight;
-            if (minReceiptWeight.HasValue && minReceiptWeight.Value > 0 && request.ReceivedWeight < minReceiptWeight.Value)
-            {
-                receipt.Status = GoodsReceiptStatus.PendingManagerApprovalQc;
-                var productName = poDetail.ProductVariant?.Name ?? $"Id={poDetail.ProductVariantId}";
-                var warning = $"Dòng sản phẩm [{productName}] sau khi sửa nhập {request.ReceivedWeight:N2} kg nhỏ hơn định mức tối thiểu ({minReceiptWeight.Value:N2} kg). Cần Manager xem xét để tiếp tục QC.";
-
-                if (string.IsNullOrWhiteSpace(receipt.PendingReason))
-                {
-                    receipt.PendingReason = warning;
-                }
-                else
-                {
-                    receipt.PendingReason += " " + warning;
-                }
-
-                await _unitOfWork.SaveChangesAsync();
-            }
+            // Định mức tối thiểu sẽ được đánh giá theo ProductVariant sau khi QC phân loại.
         }
 
         public async Task DeleteGoodsReceiptDetailAsync(int detailId)

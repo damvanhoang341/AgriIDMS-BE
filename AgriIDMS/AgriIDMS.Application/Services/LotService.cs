@@ -37,7 +37,7 @@ namespace AgriIDMS.Application.Services
             return lots.Select(l =>
             {
                 var detail = l.GoodsReceiptDetail;
-                var productVariant = detail?.ProductVariant;
+                var productVariant = l.ProductVariant;
                 return new LotListItemDto
                 {
                     LotId = l.Id,
@@ -64,7 +64,7 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Lot không tồn tại");
 
             var detail = lot.GoodsReceiptDetail;
-            var productVariant = detail?.ProductVariant;
+            var productVariant = lot.ProductVariant;
 
             return new LotDetailDto
             {
@@ -117,7 +117,7 @@ namespace AgriIDMS.Application.Services
             return lots.Select(l =>
             {
                 var detail = l.GoodsReceiptDetail;
-                var productVariant = detail?.ProductVariant;
+                var productVariant = l.ProductVariant;
                 return new LotListItemDto
                 {
                     LotId = l.Id,
@@ -149,7 +149,7 @@ namespace AgriIDMS.Application.Services
             return lots.Select(l =>
             {
                 var detail = l.GoodsReceiptDetail;
-                var productVariant = detail?.ProductVariant;
+                var productVariant = l.ProductVariant;
                 return new LotListItemDto
                 {
                     LotId = l.Id,
@@ -188,7 +188,7 @@ namespace AgriIDMS.Application.Services
             if (lot == null)
                 return null;
 
-            var productVariant = lot.GoodsReceiptDetail?.ProductVariant;
+            var productVariant = lot.ProductVariant;
             var product = productVariant?.Product;
             var goodsReceipt = lot.GoodsReceiptDetail?.GoodsReceipt;
 
@@ -253,7 +253,7 @@ namespace AgriIDMS.Application.Services
                 var daysLeft = (l.ExpiryDate.Date - todayUtc).Days;
                 var suggestedDiscountPercent = GetSuggestedDiscountPercent(daysLeft, rules);
 
-                var variant = l.GoodsReceiptDetail.ProductVariant;
+                var variant = l.ProductVariant;
                 return new NearExpiryLotDto
                 {
                     LotId = l.Id,
@@ -441,7 +441,7 @@ namespace AgriIDMS.Application.Services
                 {
                     var lot = await _lotRepository.GetByIdWithDetailAndReceiptAsync(item.LotId.Value)
                         ?? throw new NotFoundException($"Lot #{item.LotId.Value} không tồn tại.");
-                    var lotProductVariantId = lot.GoodsReceiptDetail?.ProductVariantId ?? 0;
+                    var lotProductVariantId = lot.ProductVariantId;
                     if (lotProductVariantId != item.ProductVariantId)
                         throw new InvalidBusinessRuleException(
                             $"Lot #{item.LotId.Value} không thuộc biến thể sản phẩm #{item.ProductVariantId}.");

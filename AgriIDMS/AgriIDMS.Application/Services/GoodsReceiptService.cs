@@ -122,7 +122,6 @@ namespace AgriIDMS.Application.Services
                         {
                             GoodsReceiptId = receipt.Id,
                             PurchaseOrderDetailId = line.PurchaseOrderDetailId,
-                            ProductVariantId = line.ProductVariantId,
                             ReceivedWeight = line.ReceivedWeight
                         };
 
@@ -147,7 +146,7 @@ namespace AgriIDMS.Application.Services
 
 
         // ===============================
-        // QC INSPECTION (tự tính RejectWeight, QCResult theo dung sai từng dòng; sau QC check dung sai tổng + định mức kho)
+        // QC INSPECTION (ghi nhận inspected/damaged + phân loại ProductVariant sau QC)
         // ===============================
         public async Task QCInspectionAsync(QCInspectionRequest request, string userId, bool autoApproveWhenEligible = false)
         {
@@ -165,27 +164,69 @@ namespace AgriIDMS.Application.Services
                 parentReceipt.Status == GoodsReceiptStatus.PendingManagerApprovalQc)
                 throw new InvalidBusinessRuleException("Phiếu nhập đang chờ Manager duyệt, không được QC. Vui lòng đợi Manager xử lý.");
 
-            if (request.UsableWeight > detail.ReceivedWeight)
-                throw new InvalidBusinessRuleException("Khối lượng sử dụng được (UsableWeight) không được vượt quá khối lượng thực nhận (ReceivedWeight)");
+            if (request.InspectedWeight <= 0)
+                throw new InvalidBusinessRuleException("InspectedWeight phải lớn hơn 0.");
+            if (request.InspectedWeight > detail.ReceivedWeight)
+                throw new InvalidBusinessRuleException("InspectedWeight không được vượt quá ReceivedWeight của dòng.");
+            if (request.DamagedWeight < 0)
+                throw new InvalidBusinessRuleException("DamagedWeight không được âm.");
+            if (request.DamagedWeight > request.InspectedWeight)
+                throw new InvalidBusinessRuleException("DamagedWeight không được vượt quá InspectedWeight.");
+            if (request.ClassificationDetails == null || request.ClassificationDetails.Count == 0)
+                throw new InvalidBusinessRuleException("Phải có ít nhất 1 classification detail.");
 
-            // Tự tính RejectWeight = ReceivedWeight - UsableWeight (không âm)
-            var expectedReject = Math.Max(0, detail.ReceivedWeight - request.UsableWeight);
-            
+            var duplicateVariantIds = request.ClassificationDetails
+                .GroupBy(x => x.ProductVariantId)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+            if (duplicateVariantIds.Count > 0)
+                throw new InvalidBusinessRuleException("Không được trùng ProductVariant trong classification details.");
 
-            // Tự tính QCResult theo dung sai từng dòng PO
+            var totalClassified = request.ClassificationDetails.Sum(x => x.Quantity);
+            var passedWeight = request.InspectedWeight - request.DamagedWeight;
+            if (Math.Abs(totalClassified - passedWeight) > 0.0001m)
+                throw new InvalidBusinessRuleException("Tổng phân loại + hỏng phải khớp với tổng kiểm.");
+
+            var variantIds = request.ClassificationDetails.Select(x => x.ProductVariantId).Distinct().ToList();
+            var variantsById = await _productVariantRepo.GetByIdsAsync(variantIds);
+            if (variantsById.Count != variantIds.Count)
+            {
+                var missing = variantIds.FirstOrDefault(id => !variantsById.ContainsKey(id));
+                throw new NotFoundException($"ProductVariant {missing} không tồn tại");
+            }
+
+            // Tính QCResult theo tolerance dựa trên phần hỏng
             var poDetail = detail.PurchaseOrderDetail ?? await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId)
                 ?? throw new NotFoundException("Chi tiết đơn mua không tồn tại");
 
             decimal allowedLoss = poDetail.OrderedWeight * poDetail.TolerancePercent / 100m;
-            var qcResult = expectedReject > allowedLoss ? QCResult.Failed : QCResult.Passed;
+            var qcResult = request.DamagedWeight > allowedLoss ? QCResult.Failed : QCResult.Passed;
 
-            if (detail.Qc == null)
-                detail.Qc = new Qc { GoodsReceiptDetail = detail };
-            detail.Qc.UsableWeight = request.UsableWeight;
-            detail.Qc.QCResult = qcResult;
-            detail.Qc.QCNote = $"Reject {expectedReject:N2} kg (Received {detail.ReceivedWeight:N2} - Usable {request.UsableWeight:N2}).";
-            detail.Qc.InspectedBy = userId;
-            detail.Qc.InspectedAt = DateTime.UtcNow;
+            if (detail.QcRecord == null)
+                detail.QcRecord = new QcRecord { GoodsReceiptDetail = detail };
+
+            detail.QcRecord.InspectedWeight = request.InspectedWeight;
+            detail.QcRecord.DamagedWeight = request.DamagedWeight;
+            detail.QcRecord.PassedWeight = passedWeight;
+            detail.QcRecord.QCResult = qcResult;
+            detail.QcRecord.QCNote = $"Damaged {request.DamagedWeight:N2} kg / Passed {passedWeight:N2} kg";
+            detail.QcRecord.InspectedBy = userId;
+            detail.QcRecord.InspectedAt = DateTime.UtcNow;
+            detail.QcRecord.ClassificationDetails.Clear();
+            foreach (var c in request.ClassificationDetails)
+            {
+                detail.QcRecord.ClassificationDetails.Add(new QcClassificationDetail
+                {
+                    ProductVariantId = c.ProductVariantId,
+                    Quantity = c.Quantity
+                });
+            }
+
+            // Backward compatibility: lưu variant đầu tiên để các luồng cũ vẫn đọc được.
+            detail.ProductVariantId = request.ClassificationDetails
+                .OrderByDescending(x => x.Quantity)
+                .First().ProductVariantId;
 
             await _unitOfWork.SaveChangesAsync();
 
@@ -198,7 +239,7 @@ namespace AgriIDMS.Application.Services
                 return;
 
             bool toleranceExceeded = CheckToleranceExceeded(receipt);
-            string? minReceiptWarning = TryGetMinReceiptWeightWarning(receipt);
+            string? minReceiptWarning = await TryGetMinReceiptWeightWarningAsync(receipt);
 
             if (toleranceExceeded || minReceiptWarning != null)
             {
@@ -365,16 +406,31 @@ namespace AgriIDMS.Application.Services
             foreach (var detail in receipt.Details)
             {
                 var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(detail.PurchaseOrderDetailId);
-                if (poDetail != null)
-                {
-                    var shelfLifeDays = poDetail.ProductVariant.ShelfLifeDays;
-                    var receivedAt = DateTime.UtcNow;
+                if (poDetail == null)
+                    continue;
 
+                // Đối chiếu khối lượng PO theo khối lượng thực nhận (ReceivedWeight), không phải khối lượng sau QC
+                if (poDetail.ReceivedWeight + detail.ReceivedWeight > poDetail.OrderedWeight)
+                    throw new InvalidBusinessRuleException(
+                        $"Dòng đơn mua Id={poDetail.Id}: tổng đã nhận ({poDetail.ReceivedWeight} + {detail.ReceivedWeight}) vượt quá khối lượng đặt ({poDetail.OrderedWeight}).");
+                poDetail.ReceivedWeight += detail.ReceivedWeight;
+
+                if (detail.QcRecord == null)
+                    throw new InvalidBusinessRuleException("Có dòng chưa QC. Vui lòng QC trước khi duyệt phiếu.");
+                if (detail.QcRecord.ClassificationDetails == null || !detail.QcRecord.ClassificationDetails.Any())
+                    throw new InvalidBusinessRuleException("Có dòng chưa có phân loại ProductVariant sau QC.");
+
+                foreach (var classification in detail.QcRecord.ClassificationDetails)
+                {
+                    var variant = await _productVariantRepo.GetProductVariantByIdAsync(classification.ProductVariantId)
+                        ?? throw new NotFoundException($"ProductVariant {classification.ProductVariantId} không tồn tại");
+
+                    var shelfLifeDays = variant.ShelfLifeDays;
+                    var receivedAt = DateTime.UtcNow;
                     if (poDetail.HarvestDate > receivedAt)
                         throw new InvalidBusinessRuleException("HarvestDate không được lớn hơn ReceivedDate");
 
                     var expiryDate = poDetail.HarvestDate.AddDays(shelfLifeDays);
-
                     var remainingDays = (expiryDate - receivedAt).TotalDays;
                     var minRemaining = shelfLifeDays * 0.3;
                     if (remainingDays < minRemaining)
@@ -382,20 +438,15 @@ namespace AgriIDMS.Application.Services
 
                     var lot = new Lot
                     {
-                        LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}",
+                        LotCode = $"LOT-{DateTime.UtcNow.Ticks}-{detail.Id}-{classification.ProductVariantId}",
                         GoodsReceiptDetailId = detail.Id,
-                        TotalQuantity = detail.UsableWeight ?? throw new InvalidBusinessRuleException("Có dòng chưa có khối lượng sử dụng được (UsableWeight). Vui lòng QC trước khi duyệt phiếu."),
-                        RemainingQuantity = detail.UsableWeight ?? throw new InvalidBusinessRuleException("Có dòng chưa có khối lượng sử dụng được (UsableWeight). Vui lòng QC trước khi duyệt phiếu."),
+                        ProductVariantId = classification.ProductVariantId,
+                        TotalQuantity = classification.Quantity,
+                        RemainingQuantity = classification.Quantity,
                         ReceivedDate = receivedAt,
                         ExpiryDate = expiryDate
                     };
                     await _lotRepo.AddRangeAsync(new List<Lot> { lot });
-
-                    // Đối chiếu khối lượng PO theo khối lượng thực nhận (ReceivedWeight), không phải khối lượng sau QC
-                    if (poDetail.ReceivedWeight + detail.ReceivedWeight > poDetail.OrderedWeight)
-                        throw new InvalidBusinessRuleException(
-                            $"Dòng đơn mua Id={poDetail.Id}: tổng đã nhận ({poDetail.ReceivedWeight} + {detail.ReceivedWeight}) vượt quá khối lượng đặt ({poDetail.OrderedWeight}).");
-                    poDetail.ReceivedWeight += detail.ReceivedWeight;
                 }
             }
 
@@ -416,19 +467,18 @@ namespace AgriIDMS.Application.Services
             decimal totalInboundVolumeM3 = 0m;
             foreach (var detail in receipt.Details)
             {
-                var usableWeight = detail.UsableWeight ?? 0m;
-                if (usableWeight <= 0) continue;
-
-                var density = detail.ProductVariant?.DensityKgPerM3
-                    ?? (await _productVariantRepo.GetProductVariantByIdAsync(detail.ProductVariantId))?.DensityKgPerM3
-                    ?? 0m;
-                if (density <= 0)
+                var classifications = detail.QcRecord?.ClassificationDetails ?? new List<QcClassificationDetail>();
+                foreach (var c in classifications)
                 {
-                    throw new InvalidBusinessRuleException(
-                        $"Sản phẩm (ProductVariantId={detail.ProductVariantId}) chưa cấu hình khối lượng riêng > 0.");
+                    if (c.Quantity <= 0) continue;
+                    var density = (await _productVariantRepo.GetProductVariantByIdAsync(c.ProductVariantId))?.DensityKgPerM3 ?? 0m;
+                    if (density <= 0)
+                    {
+                        throw new InvalidBusinessRuleException(
+                            $"Sản phẩm (ProductVariantId={c.ProductVariantId}) chưa cấu hình khối lượng riêng > 0.");
+                    }
+                    totalInboundVolumeM3 += c.Quantity / density;
                 }
-
-                totalInboundVolumeM3 += usableWeight / density;
             }
 
             if (totalInboundVolumeM3 <= 0)
@@ -455,7 +505,7 @@ namespace AgriIDMS.Application.Services
         }
 
         /// <summary>Định mức tối thiểu chỉ là cảnh báo. Nếu dưới định mức (kho hoặc sản phẩm) trả về thông báo để chuyển Manager xem xét; null = đạt định mức.</summary>
-        private string? TryGetMinReceiptWeightWarning(GoodsReceipt receipt)
+        private async Task<string?> TryGetMinReceiptWeightWarningAsync(GoodsReceipt receipt)
         {
             decimal totalUsableWeight = receipt.Details.Sum(d => d.UsableWeight ?? 0m);
             var warnings = new List<string>();
@@ -466,6 +516,21 @@ namespace AgriIDMS.Application.Services
             {
                 var warehouseName = receipt.Warehouse?.Name ?? $"Id={receipt.WarehouseId}";
                 warnings.Add($"Tổng khối lượng nhập {totalUsableWeight:N2} kg thấp hơn định mức tối thiểu của kho [{warehouseName}] ({warehouseMin.Value:N2} kg).");
+            }
+
+            var classificationGroups = receipt.Details
+                .SelectMany(d => d.QcRecord?.ClassificationDetails ?? Enumerable.Empty<QcClassificationDetail>())
+                .GroupBy(x => x.ProductVariantId)
+                .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+                .ToList();
+            foreach (var group in classificationGroups)
+            {
+                var variant = await _productVariantRepo.GetProductVariantByIdAsync(group.ProductVariantId);
+                if (variant?.MinReceiptWeight is decimal minVariant && minVariant > 0 && group.Quantity < minVariant)
+                {
+                    var variantName = string.IsNullOrWhiteSpace(variant.Name) ? $"Variant #{group.ProductVariantId}" : variant.Name;
+                    warnings.Add($"Biến thể [{variantName}] có khối lượng phân loại {group.Quantity:N2} kg thấp hơn định mức tối thiểu ({minVariant:N2} kg).");
+                }
             }
 
             if (warnings.Count == 0) return null;
@@ -647,7 +712,11 @@ namespace AgriIDMS.Application.Services
             if (poDetail == null)
                 throw new NotFoundException("Chi tiết đơn mua không tồn tại");
 
-            var shelfLifeDays = poDetail.ProductVariant.ShelfLifeDays;
+            if (!detail.ProductVariantId.HasValue)
+                throw new InvalidBusinessRuleException("Chi tiết chưa có ProductVariant sau QC.");
+            var variant = await _productVariantRepo.GetProductVariantByIdAsync(detail.ProductVariantId.Value)
+                ?? throw new NotFoundException("ProductVariant không tồn tại");
+            var shelfLifeDays = variant.ShelfLifeDays;
             var receivedAt = DateTime.UtcNow;
 
             if (poDetail.HarvestDate > receivedAt)
@@ -664,6 +733,7 @@ namespace AgriIDMS.Application.Services
             {
                 LotCode = $"LOT-{DateTime.UtcNow.Ticks}",
                 GoodsReceiptDetailId = goodsReceiptDetailId,
+                ProductVariantId = variant.Id,
                 TotalQuantity = usable.Value,
                 RemainingQuantity = usable.Value,
                 ReceivedDate = receivedAt,
@@ -787,11 +857,10 @@ namespace AgriIDMS.Application.Services
             foreach (var d in receipt.Details.OrderBy(x => x.Id))
             {
                 n++;
-                var pv = d.ProductVariant;
-                var productName = pv?.Product?.Name != null && !string.IsNullOrWhiteSpace(pv.Name)
-                    ? $"{pv.Product.Name.Trim()} ({pv.Name.Trim()})"
-                    : (pv?.Product?.Name?.Trim() ?? pv?.Name?.Trim() ?? "N/A");
-                var grade = pv?.Grade.ToString() ?? "";
+                var productName = d.Product?.Name?.Trim() ?? "N/A";
+                var grade = d.QcRecord?.ClassificationDetails != null
+                    ? string.Join(", ", d.QcRecord.ClassificationDetails.Select(c => c.ProductVariantId))
+                    : string.Empty;
 
                 lines.Add(new GoodsReceiptPrintLineDto
                 {
@@ -805,7 +874,7 @@ namespace AgriIDMS.Application.Services
                     UnitPrice = d.UnitPrice,
                     LineTotal = d.UnitPrice > 0 ? d.ReceivedWeight * d.UnitPrice : null,
                     QcResult = d.QCResult.ToString(),
-                    QcNote = d.Qc?.QCNote,
+                    QcNote = d.QcRecord?.QCNote,
                     InspectedBy = d.InspectedBy,
                     InspectedAtUtc = d.InspectedAt
                 });
@@ -902,12 +971,22 @@ namespace AgriIDMS.Application.Services
             dto.Details = receipt.Details.Select(d => new GoodsReceiptDetailLineDto
             {
                 Id = d.Id,
+                ProductId = d.ProductId,
                 ProductVariantId = d.ProductVariantId,
-                ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                ProductName = d.Product?.Name ?? string.Empty,
                 ReceivedWeight = d.ReceivedWeight,
                 UsableWeight = d.UsableWeight,
                 RejectWeight = d.RejectWeight,
-                QCResult = d.QCResult.ToString()
+                QCResult = d.QCResult.ToString(),
+                InspectedWeight = d.QcRecord?.InspectedWeight,
+                DamagedWeight = d.QcRecord?.DamagedWeight,
+                ClassificationDetails = d.QcRecord?.ClassificationDetails
+                    .Select(c => new QcClassificationDetailDto
+                    {
+                        ProductVariantId = c.ProductVariantId,
+                        ProductVariantName = c.ProductVariant?.Name ?? $"Variant #{c.ProductVariantId}",
+                        Quantity = c.Quantity
+                    }).ToList() ?? new List<QcClassificationDetailDto>()
             }).ToList();
 
             return dto;
@@ -924,14 +1003,24 @@ namespace AgriIDMS.Application.Services
                 return new GoodsReceiptDetailLineForApprovalDto
                 {
                     Id = d.Id,
+                    ProductId = d.ProductId,
                     ProductVariantId = d.ProductVariantId,
-                    ProductName = d.ProductVariant?.Product?.Name ?? string.Empty,
+                    ProductName = d.Product?.Name ?? string.Empty,
                     ReceivedWeight = d.ReceivedWeight,
                     UsableWeight = d.UsableWeight,
                     RejectWeight = d.RejectWeight,
                     QCResult = d.QCResult.ToString(),
                     UnitPrice = d.UnitPrice,
-                    LineTotal = lineTotal
+                    LineTotal = lineTotal,
+                    InspectedWeight = d.QcRecord?.InspectedWeight,
+                    DamagedWeight = d.QcRecord?.DamagedWeight,
+                    ClassificationDetails = d.QcRecord?.ClassificationDetails
+                        .Select(c => new QcClassificationDetailDto
+                        {
+                            ProductVariantId = c.ProductVariantId,
+                            ProductVariantName = c.ProductVariant?.Name ?? $"Variant #{c.ProductVariantId}",
+                            Quantity = c.Quantity
+                        }).ToList() ?? new List<QcClassificationDetailDto>()
                 };
             }).ToList();
 

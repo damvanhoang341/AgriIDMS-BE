@@ -36,6 +36,8 @@ namespace AgriIDMS.Domain.Entities
 
         public ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
         public ICollection<GoodsReceiptDetail> GoodsReceiptDetails { get; set; } = new List<GoodsReceiptDetail>();
+        public ICollection<Lot> Lots { get; set; } = new List<Lot>();
+        public ICollection<QcClassificationDetail> QcClassificationDetails { get; set; } = new List<QcClassificationDetail>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
         public ICollection<ProductVariantDiscountOverride> DiscountOverrides { get; set; } = new List<ProductVariantDiscountOverride>();
     }
