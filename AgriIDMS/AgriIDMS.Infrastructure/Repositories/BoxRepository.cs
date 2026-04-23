@@ -211,13 +211,13 @@ namespace AgriIDMS.Infrastructure.Repositories
         {
             var query = _context.Boxes
                 .Include(b => b.Lot)
-                    .ThenInclude(l => l.GoodsReceiptDetail)
+                    .ThenInclude(l => l.ProductVariant)
                 .Include(b => b.Slot)
                     .ThenInclude(s => s!.Rack)
                         .ThenInclude(r => r.Zone)
                             .ThenInclude(z => z.Warehouse)
                 .Where(b =>
-                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > System.DateTime.UtcNow)
@@ -258,9 +258,9 @@ namespace AgriIDMS.Infrastructure.Repositories
             var utcNow = DateTime.UtcNow;
             var query = _context.Boxes
                 .Include(b => b.Lot)
-                    .ThenInclude(l => l.GoodsReceiptDetail)
+                    .ThenInclude(l => l.ProductVariant)
                 .Where(b =>
-                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > utcNow);
@@ -282,7 +282,7 @@ namespace AgriIDMS.Infrastructure.Repositories
             // Query tối ưu: không Include toàn bộ entity, chỉ dùng navigation để filter ExpiryDate.
             var query = _context.Boxes
                 .Where(b =>
-                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.IsPartial == isPartial &&
@@ -392,9 +392,9 @@ namespace AgriIDMS.Infrastructure.Repositories
             var utcNow = DateTime.UtcNow;
             var baseQuery = _context.Boxes
                 .Include(b => b.Lot)
-                    .ThenInclude(l => l.GoodsReceiptDetail)
+                    .ThenInclude(l => l.ProductVariant)
                 .Where(b =>
-                    b.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId &&
+                    b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > utcNow &&
