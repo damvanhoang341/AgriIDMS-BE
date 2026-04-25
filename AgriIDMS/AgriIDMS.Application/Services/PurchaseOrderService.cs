@@ -472,6 +472,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                         .Select(d => new PurchaseOrderStructuredLineDto
                         {
                             LineId = d.PurchaseOrderDetails?.FirstOrDefault()?.Id ?? d.Id,
+                            SupplierPlanDetailId = d.Id,
                             ProductId = d.ProductId,
                             ProductName = d.Product?.Name ?? $"Sản phẩm #{d.ProductId}",
                             OrderedWeight = d.OrderedWeight,
@@ -508,6 +509,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(d => new PurchaseOrderStructuredLineDto
             {
                 LineId = d.Id,
+                SupplierPlanDetailId = null,
                 ProductId = d.ProductId,
                 ProductName = d.Product?.Name ?? $"Sản phẩm #{d.ProductId}",
                 OrderedWeight = d.OrderedWeight,
