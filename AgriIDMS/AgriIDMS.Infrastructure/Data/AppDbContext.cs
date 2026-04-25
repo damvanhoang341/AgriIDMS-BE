@@ -44,6 +44,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderDetail> PurchaseOrderDetails => Set<PurchaseOrderDetail>();
+    public DbSet<PurchaseOrderSupplierPlan> PurchaseOrderSupplierPlans => Set<PurchaseOrderSupplierPlan>();
+    public DbSet<PurchaseOrderSupplierPlanDetail> PurchaseOrderSupplierPlanDetails => Set<PurchaseOrderSupplierPlanDetail>();
     public DbSet<PurchaseRequest> PurchaseRequests => Set<PurchaseRequest>();
     public DbSet<PurchaseRequestDetail> PurchaseRequestDetails => Set<PurchaseRequestDetail>();
     public DbSet<NearExpiryDiscountRule> NearExpiryDiscountRules => Set<NearExpiryDiscountRule>();
@@ -90,6 +92,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(x => x.Status)
                   .HasConversion<int>();
+
         });
 
         // ===================== Category =====================
@@ -530,6 +533,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .OnDelete(DeleteBehavior.Restrict)
                   .IsRequired(false);
 
+            entity.HasOne(x => x.SupplierPlanDetail)
+                  .WithMany(spd => spd.GoodsReceiptDetails)
+                  .HasForeignKey(x => x.SupplierPlanDetailId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .IsRequired(false);
+
             entity.HasMany(x => x.Lots)
                   .WithOne(l => l.GoodsReceiptDetail)
                   .HasForeignKey(l => l.GoodsReceiptDetailId)
@@ -541,6 +550,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.ProductVariantId);
+            entity.HasIndex(x => x.SupplierPlanDetailId);
         });
 
         // ===================== QcRecord (1–1 GoodsReceiptDetail) =====================
@@ -628,6 +638,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasPrecision(18, 2)
                   .IsRequired();
 
+            entity.Property(x => x.CostUnitPrice)
+                  .HasPrecision(18, 2)
+                  .HasDefaultValue(0m);
+
+            entity.Property(x => x.CostPriceDate)
+                  .IsRequired(false);
+
+            entity.Property(x => x.CostSourceType)
+                  .HasMaxLength(100);
+
+            entity.Property(x => x.CostSourceRefId)
+                  .IsRequired(false);
+
             entity.Property(x => x.Status)
                   .HasConversion<int>() // lưu enum dạng int
                   .IsRequired();
@@ -666,6 +689,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             // Tối ưu query theo receipt detail
             entity.HasIndex(x => x.GoodsReceiptDetailId);
             entity.HasIndex(x => x.ProductVariantId);
+            entity.HasIndex(x => new { x.CostSourceType, x.CostSourceRefId });
 
             // Tối ưu xuất kho FEFO (lọc theo status + hạn)
             entity.HasIndex(x => new { x.Status, x.ExpiryDate });
@@ -1486,6 +1510,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.ExpiredAt)
                   .IsRequired(false);
 
+            entity.Property(x => x.CostUnitPriceSnapshot)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.CostAmountSnapshot)
+                  .HasColumnType("decimal(18,2)");
+
+            entity.Property(x => x.CostLotIdSnapshot)
+                  .IsRequired(false);
+
             entity.HasCheckConstraint(
                 "CK_OrderAllocation_ReservedQty_Positive",
                 "[ReservedQuantity] > 0");
@@ -1739,6 +1772,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.Status)
                   .HasConversion<int>();
 
+            entity.Property(x => x.ProcurementMode)
+                  .HasConversion<int>()
+                  .HasDefaultValue(ProcurementMode.LegacySingleSupplier);
+
             entity.Property(x => x.CreatedBy)
                   .IsRequired();
 
@@ -1771,6 +1808,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .WithOne(d => d.PurchaseOrder)
                   .HasForeignKey(d => d.PurchaseOrderId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(x => x.SupplierPlans)
+                  .WithOne(p => p.PurchaseOrder)
+                  .HasForeignKey(p => p.PurchaseOrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ===================== PURCHASE ORDER DETAIL =====================
@@ -1799,6 +1841,62 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .WithMany(p => p.PurchaseOrderDetails)
                   .HasForeignKey(x => x.ProductId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(x => x.SupplierPlanDetail)
+                  .WithMany(spd => spd.PurchaseOrderDetails)
+                  .HasForeignKey(x => x.SupplierPlanDetailId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .IsRequired(false);
+        });
+
+        builder.Entity<PurchaseOrderSupplierPlan>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.OrderDate)
+                  .IsRequired();
+
+            entity.Property(x => x.Notes)
+                  .HasMaxLength(500);
+
+            entity.HasOne(x => x.Supplier)
+                  .WithMany()
+                  .HasForeignKey(x => x.SupplierId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => new { x.PurchaseOrderId, x.SupplierId });
+        });
+
+        builder.Entity<PurchaseOrderSupplierPlanDetail>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.OrderedWeight)
+                  .HasPrecision(18, 3)
+                  .IsRequired();
+
+            entity.Property(x => x.UnitPriceAtOrder)
+                  .HasPrecision(18, 2)
+                  .IsRequired();
+
+            entity.Property(x => x.PriceDate)
+                  .IsRequired();
+
+            entity.Property(x => x.TolerancePercent)
+                  .HasPrecision(5, 2)
+                  .HasDefaultValue(0);
+
+            entity.HasOne(x => x.SupplierPlan)
+                  .WithMany(p => p.Details)
+                  .HasForeignKey(x => x.SupplierPlanId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Product)
+                  .WithMany()
+                  .HasForeignKey(x => x.ProductId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(x => new { x.SupplierPlanId, x.ProductId });
         });
 
         // ===================== PURCHASE REQUEST =====================

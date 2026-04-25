@@ -42,22 +42,48 @@ namespace AgriIDMS.Application.Services
                 throw new NotFoundException("Chi tiết đơn mua không tồn tại");
             if (poDetail.PurchaseOrder.Status != PurchaseOrderStatus.Approved)
                 throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
-            if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
+            var strictMode = poDetail.PurchaseOrder.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt;
+            if (strictMode)
+            {
+                var sourcePlanDetailId = request.SupplierPlanDetailId ?? poDetail.SupplierPlanDetailId;
+                if (!sourcePlanDetailId.HasValue)
+                    throw new InvalidBusinessRuleException("Luồng đa nhà cung cấp yêu cầu chỉ rõ dòng kế hoạch nhà cung cấp.");
+                if (!poDetail.SupplierPlanDetailId.HasValue || poDetail.SupplierPlanDetailId.Value != sourcePlanDetailId.Value)
+                    throw new InvalidBusinessRuleException("Dòng phiếu nhập không khớp nguồn kế hoạch nhà cung cấp của dòng đơn mua.");
+
+                var sourceSupplierId = poDetail.SupplierPlanDetail?.SupplierPlan?.SupplierId;
+                if (!sourceSupplierId.HasValue || receipt.SupplierId != sourceSupplierId.Value)
+                    throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp nguồn của dòng kế hoạch.");
+            }
+            else if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
+            {
                 throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
+            }
             // 3.3: Chi tiết phải thuộc đúng đơn mua của phiếu nhập
             if (receipt.PurchaseOrderId.HasValue && poDetail.PurchaseOrderId != receipt.PurchaseOrderId.Value)
                 throw new InvalidBusinessRuleException("Chi tiết đơn mua phải thuộc đúng đơn mua của phiếu nhập");
 
             // 3.1 & 3.2: Tổng đã nhận (đã duyệt) + tổng đang chờ (Draft/Received/QCCompleted/PendingManagerApproval) + khối lượng mới không vượt OrderedWeight
             decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
-            if (poDetail.ReceivedWeight + totalPending + request.ReceivedWeight > poDetail.OrderedWeight)
+            if (strictMode)
+            {
+                if (poDetail.ReceivedWeight > 0 || totalPending > 0)
+                    throw new InvalidBusinessRuleException("Luồng đa nhà cung cấp không cho phép nhập thiếu từng phần. Dòng này đã có nhận trước đó.");
+                if (request.ReceivedWeight != poDetail.OrderedWeight)
+                    throw new InvalidBusinessRuleException(
+                        $"Luồng đa nhà cung cấp yêu cầu nhận đủ theo dòng kế hoạch: phải nhận đúng {poDetail.OrderedWeight:N3} kg.");
+            }
+            else if (poDetail.ReceivedWeight + totalPending + request.ReceivedWeight > poDetail.OrderedWeight)
+            {
                 throw new InvalidBusinessRuleException(
                     $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ: {totalPending}, đặt hàng: {poDetail.OrderedWeight}.");
+            }
 
             var detail = new Domain.Entities.GoodsReceiptDetail
             {
                 GoodsReceiptId = request.GoodsReceiptId,
                 PurchaseOrderDetailId = request.PurchaseOrderDetailId,
+                SupplierPlanDetailId = request.SupplierPlanDetailId ?? poDetail.SupplierPlanDetailId,
                 ProductId = poDetail.ProductId,
                 ReceivedWeight = request.ReceivedWeight,
                 UnitPrice = poDetail.UnitPrice
@@ -102,15 +128,32 @@ namespace AgriIDMS.Application.Services
 
             if (poDetail.PurchaseOrder.Status != PurchaseOrderStatus.Approved)
                 throw new InvalidBusinessRuleException("Đơn mua chưa được duyệt, chỉ nhập hàng theo PO đã duyệt");
-            if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
+            var strictMode = poDetail.PurchaseOrder.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt;
+            if (strictMode)
+            {
+                var sourceSupplierId = poDetail.SupplierPlanDetail?.SupplierPlan?.SupplierId;
+                if (!sourceSupplierId.HasValue || receipt.SupplierId != sourceSupplierId.Value)
+                    throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp nguồn của dòng kế hoạch.");
+            }
+            else if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
+            {
                 throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp với đơn mua");
+            }
             // Kiểm tra không vượt OrderedWeight:
             // totalPending hiện tại bao gồm cả detail này → trừ ReceivedWeight cũ, cộng ReceivedWeight mới.
             decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
             decimal otherPending = totalPending - detail.ReceivedWeight;
-            if (poDetail.ReceivedWeight + otherPending + request.ReceivedWeight > poDetail.OrderedWeight)
+            if (strictMode)
+            {
+                if (request.ReceivedWeight != poDetail.OrderedWeight)
+                    throw new InvalidBusinessRuleException(
+                        $"Luồng đa nhà cung cấp yêu cầu nhận đủ theo dòng kế hoạch: phải nhận đúng {poDetail.OrderedWeight:N3} kg.");
+            }
+            else if (poDetail.ReceivedWeight + otherPending + request.ReceivedWeight > poDetail.OrderedWeight)
+            {
                 throw new InvalidBusinessRuleException(
                     $"Khối lượng nhận vượt quá số còn lại của dòng đơn mua. Đã nhận: {poDetail.ReceivedWeight}, đang chờ (không tính dòng này): {otherPending}, khối lượng mới: {request.ReceivedWeight}, đặt hàng: {poDetail.OrderedWeight}.");
+            }
 
             detail.ReceivedWeight = request.ReceivedWeight;
 

@@ -29,5 +29,8 @@ namespace AgriIDMS.Domain.Entities
         public DateTime ReservedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? ExpiredAt { get; set; }
+        public decimal? CostUnitPriceSnapshot { get; set; }
+        public decimal? CostAmountSnapshot { get; set; }
+        public int? CostLotIdSnapshot { get; set; }
     }
 }

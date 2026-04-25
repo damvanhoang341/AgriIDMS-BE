@@ -122,6 +122,7 @@ namespace AgriIDMS.Application.Services
                         {
                             GoodsReceiptId = receipt.Id,
                             PurchaseOrderDetailId = line.PurchaseOrderDetailId,
+                            SupplierPlanDetailId = line.SupplierPlanDetailId,
                             ReceivedWeight = line.ReceivedWeight
                         };
 
@@ -424,6 +425,12 @@ namespace AgriIDMS.Application.Services
                 {
                     var variant = await _productVariantRepo.GetProductVariantByIdAsync(classification.ProductVariantId)
                         ?? throw new NotFoundException($"ProductVariant {classification.ProductVariantId} không tồn tại");
+                    var costUnitPrice = poDetail.SupplierPlanDetail?.UnitPriceAtOrder ?? poDetail.UnitPrice;
+                    var costPriceDate = poDetail.SupplierPlanDetail?.PriceDate;
+                    var costSourceType = detail.SupplierPlanDetailId.HasValue
+                        ? "SupplierPlanDetail"
+                        : "LegacyPurchaseOrderDetail";
+                    var costSourceRefId = detail.SupplierPlanDetailId ?? poDetail.Id;
 
                     var shelfLifeDays = variant.ShelfLifeDays;
                     var receivedAt = DateTime.UtcNow;
@@ -443,6 +450,10 @@ namespace AgriIDMS.Application.Services
                         ProductVariantId = classification.ProductVariantId,
                         TotalQuantity = classification.Quantity,
                         RemainingQuantity = classification.Quantity,
+                        CostUnitPrice = costUnitPrice,
+                        CostPriceDate = costPriceDate,
+                        CostSourceType = costSourceType,
+                        CostSourceRefId = costSourceRefId,
                         ReceivedDate = receivedAt,
                         ExpiryDate = expiryDate
                     };
@@ -736,6 +747,10 @@ namespace AgriIDMS.Application.Services
                 ProductVariantId = variant.Id,
                 TotalQuantity = usable.Value,
                 RemainingQuantity = usable.Value,
+                CostUnitPrice = poDetail.SupplierPlanDetail?.UnitPriceAtOrder ?? poDetail.UnitPrice,
+                CostPriceDate = poDetail.SupplierPlanDetail?.PriceDate,
+                CostSourceType = detail.SupplierPlanDetailId.HasValue ? "SupplierPlanDetail" : "LegacyPurchaseOrderDetail",
+                CostSourceRefId = detail.SupplierPlanDetailId ?? poDetail.Id,
                 ReceivedDate = receivedAt,
                 ExpiryDate = expiryDate
             };

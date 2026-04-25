@@ -9,6 +9,8 @@ namespace AgriIDMS.Domain.Entities
 
         public int ProductId { get; set; }
         public Product Product { get; set; } = null!;
+        public int? SupplierPlanDetailId { get; set; }
+        public PurchaseOrderSupplierPlanDetail? SupplierPlanDetail { get; set; }
         public decimal OrderedWeight { get; set; }
         /// <summary>Dung sai hao hụt (%) cho dòng đặt hàng.</summary>
         public decimal TolerancePercent { get; set; }

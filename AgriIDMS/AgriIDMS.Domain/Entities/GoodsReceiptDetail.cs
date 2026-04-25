@@ -17,6 +17,8 @@ namespace AgriIDMS.Domain.Entities
         public ProductVariant? ProductVariant { get; set; }
         public int PurchaseOrderDetailId { get; set; }
         public PurchaseOrderDetail PurchaseOrderDetail { get; set; } = null!;
+        public int? SupplierPlanDetailId { get; set; }
+        public PurchaseOrderSupplierPlanDetail? SupplierPlanDetail { get; set; }
 
         public decimal ReceivedWeight { get; set; }
 
