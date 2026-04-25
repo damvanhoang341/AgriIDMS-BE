@@ -56,11 +56,26 @@ builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
-// Áp dụng migration còn thiếu lên database (ví dụ bảng PurchaseRequests trên Azure).
+// Áp dụng migration còn thiếu. Lỗi ở đây thường thành 500.0 từ IIS/ANCM (chưa vào GlobalExceptionMiddleware);
+// log rõ ràng giúp xem nguyên nhân trong App Service / Application Insights.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    var startupLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup.Database");
+    try
+    {
+        var pending = db.Database.GetPendingMigrations().ToList();
+        if (pending.Count > 0)
+            startupLogger.LogInformation("Áp dụng {Count} migration: {Migrations}", pending.Count, string.Join(", ", pending));
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogCritical(
+            ex,
+            "Database.Migrate() thất bại. Kiểm tra connection string, tường lửa Azure SQL, quyền (DDL), và tính tương thích migration với DB hiện tại.");
+        throw;
+    }
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();

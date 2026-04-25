@@ -1,12 +1,16 @@
+using Microsoft.Data.SqlClient;
+
 namespace AgriIDMS.API.Middleware
 {
     public class GlobalExceptionMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly ILogger<GlobalExceptionMiddleware> _logger;
 
-        public GlobalExceptionMiddleware(RequestDelegate next)
+        public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -21,7 +25,7 @@ namespace AgriIDMS.API.Middleware
             }
         }
 
-        private static Task HandleExceptionAsync(
+        private async Task HandleExceptionAsync(
             HttpContext context,
             Exception exception)
         {
@@ -45,6 +49,20 @@ namespace AgriIDMS.API.Middleware
                 "Development",
                 StringComparison.OrdinalIgnoreCase);
 
+            if (statusCode == StatusCodes.Status500InternalServerError)
+            {
+                // Luôn ghi log đầy đủ (Azure App Service / Application Insights) — client prod vẫn chỉ nhận message chung.
+                var baseEx = exception.GetBaseException();
+                int? sqlNumber = baseEx is SqlException sql0 ? sql0.Number : (int?)null;
+                _logger.LogError(
+                    exception,
+                    "Lỗi 500: {Path} | {ExType} | SqlErrorNumber: {SqlNumber} | BaseMessage: {BaseMessage}",
+                    context.Request.Path,
+                    exception.GetType().Name,
+                    sqlNumber,
+                    baseEx.Message);
+            }
+
             var message = statusCode == StatusCodes.Status500InternalServerError
                 ? "Đã xảy ra lỗi hệ thống"
                 : exception.Message;
@@ -62,7 +80,7 @@ namespace AgriIDMS.API.Middleware
                 message = $"{exception.Message} | Inner: {inner}";
             }
 
-            return context.Response.WriteAsJsonAsync(new
+            await context.Response.WriteAsJsonAsync(new
             {
                 message = message,
                 error = message,
