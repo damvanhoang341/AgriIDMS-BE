@@ -216,7 +216,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             Id = order.Id,
             OrderCode = order.OrderCode,
             SupplierId = order.SupplierId,
-            SupplierName = order.Supplier.Name,
+            SupplierName = BuildSupplierDisplayName(order),
             Status = order.Status.ToString(),
             ProcurementMode = order.ProcurementMode.ToString(),
             OrderDate = order.OrderDate,
@@ -388,6 +388,28 @@ public class PurchaseOrderService : IPurchaseOrderService
             throw new InvalidBusinessRuleException("Không được chỉnh sửa đơn mua sau khi đã duyệt.");
     }
 
+    private static string BuildSupplierDisplayName(PurchaseOrder order)
+    {
+        if (order.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt &&
+            order.SupplierPlans != null &&
+            order.SupplierPlans.Count > 0)
+        {
+            var names = order.SupplierPlans
+                .Select(p => p.Supplier?.Name?.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (names.Count == 1)
+                return names[0]!;
+
+            if (names.Count > 1)
+                return string.Join(" | ", names);
+        }
+
+        return order.Supplier?.Name ?? "Không xác định";
+    }
+
     public async Task<IEnumerable<PurchaseOrderGetAllResponse>> GetAllAsync()
     {
         var orders = await _repository.GetAllAsync();
@@ -411,7 +433,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 Id = order.Id,
                 OrderCode = order.OrderCode,
                 SupplierId = order.SupplierId,
-                SupplierName = order.Supplier.Name,
+                SupplierName = BuildSupplierDisplayName(order),
                 Status = order.Status.ToString(),
                 ProcurementMode = order.ProcurementMode.ToString(),
                 OrderDate = order.OrderDate,
