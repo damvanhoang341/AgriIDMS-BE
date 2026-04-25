@@ -62,9 +62,22 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
 
     public async Task<string> GenerateOrderCodeAsync()
     {
-        var count = await _context.PurchaseOrders.CountAsync() + 1;
+        // Count()+1 is prone to collisions after deletes/concurrent creates.
+        // Generate a timestamp-based code and verify uniqueness defensively.
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var now = DateTime.UtcNow;
+            var random = Random.Shared.Next(1000, 9999);
+            var code = $"PO-{now:yyyyMMddHHmmssfff}-{random}";
 
-        return $"PO-{DateTime.UtcNow:yyyyMMdd}-{count:D4}";
+            var exists = await _context.PurchaseOrders.AnyAsync(x => x.OrderCode == code);
+            if (!exists)
+            {
+                return code;
+            }
+        }
+
+        throw new InvalidOperationException("Không thể sinh mã đơn mua duy nhất. Vui lòng thử lại.");
     }
 
     public Task UpdateAsync(PurchaseOrder purchaseOrder)
