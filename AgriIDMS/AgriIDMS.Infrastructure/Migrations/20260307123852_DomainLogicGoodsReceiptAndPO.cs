@@ -10,128 +10,84 @@ namespace AgriIDMS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_GoodsReceiptDetails_AspNetUsers_InspectedBy",
-                table: "GoodsReceiptDetails");
+            migrationBuilder.Sql("""
+                IF OBJECT_ID(N'[dbo].[FK_GoodsReceiptDetails_AspNetUsers_InspectedBy]', N'F') IS NOT NULL
+                    ALTER TABLE [dbo].[GoodsReceiptDetails] DROP CONSTRAINT [FK_GoodsReceiptDetails_AspNetUsers_InspectedBy];
 
-            migrationBuilder.DropIndex(
-                name: "IX_GoodsReceiptDetails_InspectedBy",
-                table: "GoodsReceiptDetails");
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_GoodsReceiptDetails_InspectedBy' AND object_id = OBJECT_ID(N'[dbo].[GoodsReceiptDetails]'))
+                    DROP INDEX [IX_GoodsReceiptDetails_InspectedBy] ON [dbo].[GoodsReceiptDetails];
 
-            migrationBuilder.DropColumn(
-                name: "TotalLossWeight",
-                table: "GoodsReceipts");
+                IF COL_LENGTH(N'[dbo].[GoodsReceipts]', N'TotalLossWeight') IS NOT NULL
+                    ALTER TABLE [dbo].[GoodsReceipts] DROP COLUMN [TotalLossWeight];
 
-            // Add ExpectedWeight, copy from OrderedWeight, then drop OrderedWeight
-            migrationBuilder.AddColumn<decimal>(
-                name: "ExpectedWeight",
-                table: "GoodsReceiptDetails",
-                type: "decimal(18,3)",
-                precision: 18,
-                scale: 3,
-                nullable: true);
-            migrationBuilder.Sql("UPDATE GoodsReceiptDetails SET ExpectedWeight = OrderedWeight WHERE ExpectedWeight IS NULL");
-            migrationBuilder.AlterColumn<decimal>(
-                name: "ExpectedWeight",
-                table: "GoodsReceiptDetails",
-                type: "decimal(18,3)",
-                precision: 18,
-                scale: 3,
-                nullable: false,
-                defaultValue: 0m);
-            migrationBuilder.DropColumn(
-                name: "OrderedWeight",
-                table: "GoodsReceiptDetails");
+                IF COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'ExpectedWeight') IS NULL
+                    ALTER TABLE [dbo].[GoodsReceiptDetails] ADD [ExpectedWeight] decimal(18,3) NULL;
 
-            migrationBuilder.DropColumn(
-                name: "RejectWeight",
-                table: "GoodsReceiptDetails");
+                IF COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'OrderedWeight') IS NOT NULL
+                    UPDATE [dbo].[GoodsReceiptDetails]
+                    SET [ExpectedWeight] = [OrderedWeight]
+                    WHERE [ExpectedWeight] IS NULL;
 
-            migrationBuilder.AddColumn<decimal>(
-                name: "ReceivedWeight",
-                table: "PurchaseOrderDetails",
-                type: "decimal(18,3)",
-                precision: 18,
-                scale: 3,
-                nullable: false,
-                defaultValue: 0m);
+                IF COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'ExpectedWeight') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[GoodsReceiptDetails] SET [ExpectedWeight] = 0 WHERE [ExpectedWeight] IS NULL;
+                    ALTER TABLE [dbo].[GoodsReceiptDetails] ALTER COLUMN [ExpectedWeight] decimal(18,3) NOT NULL;
+                END
 
-            migrationBuilder.AlterColumn<decimal>(
-                name: "TolerancePercent",
-                table: "GoodsReceipts",
-                type: "decimal(5,2)",
-                precision: 5,
-                scale: 2,
-                nullable: false,
-                defaultValue: 2m,
-                oldClrType: typeof(decimal),
-                oldType: "decimal(5,2)",
-                oldPrecision: 5,
-                oldScale: 2);
+                IF COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'OrderedWeight') IS NOT NULL
+                    ALTER TABLE [dbo].[GoodsReceiptDetails] DROP COLUMN [OrderedWeight];
 
-            migrationBuilder.AddColumn<int>(
-                name: "PurchaseOrderId",
-                table: "GoodsReceipts",
-                type: "int",
-                nullable: true);
+                IF COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'RejectWeight') IS NOT NULL
+                    ALTER TABLE [dbo].[GoodsReceiptDetails] DROP COLUMN [RejectWeight];
 
-            migrationBuilder.AddColumn<string>(
-                name: "ReceiptCode",
-                table: "GoodsReceipts",
-                type: "nvarchar(50)",
-                maxLength: 50,
-                nullable: true);
-            migrationBuilder.Sql("UPDATE GoodsReceipts SET ReceiptCode = CONCAT('GR-', YEAR(CreatedAt), '-', FORMAT(Id, '00000')) WHERE ReceiptCode IS NULL");
-            migrationBuilder.AlterColumn<string>(
-                name: "ReceiptCode",
-                table: "GoodsReceipts",
-                type: "nvarchar(50)",
-                maxLength: 50,
-                nullable: false,
-                oldClrType: typeof(string),
-                oldType: "nvarchar(50)",
-                oldMaxLength: 50,
-                oldNullable: true);
+                IF COL_LENGTH(N'[dbo].[PurchaseOrderDetails]', N'ReceivedWeight') IS NULL
+                    ALTER TABLE [dbo].[PurchaseOrderDetails] ADD [ReceivedWeight] decimal(18,3) NOT NULL CONSTRAINT [DF_PurchaseOrderDetails_ReceivedWeight] DEFAULT 0;
 
-            migrationBuilder.AddColumn<string>(
-                name: "ReceivedBy",
-                table: "GoodsReceipts",
-                type: "nvarchar(450)",
-                maxLength: 450,
-                nullable: true);
+                IF COL_LENGTH(N'[dbo].[GoodsReceipts]', N'TolerancePercent') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[GoodsReceipts] SET [TolerancePercent] = 2 WHERE [TolerancePercent] IS NULL;
+                    ALTER TABLE [dbo].[GoodsReceipts] ALTER COLUMN [TolerancePercent] decimal(5,2) NOT NULL;
+                END
 
-            migrationBuilder.AlterColumn<decimal>(
-                name: "UsableWeight",
-                table: "GoodsReceiptDetails",
-                type: "decimal(18,3)",
-                precision: 18,
-                scale: 3,
-                nullable: false,
-                defaultValue: 0m,
-                oldClrType: typeof(decimal),
-                oldType: "decimal(18,3)",
-                oldPrecision: 18,
-                oldScale: 3,
-                oldNullable: true);
+                IF COL_LENGTH(N'[dbo].[GoodsReceipts]', N'PurchaseOrderId') IS NULL
+                    ALTER TABLE [dbo].[GoodsReceipts] ADD [PurchaseOrderId] int NULL;
 
-            migrationBuilder.CreateIndex(
-                name: "IX_GoodsReceipts_PurchaseOrderId",
-                table: "GoodsReceipts",
-                column: "PurchaseOrderId");
+                IF COL_LENGTH(N'[dbo].[GoodsReceipts]', N'ReceiptCode') IS NULL
+                    ALTER TABLE [dbo].[GoodsReceipts] ADD [ReceiptCode] nvarchar(50) NULL;
 
-            migrationBuilder.CreateIndex(
-                name: "IX_GoodsReceipts_ReceiptCode",
-                table: "GoodsReceipts",
-                column: "ReceiptCode",
-                unique: true);
+                IF COL_LENGTH(N'[dbo].[GoodsReceipts]', N'ReceiptCode') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[GoodsReceipts]
+                    SET [ReceiptCode] = CONCAT('GR-', YEAR([CreatedAt]), '-', FORMAT([Id], '00000'))
+                    WHERE [ReceiptCode] IS NULL;
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_GoodsReceipts_PurchaseOrders_PurchaseOrderId",
-                table: "GoodsReceipts",
-                column: "PurchaseOrderId",
-                principalTable: "PurchaseOrders",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                    UPDATE [dbo].[GoodsReceipts]
+                    SET [ReceiptCode] = CONCAT('GR-FIX-', [Id])
+                    WHERE [ReceiptCode] IS NULL;
+
+                    ALTER TABLE [dbo].[GoodsReceipts] ALTER COLUMN [ReceiptCode] nvarchar(50) NOT NULL;
+                END
+
+                IF COL_LENGTH(N'[dbo].[GoodsReceipts]', N'ReceivedBy') IS NULL
+                    ALTER TABLE [dbo].[GoodsReceipts] ADD [ReceivedBy] nvarchar(450) NULL;
+
+                IF COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'UsableWeight') IS NOT NULL
+                BEGIN
+                    UPDATE [dbo].[GoodsReceiptDetails] SET [UsableWeight] = 0 WHERE [UsableWeight] IS NULL;
+                    ALTER TABLE [dbo].[GoodsReceiptDetails] ALTER COLUMN [UsableWeight] decimal(18,3) NOT NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_GoodsReceipts_PurchaseOrderId' AND object_id = OBJECT_ID(N'[dbo].[GoodsReceipts]'))
+                    CREATE INDEX [IX_GoodsReceipts_PurchaseOrderId] ON [dbo].[GoodsReceipts]([PurchaseOrderId]);
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_GoodsReceipts_ReceiptCode' AND object_id = OBJECT_ID(N'[dbo].[GoodsReceipts]'))
+                    CREATE UNIQUE INDEX [IX_GoodsReceipts_ReceiptCode] ON [dbo].[GoodsReceipts]([ReceiptCode]);
+
+                IF OBJECT_ID(N'[dbo].[FK_GoodsReceipts_PurchaseOrders_PurchaseOrderId]', N'F') IS NULL
+                    ALTER TABLE [dbo].[GoodsReceipts]
+                    ADD CONSTRAINT [FK_GoodsReceipts_PurchaseOrders_PurchaseOrderId]
+                    FOREIGN KEY ([PurchaseOrderId]) REFERENCES [dbo].[PurchaseOrders]([Id]) ON DELETE NO ACTION;
+                """);
         }
 
         /// <inheritdoc />
