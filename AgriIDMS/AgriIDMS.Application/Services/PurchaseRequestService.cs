@@ -39,13 +39,13 @@ namespace AgriIDMS.Application.Services
                 .Select(g => g.Key)
                 .ToList();
             if (duplicateProductIds.Count > 0)
-                throw new InvalidBusinessRuleException("Không được trùng sản phẩm trong cùng PurchaseRequest.");
+                throw new InvalidBusinessRuleException("Không được trùng sản phẩm trong cùng phiếu đề xuất mua.");
 
             foreach (var detail in request.Details)
             {
                 var product = await _productRepository.GetProductByIdAsync(detail.ProductId);
                 if (product == null)
-                    throw new NotFoundException($"Product {detail.ProductId} không tồn tại");
+                    throw new NotFoundException($"Sản phẩm #{detail.ProductId} không tồn tại");
             }
 
             var requestCode = await _purchaseRequestRepository.GenerateRequestCodeAsync();
@@ -80,7 +80,7 @@ namespace AgriIDMS.Application.Services
         {
             var entity = await _purchaseRequestRepository.GetByIdAsync(id);
             if (entity == null)
-                throw new NotFoundException("PurchaseRequest không tồn tại");
+                throw new NotFoundException("Phiếu đề xuất mua không tồn tại");
             return MapResponse(entity);
         }
 
@@ -88,9 +88,9 @@ namespace AgriIDMS.Application.Services
         {
             var entity = await _purchaseRequestRepository.GetByIdAsync(requestId);
             if (entity == null)
-                throw new NotFoundException("PurchaseRequest không tồn tại");
+                throw new NotFoundException("Phiếu đề xuất mua không tồn tại");
             if (entity.Status == PurchaseRequestStatus.Closed)
-                throw new InvalidBusinessRuleException("PurchaseRequest đã đóng.");
+                throw new InvalidBusinessRuleException("Phiếu đề xuất mua đã đóng.");
             if (request.Details == null || request.Details.Count == 0)
                 throw new InvalidBusinessRuleException("Thiếu dòng phân bổ tạo PO.");
 
@@ -99,7 +99,7 @@ namespace AgriIDMS.Application.Services
             foreach (var d in request.Details)
             {
                 if (!mapDetails.TryGetValue(d.PurchaseRequestDetailId, out var reqDetail))
-                    throw new NotFoundException($"PurchaseRequestDetail {d.PurchaseRequestDetailId} không tồn tại");
+                    throw new NotFoundException($"Chi tiết phiếu đề xuất mua #{d.PurchaseRequestDetailId} không tồn tại");
                 if (d.OrderedWeight > reqDetail.RemainingWeight + 0.0001m)
                     throw new InvalidBusinessRuleException($"Dòng yêu cầu {reqDetail.Id} vượt khối lượng còn lại.");
 
