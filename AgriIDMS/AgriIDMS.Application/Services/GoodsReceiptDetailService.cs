@@ -11,6 +11,7 @@ namespace AgriIDMS.Application.Services
 {
     public class GoodsReceiptDetailService : IGoodsReceiptDetailService
     {
+        private const decimal WeightComparisonTolerance = 0.0001m;
         private readonly IGoodsReceiptRepository _receiptRepo;
         private readonly IGoodsReceiptDetailRepository _detailRepo;
         private readonly IPurchaseOrderRepository _purchaseOrderRepo;
@@ -67,9 +68,9 @@ namespace AgriIDMS.Application.Services
             decimal totalPending = await _detailRepo.GetTotalReceivedWeightForPurchaseOrderDetailInDraftOrPendingAsync(poDetail.Id);
             if (strictMode)
             {
-                if (poDetail.ReceivedWeight > 0 || totalPending > 0)
+                if (poDetail.ReceivedWeight > WeightComparisonTolerance || totalPending > WeightComparisonTolerance)
                     throw new InvalidBusinessRuleException("Luồng đa nhà cung cấp không cho phép nhập thiếu từng phần. Dòng này đã có nhận trước đó.");
-                if (request.ReceivedWeight != poDetail.OrderedWeight)
+                if (Math.Abs(request.ReceivedWeight - poDetail.OrderedWeight) > WeightComparisonTolerance)
                     throw new InvalidBusinessRuleException(
                         $"Luồng đa nhà cung cấp yêu cầu nhận đủ theo dòng kế hoạch: phải nhận đúng {poDetail.OrderedWeight:N3} kg.");
             }
@@ -145,7 +146,7 @@ namespace AgriIDMS.Application.Services
             decimal otherPending = totalPending - detail.ReceivedWeight;
             if (strictMode)
             {
-                if (request.ReceivedWeight != poDetail.OrderedWeight)
+                if (Math.Abs(request.ReceivedWeight - poDetail.OrderedWeight) > WeightComparisonTolerance)
                     throw new InvalidBusinessRuleException(
                         $"Luồng đa nhà cung cấp yêu cầu nhận đủ theo dòng kế hoạch: phải nhận đúng {poDetail.OrderedWeight:N3} kg.");
             }
