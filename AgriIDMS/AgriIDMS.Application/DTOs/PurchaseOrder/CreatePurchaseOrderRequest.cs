@@ -216,6 +216,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
     public class PurchaseOrderStructuredLineDto
     {
         public int LineId { get; set; }
+        public int? SupplierPlanDetailId { get; set; }
         public int ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal OrderedWeight { get; set; }
