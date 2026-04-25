@@ -202,30 +202,38 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         if (order == null)
             throw new NotFoundException("Purchase Order không tồn tại");
-        var peopleCcreate= await _userRepository.GetByIdAsync(order.CreatedBy);
-            return new PurchaseOrderResponse
+
+        var creator = await _userRepository.GetByIdAsync(order.CreatedBy);
+        string? approverName = null;
+        if (!string.IsNullOrWhiteSpace(order.ApprovedBy))
+        {
+            var approver = await _userRepository.GetByIdAsync(order.ApprovedBy);
+            approverName = approver?.FullName;
+        }
+
+        return new PurchaseOrderResponse
+        {
+            Id = order.Id,
+            OrderCode = order.OrderCode,
+            SupplierId = order.SupplierId,
+            SupplierName = order.Supplier.Name,
+            Status = order.Status.ToString(),
+            ProcurementMode = order.ProcurementMode.ToString(),
+            OrderDate = order.OrderDate,
+            NameCreater = creator?.FullName ?? "Không xác định",
+            Details = order.Details.Select(d => new PurchaseOrderDetailResponse
             {
-                Id = order.Id,
-                OrderCode = order.OrderCode,
-                SupplierId = order.SupplierId,
-                SupplierName = order.Supplier.Name,
-                Status = order.Status.ToString(),
-                ProcurementMode = order.ProcurementMode.ToString(),
-                OrderDate = order.OrderDate,
-                NameCreater =peopleCcreate.FullName,
-                Details = order.Details.Select(d => new PurchaseOrderDetailResponse
-                {
-                    Id = d.Id,
-                    ProductId = d.ProductId,
-                    ProductName = d.Product.Name,
-                    OrderedWeight = d.OrderedWeight,
-                    UnitPrice = d.UnitPrice,
-                    TolerancePercent = d.TolerancePercent,
-                    ReceivedWeight = d.ReceivedWeight,
-                    HarvestDate = d.HarvestDate,
-                    NameApprover = order.ApprovedBy != null ? _userRepository.GetByIdAsync(order.ApprovedBy).Result.FullName : null
-                }).ToList()
-            };
+                Id = d.Id,
+                ProductId = d.ProductId,
+                ProductName = d.Product.Name,
+                OrderedWeight = d.OrderedWeight,
+                UnitPrice = d.UnitPrice,
+                TolerancePercent = d.TolerancePercent,
+                ReceivedWeight = d.ReceivedWeight,
+                HarvestDate = d.HarvestDate,
+                NameApprover = approverName
+            }).ToList()
+        };
     }
 
     public async Task ApprovePurchaseOrderAsync(int id, string userId)
@@ -407,7 +415,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 Status = order.Status.ToString(),
                 ProcurementMode = order.ProcurementMode.ToString(),
                 OrderDate = order.OrderDate,
-                NameCreater = peopleCreate.FullName
+                NameCreater = peopleCreate?.FullName ?? "Không xác định"
             });
         }
 
