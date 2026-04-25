@@ -1,6 +1,8 @@
 using AgriIDMS.API.Middleware;
 using Microsoft.AspNetCore.Mvc;
+using AgriIDMS.Infrastructure.Data;
 using AgriIDMS.Infrastructure.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,8 +38,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact",policy =>
         {
-            policy.WithOrigins("http://localhost:5173",
-                "https://agreeable-pebble-0c3796b00.7.azurestaticapps.net"
+            policy.WithOrigins(
+                    "http://localhost:5173",
+                    "https://agreeable-pebble-0c3796b00.7.azurestaticapps.net",
+                    "https://agreeable-pebble-0e3796b00.7.azurestaticapps.net"
                 )
                   .AllowAnyHeader()
                   .AllowAnyMethod()
@@ -51,6 +55,13 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
+
+// Áp dụng migration còn thiếu lên database (ví dụ bảng PurchaseRequests trên Azure).
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
