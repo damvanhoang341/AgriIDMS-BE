@@ -33,6 +33,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
         [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
         public int PurchaseOrderDetailId { get; set; }
 
+        public int? SupplierPlanDetailId { get; set; }
+
         [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
         public decimal ReceivedWeight { get; set; }
     }
@@ -47,6 +49,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         [Required(ErrorMessage = "PurchaseOrderDetailId không được để trống")]
         public int PurchaseOrderDetailId { get; set; }
+
+        public int? SupplierPlanDetailId { get; set; }
 
         [Range(0.01, double.MaxValue, ErrorMessage = "ReceivedWeight phải lớn hơn 0")]
         public decimal ReceivedWeight { get; set; }

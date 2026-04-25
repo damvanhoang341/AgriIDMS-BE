@@ -12,6 +12,7 @@ namespace AgriIDMS.Domain.Entities
         public int SupplierId { get; set; }
         public Supplier Supplier { get; set; } = null!;
 
+        public ProcurementMode ProcurementMode { get; set; } = ProcurementMode.LegacySingleSupplier;
         public PurchaseOrderStatus Status { get; set; } = PurchaseOrderStatus.Pending;
         public DateTime OrderDate { get; set; } = System.DateTime.UtcNow;
 
@@ -24,6 +25,7 @@ namespace AgriIDMS.Domain.Entities
         public decimal TotalAmount => Details.Sum(x => x.OrderedWeight * x.UnitPrice);
 
         public ICollection<PurchaseOrderDetail> Details { get; set; } = new List<PurchaseOrderDetail>();
+        public ICollection<PurchaseOrderSupplierPlan> SupplierPlans { get; set; } = new List<PurchaseOrderSupplierPlan>();
         public ICollection<GoodsReceipt> GoodsReceipts { get; set; } = new List<GoodsReceipt>();
     }
 }

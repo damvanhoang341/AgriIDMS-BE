@@ -10,6 +10,7 @@ namespace AgriIDMS.Application.Interfaces
     public interface IPurchaseOrderService
     {
         Task<int> CreateAsync(CreatePurchaseOrderRequest request, string userId);
+        Task<int> CreateMultiSupplierAsync(CreateMultiSupplierPurchaseOrderRequest request, string userId);
 
         Task<PurchaseOrderResponse> GetByIdAsync(int id);
         Task ApprovePurchaseOrderAsync(int id, string userId);

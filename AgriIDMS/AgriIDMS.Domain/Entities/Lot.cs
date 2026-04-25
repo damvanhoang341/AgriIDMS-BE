@@ -22,6 +22,10 @@ namespace AgriIDMS.Domain.Entities
 
         public decimal TotalQuantity { get; set; }
         public decimal RemainingQuantity { get; set; }
+        public decimal CostUnitPrice { get; set; }
+        public DateTime? CostPriceDate { get; set; }
+        public string? CostSourceType { get; set; }
+        public int? CostSourceRefId { get; set; }
 
         public DateTime ExpiryDate { get; set; }
         public DateTime ReceivedDate { get; set; }

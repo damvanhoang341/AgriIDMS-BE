@@ -18,6 +18,49 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public List<CreatePurchaseOrderDetailRequest> Details { get; set; }
     }
 
+    public class CreateMultiSupplierPurchaseOrderRequest
+    {
+        [Required]
+        [MinLength(1)]
+        public List<CreateSupplierPlanRequest> SupplierPlans { get; set; } = new();
+    }
+
+    public class CreateSupplierPlanRequest
+    {
+        [Required]
+        [Range(1, int.MaxValue)]
+        public int SupplierId { get; set; }
+
+        [Required]
+        public DateTime OrderDate { get; set; }
+
+        [MaxLength(500)]
+        public string? Notes { get; set; }
+
+        [Required]
+        [MinLength(1)]
+        public List<CreateSupplierPlanDetailRequest> Details { get; set; } = new();
+    }
+
+    public class CreateSupplierPlanDetailRequest
+    {
+        [Required]
+        [Range(1, int.MaxValue)]
+        public int ProductId { get; set; }
+
+        [Range(0.01, double.MaxValue)]
+        public decimal OrderedWeight { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public decimal UnitPriceAtOrder { get; set; }
+
+        [Required]
+        public DateTime PriceDate { get; set; }
+
+        [Range(0, 100)]
+        public decimal TolerancePercent { get; set; } = 0;
+    }
+
     public class CreatePurchaseOrderDetailRequest
     {
         [Required(ErrorMessage = "ProductId không được để trống")]
@@ -80,6 +123,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public string SupplierName { get; set; }
 
         public string Status { get; set; }
+        public string ProcurementMode { get; set; }
 
         public DateTime OrderDate { get; set; }
         public string? NameCreater { get; set; }
@@ -96,6 +140,7 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public string SupplierName { get; set; }
 
         public string Status { get; set; }
+        public string ProcurementMode { get; set; }
 
         public DateTime OrderDate { get; set; }
         public string NameCreater { get; set; }

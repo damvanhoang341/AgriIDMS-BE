@@ -1923,6 +1923,9 @@ namespace AgriIDMS.Application.Services
                         OrderDetailId = detail.Id,
                         BoxId = box.Id,
                         ReservedQuantity = box.Weight,
+                        CostUnitPriceSnapshot = box.Lot?.CostUnitPrice,
+                        CostAmountSnapshot = box.Lot?.CostUnitPrice * box.Weight,
+                        CostLotIdSnapshot = box.LotId,
                         Status = AllocationStatus.Reserved,
                         ReservedAt = utcNow,
                         ExpiredAt = reserveUntil
@@ -1988,6 +1991,9 @@ namespace AgriIDMS.Application.Services
                         OrderDetailId = detail.Id,
                         BoxId = box.Id,
                         ReservedQuantity = box.Weight,
+                        CostUnitPriceSnapshot = box.Lot?.CostUnitPrice,
+                        CostAmountSnapshot = box.Lot?.CostUnitPrice * box.Weight,
+                        CostLotIdSnapshot = box.LotId,
                         Status = AllocationStatus.Reserved,
                         ReservedAt = nowUtc,
                         ExpiredAt = expiresAt
@@ -2051,6 +2057,9 @@ namespace AgriIDMS.Application.Services
                         OrderDetailId = detail.Id,
                         BoxId = box.Id,
                         ReservedQuantity = box.Weight,
+                        CostUnitPriceSnapshot = box.Lot?.CostUnitPrice,
+                        CostAmountSnapshot = box.Lot?.CostUnitPrice * box.Weight,
+                        CostLotIdSnapshot = box.LotId,
                         Status = AllocationStatus.Proposed,
                         ReservedAt = now
                     });
@@ -2101,6 +2110,9 @@ namespace AgriIDMS.Application.Services
                         OrderDetail = detail,
                         BoxId = box.Id,
                         ReservedQuantity = box.Weight,
+                        CostUnitPriceSnapshot = box.Lot?.CostUnitPrice,
+                        CostAmountSnapshot = box.Lot?.CostUnitPrice * box.Weight,
+                        CostLotIdSnapshot = box.LotId,
                         Status = AllocationStatus.Reserved,
                         ReservedAt = nowUtc,
                         ExpiredAt = nowUtc.AddHours(AllocationExpirationHours)

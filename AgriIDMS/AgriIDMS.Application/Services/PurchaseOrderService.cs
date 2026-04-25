@@ -74,6 +74,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             {
                 OrderCode = orderCode,
                 SupplierId = request.SupplierId,
+                ProcurementMode = ProcurementMode.LegacySingleSupplier,
                 CreatedBy = userId,
                 OrderDate = DateTime.UtcNow,
                 Status = PurchaseOrderStatus.Pending
@@ -114,6 +115,87 @@ public class PurchaseOrderService : IPurchaseOrderService
         return createdOrderId;
     }
 
+    public async Task<int> CreateMultiSupplierAsync(CreateMultiSupplierPurchaseOrderRequest request, string userId)
+    {
+        _logger.LogInformation("User {UserId} creating multi-supplier PurchaseOrder", userId);
+
+        if (request == null || request.SupplierPlans == null || request.SupplierPlans.Count == 0)
+            throw new InvalidBusinessRuleException("Đơn mua đa nhà cung cấp phải có ít nhất 1 kế hoạch nhà cung cấp");
+
+        int createdOrderId = 0;
+        await _unitOfWork.ExecuteInRetryableTransactionAsync(async () =>
+        {
+            var orderCode = await _repository.GenerateOrderCodeAsync();
+            var firstSupplierId = request.SupplierPlans[0].SupplierId;
+
+            var order = new PurchaseOrder
+            {
+                OrderCode = orderCode,
+                SupplierId = firstSupplierId,
+                ProcurementMode = ProcurementMode.MultiSupplierStrictReceipt,
+                CreatedBy = userId,
+                OrderDate = DateTime.UtcNow,
+                Status = PurchaseOrderStatus.Pending
+            };
+
+            foreach (var supplierPlanRequest in request.SupplierPlans)
+            {
+                var supplier = await _supplierRepository.GetSupplierByIdAsync(supplierPlanRequest.SupplierId);
+                if (supplier == null)
+                    throw new NotFoundException($"Nhà cung cấp #{supplierPlanRequest.SupplierId} không tồn tại");
+
+                if (supplierPlanRequest.Details == null || supplierPlanRequest.Details.Count == 0)
+                    throw new InvalidBusinessRuleException($"Kế hoạch của nhà cung cấp #{supplierPlanRequest.SupplierId} phải có ít nhất 1 dòng");
+
+                var supplierPlan = new PurchaseOrderSupplierPlan
+                {
+                    SupplierId = supplierPlanRequest.SupplierId,
+                    OrderDate = supplierPlanRequest.OrderDate,
+                    Notes = string.IsNullOrWhiteSpace(supplierPlanRequest.Notes) ? null : supplierPlanRequest.Notes.Trim()
+                };
+
+                foreach (var detailRequest in supplierPlanRequest.Details)
+                {
+                    var product = await _productRepository.GetProductByIdAsync(detailRequest.ProductId);
+                    if (product == null)
+                        throw new NotFoundException($"Sản phẩm #{detailRequest.ProductId} không tồn tại");
+
+                    if (detailRequest.PriceDate.Date > supplierPlanRequest.OrderDate.Date)
+                        throw new InvalidBusinessRuleException("Ngày áp giá không được sau ngày đặt của kế hoạch nhà cung cấp");
+
+                    var supplierPlanDetail = new PurchaseOrderSupplierPlanDetail
+                    {
+                        ProductId = detailRequest.ProductId,
+                        OrderedWeight = detailRequest.OrderedWeight,
+                        UnitPriceAtOrder = detailRequest.UnitPriceAtOrder,
+                        PriceDate = detailRequest.PriceDate.Date,
+                        TolerancePercent = detailRequest.TolerancePercent
+                    };
+                    supplierPlan.Details.Add(supplierPlanDetail);
+
+                    order.Details.Add(new PurchaseOrderDetail
+                    {
+                        ProductId = detailRequest.ProductId,
+                        OrderedWeight = detailRequest.OrderedWeight,
+                        UnitPrice = detailRequest.UnitPriceAtOrder,
+                        TolerancePercent = detailRequest.TolerancePercent,
+                        ReceivedWeight = 0,
+                        HarvestDate = supplierPlanRequest.OrderDate.Date,
+                        SupplierPlanDetail = supplierPlanDetail
+                    });
+                }
+
+                order.SupplierPlans.Add(supplierPlan);
+            }
+
+            await _repository.AddAsync(order);
+            await _unitOfWork.SaveChangesAsync();
+            createdOrderId = order.Id;
+        });
+
+        return createdOrderId;
+    }
+
     public async Task<PurchaseOrderResponse> GetByIdAsync(int id)
     {
         var order = await _repository.GetByIdAsync(id);
@@ -128,6 +210,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 SupplierId = order.SupplierId,
                 SupplierName = order.Supplier.Name,
                 Status = order.Status.ToString(),
+                ProcurementMode = order.ProcurementMode.ToString(),
                 OrderDate = order.OrderDate,
                 NameCreater =peopleCcreate.FullName,
                 Details = order.Details.Select(d => new PurchaseOrderDetailResponse
@@ -152,6 +235,8 @@ public class PurchaseOrderService : IPurchaseOrderService
         var po = await _repository.GetByIdAsync(id);
         if (po == null)
             throw new NotFoundException("Purchase Order không tồn tại");
+        if (po.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt)
+            throw new InvalidBusinessRuleException("Đơn mua đa nhà cung cấp chưa hỗ trợ chỉnh sửa trực tiếp. Vui lòng tạo lại đơn.");
 
         if (po.Status != PurchaseOrderStatus.Pending)
             throw new InvalidBusinessRuleException("Chỉ có thể duyệt đơn hàng ở trạng thái Pending");
@@ -322,6 +407,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 SupplierId = order.SupplierId,
                 SupplierName = order.Supplier.Name,
                 Status = order.Status.ToString(),
+                ProcurementMode = order.ProcurementMode.ToString(),
                 OrderDate = order.OrderDate,
                 NameCreater = peopleCreate.FullName
             });

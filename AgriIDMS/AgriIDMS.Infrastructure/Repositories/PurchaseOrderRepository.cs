@@ -22,6 +22,8 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .Include(x => x.Supplier)
             .Include(x => x.Details)
                 .ThenInclude(x => x.Product)
+            .Include(x => x.SupplierPlans)
+                .ThenInclude(p => p.Details)
             .ToListAsync();
     }
 
@@ -31,6 +33,10 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .Include(x => x.Supplier)
             .Include(x => x.Details)
                 .ThenInclude(x => x.Product)
+            .Include(x => x.SupplierPlans)
+                .ThenInclude(p => p.Supplier)
+            .Include(x => x.SupplierPlans)
+                .ThenInclude(p => p.Details)
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 
@@ -48,6 +54,8 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
     {
         return await _context.PurchaseOrderDetails
             .Include(d => d.PurchaseOrder)
+            .Include(d => d.SupplierPlanDetail)
+                .ThenInclude(spd => spd!.SupplierPlan)
             .Include(d => d.Product)
             .FirstOrDefaultAsync(d => d.Id == purchaseOrderDetailId);
     }

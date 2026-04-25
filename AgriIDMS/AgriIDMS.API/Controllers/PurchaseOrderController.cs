@@ -52,6 +52,22 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
+        /// Tạo Purchase Order đa nhà cung cấp (luồng mới 1:N).
+        /// </summary>
+        [HttpPost("multi-supplier")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
+        public async Task<IActionResult> CreateMultiSupplierPurchaseOrder([FromBody] CreateMultiSupplierPurchaseOrderRequest request)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var id = await _purchaseOrderService.CreateMultiSupplierAsync(request, userId!);
+            return Ok(new
+            {
+                Message = "Tạo đơn mua đa nhà cung cấp thành công",
+                PurchaseOrderId = id
+            });
+        }
+
+        /// <summary>
         /// Lấy PurchaseOrder theo Id
         /// </summary>
         [HttpGet("{id}")]
