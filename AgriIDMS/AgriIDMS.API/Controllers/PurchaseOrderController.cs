@@ -82,6 +82,18 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
+        /// Lấy chi tiết PurchaseOrder dạng structured (group theo supplier plans).
+        /// </summary>
+        [HttpGet("{id}/structured")]
+        [Authorize(Roles = "Admin,Manager,PurchasingStaff,WarehouseStaff")]
+        public async Task<IActionResult> GetPurchaseOrderStructuredById(int id)
+        {
+            _logger.LogInformation("Fetching structured PurchaseOrder {PurchaseOrderId}", id);
+            var result = await _purchaseOrderService.GetStructuredByIdAsync(id);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Cập nhật PurchaseOrder (chỉ khi trạng thái Pending, chưa duyệt).
         /// </summary>
         [HttpPut("{id}")]
