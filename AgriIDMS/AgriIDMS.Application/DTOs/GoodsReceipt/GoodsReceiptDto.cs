@@ -165,6 +165,7 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
     public class GoodsReceiptDetailLineDto
     {
         public int Id { get; set; }
+        public int? SupplierPlanDetailId { get; set; }
         public int ProductId { get; set; }
         public string ProductName { get; set; } = null!;
         public int? ProductVariantId { get; set; }
