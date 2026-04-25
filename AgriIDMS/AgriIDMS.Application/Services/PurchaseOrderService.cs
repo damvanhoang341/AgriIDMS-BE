@@ -88,7 +88,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                 if (item.HarvestDate == default)
                     throw new InvalidBusinessRuleException("HarvestDate phải được cung cấp cho từng dòng đơn mua");
                 if (item.HarvestDate > DateTime.UtcNow)
-                    throw new InvalidBusinessRuleException("Ngày thu hoạch không được ở tương lai");
+                    throw new InvalidBusinessRuleException("Ngày thu hoạch của nông sản không được lớn hơn thời điểm hiện tại.");
                 if (item.HarvestDate < DateTime.UtcNow.AddDays(-7))
                 {
                     throw new InvalidBusinessRuleException(
