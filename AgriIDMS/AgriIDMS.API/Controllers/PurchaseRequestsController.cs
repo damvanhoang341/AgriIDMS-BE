@@ -6,7 +6,7 @@ using System.Security.Claims;
 
 namespace AgriIDMS.API.Controllers
 {
-    /// <summary>API đề xuất mua (Purchase Request) — gom nhu cầu trước khi tạo PO.</summary>
+    /// <summary>API phiếu đề xuất mua — gom nhu cầu trước khi tạo đơn mua.</summary>
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
@@ -19,7 +19,7 @@ namespace AgriIDMS.API.Controllers
             _service = service;
         }
 
-        /// <summary>Danh sách tất cả purchase request.</summary>
+        /// <summary>Danh sách tất cả phiếu đề xuất mua.</summary>
         /// <remarks>Admin, Quản lý, Nhân viên mua hàng.</remarks>
         [HttpGet]
         [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
@@ -29,7 +29,7 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Chi tiết một purchase request theo Id.</summary>
+        /// <summary>Chi tiết một phiếu đề xuất mua theo Id.</summary>
         /// <remarks>Admin, Quản lý, Nhân viên mua hàng.</remarks>
         [HttpGet("{id:int:min(1)}")]
         [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
@@ -39,7 +39,7 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>Tạo purchase request mới (phiếu nhu cầu: sản phẩm, khối lượng, giá mục tiêu).</summary>
+        /// <summary>Tạo phiếu đề xuất mua mới (gồm sản phẩm, khối lượng, giá mục tiêu).</summary>
         /// <remarks>Admin, Quản lý, Nhân viên mua hàng.</remarks>
         [HttpPost]
         [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
@@ -47,10 +47,10 @@ namespace AgriIDMS.API.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var id = await _service.CreateAsync(request, userId!);
-            return Ok(new { Message = "Tạo purchase request thành công", PurchaseRequestId = id });
+            return Ok(new { Message = "Tạo phiếu đề xuất mua thành công", PurchaseRequestId = id });
         }
 
-        /// <summary>Từ purchase request, tạo purchase order (chọn NCC + phân bổ dòng theo PR).</summary>
+        /// <summary>Từ phiếu đề xuất mua, tạo đơn mua (chọn NCC + phân bổ theo từng dòng).</summary>
         /// <remarks>Admin, Quản lý, Nhân viên mua hàng — cùng nhóm quyền với tạo PO trực tiếp.</remarks>
         [HttpPost("{id:int:min(1)}/create-purchase-order")]
         [Authorize(Roles = "Admin,Manager,PurchasingStaff")]
@@ -58,7 +58,7 @@ namespace AgriIDMS.API.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var poId = await _service.CreatePurchaseOrderAsync(id, request, userId!);
-            return Ok(new { Message = "Tạo purchase order từ request thành công", PurchaseOrderId = poId });
+            return Ok(new { Message = "Tạo đơn mua từ phiếu đề xuất thành công", PurchaseOrderId = poId });
         }
     }
 }
