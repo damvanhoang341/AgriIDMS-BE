@@ -46,15 +46,10 @@ namespace AgriIDMS.Application.Services
             var strictMode = poDetail.PurchaseOrder.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt;
             if (strictMode)
             {
-                var sourcePlanDetailId = request.SupplierPlanDetailId ?? poDetail.SupplierPlanDetailId;
-                if (!sourcePlanDetailId.HasValue)
-                    throw new InvalidBusinessRuleException("Luồng đa nhà cung cấp yêu cầu chỉ rõ dòng kế hoạch nhà cung cấp.");
-                if (!poDetail.SupplierPlanDetailId.HasValue || poDetail.SupplierPlanDetailId.Value != sourcePlanDetailId.Value)
+                if (!request.SupplierPlanDetailId.HasValue)
+                    throw new InvalidBusinessRuleException("Đơn mua đa nhà cung cấp yêu cầu nhập đầy đủ tất cả dòng hàng.");
+                if (!poDetail.SupplierPlanDetailId.HasValue || poDetail.SupplierPlanDetailId.Value != request.SupplierPlanDetailId.Value)
                     throw new InvalidBusinessRuleException("Dòng phiếu nhập không khớp nguồn kế hoạch nhà cung cấp của dòng đơn mua.");
-
-                var sourceSupplierId = poDetail.SupplierPlanDetail?.SupplierPlan?.SupplierId;
-                if (!sourceSupplierId.HasValue || receipt.SupplierId != sourceSupplierId.Value)
-                    throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp nguồn của dòng kế hoạch.");
             }
             else if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
             {
@@ -71,8 +66,7 @@ namespace AgriIDMS.Application.Services
                 if (poDetail.ReceivedWeight > WeightComparisonTolerance || totalPending > WeightComparisonTolerance)
                     throw new InvalidBusinessRuleException("Luồng đa nhà cung cấp không cho phép nhập thiếu từng phần. Dòng này đã có nhận trước đó.");
                 if (Math.Abs(request.ReceivedWeight - poDetail.OrderedWeight) > WeightComparisonTolerance)
-                    throw new InvalidBusinessRuleException(
-                        $"Luồng đa nhà cung cấp yêu cầu nhận đủ theo dòng kế hoạch: phải nhận đúng {poDetail.OrderedWeight:N3} kg.");
+                    throw new InvalidBusinessRuleException("Khối lượng nhận phải bằng khối lượng đặt mua.");
             }
             else if (poDetail.ReceivedWeight + totalPending + request.ReceivedWeight > poDetail.OrderedWeight)
             {
@@ -132,9 +126,7 @@ namespace AgriIDMS.Application.Services
             var strictMode = poDetail.PurchaseOrder.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt;
             if (strictMode)
             {
-                var sourceSupplierId = poDetail.SupplierPlanDetail?.SupplierPlan?.SupplierId;
-                if (!sourceSupplierId.HasValue || receipt.SupplierId != sourceSupplierId.Value)
-                    throw new InvalidBusinessRuleException("Phiếu nhập phải cùng nhà cung cấp nguồn của dòng kế hoạch.");
+                // MultiSupplierStrictReceipt cho phép phiếu nhập chứa nhiều NCC nguồn.
             }
             else if (receipt.SupplierId != poDetail.PurchaseOrder.SupplierId)
             {
@@ -147,8 +139,7 @@ namespace AgriIDMS.Application.Services
             if (strictMode)
             {
                 if (Math.Abs(request.ReceivedWeight - poDetail.OrderedWeight) > WeightComparisonTolerance)
-                    throw new InvalidBusinessRuleException(
-                        $"Luồng đa nhà cung cấp yêu cầu nhận đủ theo dòng kế hoạch: phải nhận đúng {poDetail.OrderedWeight:N3} kg.");
+                    throw new InvalidBusinessRuleException("Khối lượng nhận phải bằng khối lượng đặt mua.");
             }
             else if (poDetail.ReceivedWeight + otherPending + request.ReceivedWeight > poDetail.OrderedWeight)
             {
