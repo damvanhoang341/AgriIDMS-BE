@@ -12,6 +12,7 @@ namespace AgriIDMS.Domain.Interfaces
         Task AddAsync(PurchaseOrder order);
 
         Task<PurchaseOrder?> GetByIdAsync(int id);
+        Task<PurchaseOrder?> GetStructuredByIdAsync(int id);
         Task<PurchaseOrder?> GetByIdWithGoodsReceiptsAsync(int id);
         Task<PurchaseOrderDetail?> GetDetailByIdAsync(int purchaseOrderDetailId);
         Task UpdateAsync(PurchaseOrder purchaseOrder);

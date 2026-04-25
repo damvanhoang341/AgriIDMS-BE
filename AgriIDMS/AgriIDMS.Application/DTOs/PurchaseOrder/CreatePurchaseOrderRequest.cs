@@ -173,4 +173,76 @@ namespace AgriIDMS.Application.DTOs.PurchaseOrder
         public DateTime HarvestDate { get; set; }
         public string? NameApprover { get; set; }
     }
+
+    public class PurchaseOrderStructuredStatusDto
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+    }
+
+    public class PurchaseOrderStructuredProcurementDto
+    {
+        public string Mode { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+    }
+
+    public class PurchaseOrderStructuredCreatedByDto
+    {
+        public string? Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class PurchaseOrderStructuredSummaryDto
+    {
+        public int TotalSuppliers { get; set; }
+        public int TotalProducts { get; set; }
+        public decimal TotalOrderedWeight { get; set; }
+        public decimal TotalEstimatedAmount { get; set; }
+    }
+
+    public class PurchaseOrderStructuredSupplierDto
+    {
+        public int SupplierId { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
+        public bool IsPrimary { get; set; }
+    }
+
+    public class PurchaseOrderStructuredSupplierPlanSummaryDto
+    {
+        public decimal TotalOrderedWeight { get; set; }
+        public decimal TotalEstimatedAmount { get; set; }
+    }
+
+    public class PurchaseOrderStructuredLineDto
+    {
+        public int LineId { get; set; }
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public decimal OrderedWeight { get; set; }
+        public decimal UnitPriceAtOrder { get; set; }
+        public DateTime PriceDate { get; set; }
+        public decimal LineAmount { get; set; }
+    }
+
+    public class PurchaseOrderStructuredSupplierPlanDto
+    {
+        public int SupplierPlanId { get; set; }
+        public PurchaseOrderStructuredSupplierDto Supplier { get; set; } = new();
+        public DateTime OrderDate { get; set; }
+        public string? Notes { get; set; }
+        public PurchaseOrderStructuredSupplierPlanSummaryDto Summary { get; set; } = new();
+        public List<PurchaseOrderStructuredLineDto> Details { get; set; } = new();
+    }
+
+    public class PurchaseOrderStructuredResponse
+    {
+        public int Id { get; set; }
+        public string OrderCode { get; set; } = string.Empty;
+        public PurchaseOrderStructuredStatusDto Status { get; set; } = new();
+        public PurchaseOrderStructuredProcurementDto Procurement { get; set; } = new();
+        public DateTime OrderDate { get; set; }
+        public PurchaseOrderStructuredCreatedByDto CreatedBy { get; set; } = new();
+        public PurchaseOrderStructuredSummaryDto Summary { get; set; } = new();
+        public List<PurchaseOrderStructuredSupplierPlanDto> SupplierPlans { get; set; } = new();
+    }
 }

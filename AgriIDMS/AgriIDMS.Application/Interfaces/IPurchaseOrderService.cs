@@ -13,6 +13,7 @@ namespace AgriIDMS.Application.Interfaces
         Task<int> CreateMultiSupplierAsync(CreateMultiSupplierPurchaseOrderRequest request, string userId);
 
         Task<PurchaseOrderResponse> GetByIdAsync(int id);
+        Task<PurchaseOrderStructuredResponse> GetStructuredByIdAsync(int id);
         Task ApprovePurchaseOrderAsync(int id, string userId);
         Task UpdateAsync(int id, UpdatePurchaseOrderRequest request, string userId);
         Task DeleteAsync(int id);

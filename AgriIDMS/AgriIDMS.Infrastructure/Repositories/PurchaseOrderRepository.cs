@@ -40,6 +40,23 @@ public class PurchaseOrderRepository : IPurchaseOrderRepository
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 
+    public async Task<PurchaseOrder?> GetStructuredByIdAsync(int id)
+    {
+        return await _context.PurchaseOrders
+            .Include(x => x.Supplier)
+            .Include(x => x.Details)
+                .ThenInclude(x => x.Product)
+            .Include(x => x.SupplierPlans)
+                .ThenInclude(p => p.Supplier)
+            .Include(x => x.SupplierPlans)
+                .ThenInclude(p => p.Details)
+                    .ThenInclude(d => d.Product)
+            .Include(x => x.SupplierPlans)
+                .ThenInclude(p => p.Details)
+                    .ThenInclude(d => d.PurchaseOrderDetails)
+            .FirstOrDefaultAsync(x => x.Id == id);
+    }
+
     public async Task<PurchaseOrder?> GetByIdWithGoodsReceiptsAsync(int id)
     {
         return await _context.PurchaseOrders

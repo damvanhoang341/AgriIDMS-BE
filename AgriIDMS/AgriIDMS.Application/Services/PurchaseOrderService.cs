@@ -236,6 +236,53 @@ public class PurchaseOrderService : IPurchaseOrderService
         };
     }
 
+    public async Task<PurchaseOrderStructuredResponse> GetStructuredByIdAsync(int id)
+    {
+        var order = await _repository.GetStructuredByIdAsync(id);
+        if (order == null)
+            throw new NotFoundException("Purchase Order không tồn tại");
+
+        var creator = await _userRepository.GetByIdAsync(order.CreatedBy);
+        var supplierPlans = BuildStructuredSupplierPlans(order);
+
+        var totalProducts = supplierPlans
+            .SelectMany(p => p.Details.Select(d => d.ProductId))
+            .Distinct()
+            .Count();
+        var totalOrderedWeight = supplierPlans.Sum(p => p.Summary.TotalOrderedWeight);
+        var totalEstimatedAmount = supplierPlans.Sum(p => p.Summary.TotalEstimatedAmount);
+
+        return new PurchaseOrderStructuredResponse
+        {
+            Id = order.Id,
+            OrderCode = order.OrderCode,
+            Status = new PurchaseOrderStructuredStatusDto
+            {
+                Code = order.Status.ToString(),
+                Label = ToVietnamesePoStatus(order.Status)
+            },
+            Procurement = new PurchaseOrderStructuredProcurementDto
+            {
+                Mode = order.ProcurementMode.ToString(),
+                Label = ToVietnameseProcurementMode(order.ProcurementMode)
+            },
+            OrderDate = order.OrderDate,
+            CreatedBy = new PurchaseOrderStructuredCreatedByDto
+            {
+                Id = order.CreatedBy,
+                Name = creator?.FullName ?? "Không xác định"
+            },
+            Summary = new PurchaseOrderStructuredSummaryDto
+            {
+                TotalSuppliers = supplierPlans.Count,
+                TotalProducts = totalProducts,
+                TotalOrderedWeight = totalOrderedWeight,
+                TotalEstimatedAmount = totalEstimatedAmount
+            },
+            SupplierPlans = supplierPlans
+        };
+    }
+
     public async Task ApprovePurchaseOrderAsync(int id, string userId)
     {
         _logger.LogInformation("User {UserId} approving PurchaseOrder {Id}", userId, id);
@@ -408,6 +455,111 @@ public class PurchaseOrderService : IPurchaseOrderService
         }
 
         return order.Supplier?.Name ?? "Không xác định";
+    }
+
+    private static List<PurchaseOrderStructuredSupplierPlanDto> BuildStructuredSupplierPlans(PurchaseOrder order)
+    {
+        if (order.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt &&
+            order.SupplierPlans != null &&
+            order.SupplierPlans.Count > 0)
+        {
+            return order.SupplierPlans
+                .OrderBy(p => p.Id)
+                .Select((plan, index) =>
+                {
+                    var details = (plan.Details ?? [])
+                        .OrderBy(d => d.Id)
+                        .Select(d => new PurchaseOrderStructuredLineDto
+                        {
+                            LineId = d.PurchaseOrderDetails?.FirstOrDefault()?.Id ?? d.Id,
+                            ProductId = d.ProductId,
+                            ProductName = d.Product?.Name ?? $"Sản phẩm #{d.ProductId}",
+                            OrderedWeight = d.OrderedWeight,
+                            UnitPriceAtOrder = d.UnitPriceAtOrder,
+                            PriceDate = d.PriceDate,
+                            LineAmount = d.OrderedWeight * d.UnitPriceAtOrder
+                        })
+                        .ToList();
+
+                    return new PurchaseOrderStructuredSupplierPlanDto
+                    {
+                        SupplierPlanId = plan.Id,
+                        Supplier = new PurchaseOrderStructuredSupplierDto
+                        {
+                            SupplierId = plan.SupplierId,
+                            SupplierName = plan.Supplier?.Name ?? $"Nhà cung cấp #{plan.SupplierId}",
+                            IsPrimary = index == 0
+                        },
+                        OrderDate = plan.OrderDate,
+                        Notes = plan.Notes,
+                        Summary = new PurchaseOrderStructuredSupplierPlanSummaryDto
+                        {
+                            TotalOrderedWeight = details.Sum(x => x.OrderedWeight),
+                            TotalEstimatedAmount = details.Sum(x => x.LineAmount)
+                        },
+                        Details = details
+                    };
+                })
+                .ToList();
+        }
+
+        var legacyDetails = (order.Details ?? [])
+            .OrderBy(d => d.Id)
+            .Select(d => new PurchaseOrderStructuredLineDto
+            {
+                LineId = d.Id,
+                ProductId = d.ProductId,
+                ProductName = d.Product?.Name ?? $"Sản phẩm #{d.ProductId}",
+                OrderedWeight = d.OrderedWeight,
+                UnitPriceAtOrder = d.UnitPrice,
+                PriceDate = order.OrderDate,
+                LineAmount = d.OrderedWeight * d.UnitPrice
+            })
+            .ToList();
+
+        return
+        [
+            new PurchaseOrderStructuredSupplierPlanDto
+            {
+                SupplierPlanId = 0,
+                Supplier = new PurchaseOrderStructuredSupplierDto
+                {
+                    SupplierId = order.SupplierId,
+                    SupplierName = order.Supplier?.Name ?? $"Nhà cung cấp #{order.SupplierId}",
+                    IsPrimary = true
+                },
+                OrderDate = order.OrderDate,
+                Notes = null,
+                Summary = new PurchaseOrderStructuredSupplierPlanSummaryDto
+                {
+                    TotalOrderedWeight = legacyDetails.Sum(x => x.OrderedWeight),
+                    TotalEstimatedAmount = legacyDetails.Sum(x => x.LineAmount)
+                },
+                Details = legacyDetails
+            }
+        ];
+    }
+
+    private static string ToVietnamesePoStatus(PurchaseOrderStatus status)
+    {
+        return status switch
+        {
+            PurchaseOrderStatus.Pending => "Chờ duyệt",
+            PurchaseOrderStatus.Approved => "Đã duyệt",
+            PurchaseOrderStatus.Completed => "Hoàn tất",
+            PurchaseOrderStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string ToVietnameseProcurementMode(ProcurementMode mode)
+    {
+        return mode switch
+        {
+            ProcurementMode.MultiSupplierStrictReceipt => "Đa NCC - nhận đủ",
+            ProcurementMode.LegacySingleSupplier => "1 NCC - luồng cũ",
+            _ => mode.ToString()
+        };
     }
 
     public async Task<IEnumerable<PurchaseOrderGetAllResponse>> GetAllAsync()
