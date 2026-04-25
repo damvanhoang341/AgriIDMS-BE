@@ -1034,6 +1034,7 @@ namespace AgriIDMS.Application.Services
             dto.Details = receipt.Details.Select(d => new GoodsReceiptDetailLineDto
             {
                 Id = d.Id,
+                SupplierPlanDetailId = d.SupplierPlanDetailId,
                 ProductId = d.ProductId,
                 ProductVariantId = d.ProductVariantId,
                 ProductName = d.Product?.Name ?? string.Empty,
@@ -1066,6 +1067,7 @@ namespace AgriIDMS.Application.Services
                 return new GoodsReceiptDetailLineForApprovalDto
                 {
                     Id = d.Id,
+                    SupplierPlanDetailId = d.SupplierPlanDetailId,
                     ProductId = d.ProductId,
                     ProductVariantId = d.ProductVariantId,
                     ProductName = d.Product?.Name ?? string.Empty,
