@@ -235,8 +235,6 @@ public class PurchaseOrderService : IPurchaseOrderService
         var po = await _repository.GetByIdAsync(id);
         if (po == null)
             throw new NotFoundException("Purchase Order không tồn tại");
-        if (po.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt)
-            throw new InvalidBusinessRuleException("Đơn mua đa nhà cung cấp chưa hỗ trợ chỉnh sửa trực tiếp. Vui lòng tạo lại đơn.");
 
         if (po.Status != PurchaseOrderStatus.Pending)
             throw new InvalidBusinessRuleException("Chỉ có thể duyệt đơn hàng ở trạng thái Pending");

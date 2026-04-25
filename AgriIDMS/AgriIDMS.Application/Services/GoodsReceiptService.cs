@@ -94,12 +94,50 @@ namespace AgriIDMS.Application.Services
                 if (warehouse == null)
                     throw new NotFoundException("Kho không tồn tại");
 
+                var receiptSupplierId = po.SupplierId;
+                if (po.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt)
+                {
+                    if (request.Details == null || request.Details.Count == 0)
+                        throw new InvalidBusinessRuleException(
+                            "Đơn mua đa nhà cung cấp yêu cầu tạo phiếu nhập kèm chi tiết để xác định đúng nhà cung cấp nguồn.");
+
+                    int? sourceSupplierId = null;
+                    foreach (var line in request.Details)
+                    {
+                        var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(line.PurchaseOrderDetailId)
+                            ?? throw new NotFoundException($"Không tìm thấy dòng đơn mua #{line.PurchaseOrderDetailId}");
+                        if (poDetail.PurchaseOrderId != po.Id)
+                            throw new InvalidBusinessRuleException("Chi tiết phiếu nhập phải thuộc đúng đơn mua.");
+
+                        var detailSourceSupplierId = poDetail.SupplierPlanDetail?.SupplierPlan?.SupplierId;
+                        if (!detailSourceSupplierId.HasValue)
+                            throw new InvalidBusinessRuleException(
+                                $"Dòng đơn mua #{poDetail.Id} chưa có nguồn nhà cung cấp trong kế hoạch đa NCC.");
+
+                        if (line.SupplierPlanDetailId.HasValue
+                            && (!poDetail.SupplierPlanDetailId.HasValue
+                                || poDetail.SupplierPlanDetailId.Value != line.SupplierPlanDetailId.Value))
+                        {
+                            throw new InvalidBusinessRuleException(
+                                $"Chi tiết nhập của dòng đơn mua #{poDetail.Id} không khớp SupplierPlanDetail.");
+                        }
+
+                        if (!sourceSupplierId.HasValue)
+                            sourceSupplierId = detailSourceSupplierId.Value;
+                        else if (sourceSupplierId.Value != detailSourceSupplierId.Value)
+                            throw new InvalidBusinessRuleException(
+                                "Một phiếu nhập chỉ nhận từ một nhà cung cấp nguồn. Vui lòng tách phiếu nhập theo từng nhà cung cấp.");
+                    }
+
+                    receiptSupplierId = sourceSupplierId!.Value;
+                }
+
                 var receipt = new GoodsReceipt
                 {
                     ReceiptCode = await _receiptRepo.GenerateReceiptCodeAsync(),
                     PurchaseOrderId = request.PurchaseOrderId,
                     InboundReceiptKind = InboundReceiptKind.FromPurchaseOrder,
-                    SupplierId = po.SupplierId,
+                    SupplierId = receiptSupplierId,
                     WarehouseId = request.WarehouseId,
                     VehicleNumber = request.VehicleNumber,
                     DriverName = request.DriverName,
