@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using AgriIDMS.Infrastructure.Data;
 
 #nullable disable
 
 namespace AgriIDMS.Infrastructure.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260425164000_AddMultiSupplierProcurementAndLotCosting")]
     public partial class AddMultiSupplierProcurementAndLotCosting : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -91,13 +95,22 @@ namespace AgriIDMS.Infrastructure.Migrations
                 IF COL_LENGTH(N'[dbo].[OrderAllocations]', N'CostLotIdSnapshot') IS NULL
                     ALTER TABLE [dbo].[OrderAllocations] ADD [CostLotIdSnapshot] int NULL;
 
-                UPDATE l
-                SET l.CostUnitPrice = ISNULL(gd.UnitPrice, 0),
-                    l.CostSourceType = CASE WHEN l.CostSourceType IS NULL THEN N'LegacyPurchaseOrderDetail' ELSE l.CostSourceType END,
-                    l.CostSourceRefId = CASE WHEN l.CostSourceRefId IS NULL THEN gd.PurchaseOrderDetailId ELSE l.CostSourceRefId END
-                FROM [dbo].[Lots] l
-                INNER JOIN [dbo].[GoodsReceiptDetails] gd ON gd.[Id] = l.[GoodsReceiptDetailId]
-                WHERE l.CostUnitPrice = 0;
+                IF COL_LENGTH(N'[dbo].[Lots]', N'CostUnitPrice') IS NOT NULL
+                   AND COL_LENGTH(N'[dbo].[Lots]', N'CostSourceType') IS NOT NULL
+                   AND COL_LENGTH(N'[dbo].[Lots]', N'CostSourceRefId') IS NOT NULL
+                   AND COL_LENGTH(N'[dbo].[Lots]', N'GoodsReceiptDetailId') IS NOT NULL
+                   AND COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'UnitPrice') IS NOT NULL
+                   AND COL_LENGTH(N'[dbo].[GoodsReceiptDetails]', N'PurchaseOrderDetailId') IS NOT NULL
+                BEGIN
+                    EXEC sp_executesql N'
+                        UPDATE l
+                        SET l.CostUnitPrice = ISNULL(gd.UnitPrice, 0),
+                            l.CostSourceType = CASE WHEN l.CostSourceType IS NULL THEN N''LegacyPurchaseOrderDetail'' ELSE l.CostSourceType END,
+                            l.CostSourceRefId = CASE WHEN l.CostSourceRefId IS NULL THEN gd.PurchaseOrderDetailId ELSE l.CostSourceRefId END
+                        FROM [dbo].[Lots] l
+                        INNER JOIN [dbo].[GoodsReceiptDetails] gd ON gd.[Id] = l.[GoodsReceiptDetailId]
+                        WHERE l.CostUnitPrice = 0;';
+                END
                 """);
         }
 
