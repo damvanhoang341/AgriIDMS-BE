@@ -993,7 +993,7 @@ namespace AgriIDMS.Application.Services
                 PendingReason = r.PendingReason,
                 PurchaseOrderId = r.PurchaseOrderId,
                 SupplierId = r.SupplierId,
-                SupplierName = r.Supplier?.Name ?? string.Empty,
+                SupplierName = BuildReceiptSupplierDisplayName(r),
                 WarehouseId = r.WarehouseId,
                 WarehouseName = r.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = r.ReceivedDate,
@@ -1019,7 +1019,7 @@ namespace AgriIDMS.Application.Services
                 PendingReason = receipt.PendingReason,
                 PurchaseOrderId = receipt.PurchaseOrderId,
                 SupplierId = receipt.SupplierId,
-                SupplierName = receipt.Supplier?.Name ?? string.Empty,
+                SupplierName = BuildReceiptSupplierDisplayName(receipt),
                 WarehouseId = receipt.WarehouseId,
                 WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = receipt.ReceivedDate,
@@ -1097,7 +1097,7 @@ namespace AgriIDMS.Application.Services
                 PendingReason = receipt.PendingReason,
                 PurchaseOrderId = receipt.PurchaseOrderId,
                 SupplierId = receipt.SupplierId,
-                SupplierName = receipt.Supplier?.Name ?? string.Empty,
+                SupplierName = BuildReceiptSupplierDisplayName(receipt),
                 WarehouseId = receipt.WarehouseId,
                 WarehouseName = receipt.Warehouse?.Name ?? string.Empty,
                 ReceivedDate = receipt.ReceivedDate,
@@ -1110,6 +1110,28 @@ namespace AgriIDMS.Application.Services
                 CreatedByName = receipt.CreatedUser?.FullName ?? receipt.CreatedUser?.UserName ?? string.Empty,
                 CreatedAt = receipt.CreatedAt
             };
+        }
+
+        private static string BuildReceiptSupplierDisplayName(GoodsReceipt receipt)
+        {
+            var order = receipt.PurchaseOrder;
+            if (order?.ProcurementMode == ProcurementMode.MultiSupplierStrictReceipt &&
+                order.SupplierPlans != null &&
+                order.SupplierPlans.Count > 0)
+            {
+                var names = order.SupplierPlans
+                    .Select(p => p.Supplier?.Name?.Trim())
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (names.Count > 0)
+                {
+                    return string.Join(" | ", names);
+                }
+            }
+
+            return receipt.Supplier?.Name ?? string.Empty;
         }
     }
 }

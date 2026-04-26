@@ -39,6 +39,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
+                    .ThenInclude(po => po.SupplierPlans)
+                        .ThenInclude(sp => sp.Supplier)
                 .Include(r => r.Details)
                 .ToListAsync();
         }
@@ -56,6 +58,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
+                    .ThenInclude(po => po.SupplierPlans)
+                        .ThenInclude(sp => sp.Supplier)
                 .Include(r => r.Details)
                     .ThenInclude(d => d.QcRecord)
                         .ThenInclude(q => q.ClassificationDetails)
