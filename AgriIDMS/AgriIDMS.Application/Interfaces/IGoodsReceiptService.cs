@@ -17,6 +17,7 @@ namespace AgriIDMS.Application.Interfaces
         Task ApproveGoodsReceiptAsync(int receiptId, string userId);
         Task ManagerReviewToleranceAsync(int receiptId, bool isApproved, string userId);
         Task ManagerReviewMinWeightAsync(int receiptId, bool isApproved, string userId);
+        Task ManagerAllowQcAsync(int receiptId, string userId);
         Task GenerateLotAsync(int goodsReceiptDetailId);
         Task UpdateWarehouseAsync(int receiptId, UpdateGoodsReceiptWarehouseRequest request, string userId);
 

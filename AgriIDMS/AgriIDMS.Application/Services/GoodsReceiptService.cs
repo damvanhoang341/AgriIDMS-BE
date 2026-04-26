@@ -389,6 +389,29 @@ namespace AgriIDMS.Application.Services
             }
         }
 
+        public async Task ManagerAllowQcAsync(int receiptId, string userId)
+        {
+            var receipt = await _receiptRepo.GetGoodsReceiptWithDetailsAsync(receiptId);
+            if (receipt == null)
+                throw new NotFoundException("Phiếu nhập không tồn tại");
+
+            if (receipt.Status != GoodsReceiptStatus.PendingManagerApproval &&
+                receipt.Status != GoodsReceiptStatus.PendingManagerApprovalQc)
+            {
+                throw new InvalidBusinessRuleException(
+                    "Chỉ xử lý phiếu đang chờ duyệt dung sai hoặc định mức tối thiểu (PendingManagerApproval/PendingManagerApprovalQc)");
+            }
+
+            receipt.Status = GoodsReceiptStatus.Received;
+            receipt.PendingReason = null;
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Receipt {ReceiptId} được Manager cho phép mở lại QC bởi {UserId}",
+                receiptId,
+                userId);
+        }
+
         // ===============================
         // MANAGER REVIEW TOLERANCE (Approve / Reject khi status = PendingManagerApproval - vượt dung sai)
         // ===============================
