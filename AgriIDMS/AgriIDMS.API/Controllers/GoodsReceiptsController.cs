@@ -148,11 +148,11 @@ namespace AgriIDMS.API.Controllers
         // QC INSPECTION
         // ===============================
         [HttpPost("qc")]
-        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
+        [Authorize(Roles = "WarehouseStaff")]
         public async Task<IActionResult> QCInspection([FromBody] QCInspectionRequest request)
         {
             var userId = await ResolveCurrentUserIdOrThrowAsync();
-            var autoApproveWhenEligible = User.IsInRole("Admin") || User.IsInRole("Manager");
+            var autoApproveWhenEligible = false;
 
             await _goodsReceiptService.QCInspectionAsync(request, userId, autoApproveWhenEligible);
 
