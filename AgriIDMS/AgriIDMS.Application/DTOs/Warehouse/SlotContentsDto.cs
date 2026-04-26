@@ -12,6 +12,7 @@ namespace AgriIDMS.Application.DTOs.Warehouse
         public decimal Weight { get; set; }
         public decimal VolumeM3 { get; set; }
         public string Status { get; set; } = null!;
+        public string? SupplierName { get; set; }
 
         public int LotId { get; set; }
         public string LotCode { get; set; } = null!;

@@ -20,6 +20,20 @@ namespace AgriIDMS.Infrastructure.Repositories
             await _context.Notifications.AddAsync(notification);
         }
 
+        public Task<Notification?> GetBySignatureAsync(
+            NotificationType type,
+            string message,
+            string? referenceType,
+            int? referenceId)
+        {
+            return _context.Notifications
+                .FirstOrDefaultAsync(n =>
+                    n.Type == type
+                    && n.Message == message
+                    && n.ReferenceType == referenceType
+                    && n.ReferenceId == referenceId);
+        }
+
         public async Task<bool> ExistsAsync(NotificationType type, string message, string? referenceType, int? referenceId)
         {
             return await _context.Notifications.AnyAsync(n =>

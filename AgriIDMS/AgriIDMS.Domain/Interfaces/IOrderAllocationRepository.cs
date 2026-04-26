@@ -1,5 +1,6 @@
 using AgriIDMS.Domain.Entities;
 using AgriIDMS.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -14,6 +15,12 @@ namespace AgriIDMS.Domain.Interfaces
 
         /// <summary>Đơn đã giữ thùng (Reserved/Picked) — không cho báo hỏng / duyệt loại thùng.</summary>
         Task<bool> HasReservedOrPickedAllocationForBoxAsync(int boxId);
+        Task<List<OrderAllocation>> GetForRevenueEstimateReportAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? warehouseId,
+            int? productId,
+            int? productVariantId);
     }
 }
 

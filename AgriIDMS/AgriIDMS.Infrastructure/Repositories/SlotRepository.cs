@@ -60,6 +60,11 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(l => l.GoodsReceiptDetail)
                             .ThenInclude(d => d.ProductVariant)
                                 .ThenInclude(pv => pv.Product)
+                .Include(s => s.Boxes)
+                    .ThenInclude(b => b.Lot)
+                        .ThenInclude(l => l.GoodsReceiptDetail)
+                            .ThenInclude(d => d.GoodsReceipt)
+                                .ThenInclude(gr => gr.Supplier)
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 

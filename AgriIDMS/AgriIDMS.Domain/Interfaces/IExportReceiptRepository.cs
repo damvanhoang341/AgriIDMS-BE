@@ -1,4 +1,5 @@
 using AgriIDMS.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -19,5 +20,11 @@ namespace AgriIDMS.Domain.Interfaces
 
         /// <summary>Phiếu xuất đã duyệt xuất kho thành công (ExportStatus.Approved).</summary>
         Task<IList<ExportReceipt>> GetApprovedExportsAsync(int skip, int take, string? sort);
+        Task<IList<ExportReceipt>> GetApprovedExportsForRevenueReportAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? warehouseId,
+            int? productId,
+            int? productVariantId);
     }
 }

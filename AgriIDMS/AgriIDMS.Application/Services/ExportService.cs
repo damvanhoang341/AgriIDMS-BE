@@ -507,6 +507,203 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<RevenueProfitSpecificReportResultDto> GetRevenueProfitSpecificReportAsync(RevenueProfitSpecificReportQueryDto query)
+        {
+            query ??= new RevenueProfitSpecificReportQueryDto();
+            var page = query.Page <= 0 ? 1 : query.Page;
+            var pageSize = Math.Clamp(query.PageSize, 1, 500);
+            var normalizedFromDate = query.FromDate?.Date;
+            var normalizedToDate = query.ToDate?.Date.AddDays(1).AddTicks(-1);
+
+            var exports = await _exportRepo.GetApprovedExportsForRevenueReportAsync(
+                normalizedFromDate,
+                normalizedToDate,
+                query.WarehouseId,
+                query.ProductId,
+                query.ProductVariantId);
+
+            var rows = new List<RevenueProfitSpecificReportRowDto>();
+
+            foreach (var receipt in exports)
+            {
+                var allocByBoxId = (receipt.Order?.Allocations ?? Enumerable.Empty<OrderAllocation>())
+                    .GroupBy(a => a.BoxId)
+                    .ToDictionary(g => g.Key, g => g.First());
+
+                foreach (var d in receipt.Details)
+                {
+                    var box = d.Box;
+                    var lot = box?.Lot;
+                    var pv = lot?.ProductVariant;
+                    var wh = lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse;
+
+                    if (query.WarehouseId.HasValue && query.WarehouseId.Value > 0 && wh?.Id != query.WarehouseId.Value)
+                        continue;
+                    if (query.ProductId.HasValue && query.ProductId.Value > 0 && pv?.ProductId != query.ProductId.Value)
+                        continue;
+                    if (query.ProductVariantId.HasValue && query.ProductVariantId.Value > 0 && pv?.Id != query.ProductVariantId.Value)
+                        continue;
+
+                    var quantity = d.ActualQuantity;
+                    var saleUnitPrice = 0m;
+                    var costUnitPrice = lot?.CostUnitPrice ?? 0m;
+
+                    if (allocByBoxId.TryGetValue(d.BoxId, out var alloc))
+                    {
+                        saleUnitPrice = alloc.OrderDetail?.UnitPrice ?? 0m;
+                        if (alloc.CostUnitPriceSnapshot.HasValue && alloc.CostUnitPriceSnapshot.Value > 0)
+                            costUnitPrice = alloc.CostUnitPriceSnapshot.Value;
+                    }
+
+                    var revenue = quantity * saleUnitPrice;
+                    var cost = quantity * costUnitPrice;
+
+                    rows.Add(new RevenueProfitSpecificReportRowDto
+                    {
+                        ExportedAt = receipt.CreatedAt,
+                        ExportId = receipt.Id,
+                        ExportCode = receipt.ExportCode,
+                        OrderId = receipt.OrderId,
+                        BoxId = d.BoxId,
+                        BoxCode = box?.BoxCode ?? string.Empty,
+                        LotId = lot?.Id ?? 0,
+                        LotCode = lot?.LotCode ?? string.Empty,
+                        WarehouseId = wh?.Id,
+                        WarehouseName = wh?.Name ?? string.Empty,
+                        ProductId = pv?.ProductId,
+                        ProductName = pv?.Product?.Name ?? string.Empty,
+                        ProductVariantId = pv?.Id,
+                        VariantName = pv?.Name ?? string.Empty,
+                        QuantityKg = quantity,
+                        SaleUnitPrice = saleUnitPrice,
+                        CostUnitPrice = costUnitPrice,
+                        Revenue = revenue,
+                        Cost = cost,
+                        Profit = revenue - cost
+                    });
+                }
+            }
+
+            var orderedRows = rows
+                .OrderByDescending(r => r.ExportedAt)
+                .ThenByDescending(r => r.ExportId)
+                .ToList();
+
+            var totalRows = orderedRows.Count;
+            var totalRevenue = orderedRows.Sum(r => r.Revenue);
+            var totalCost = orderedRows.Sum(r => r.Cost);
+            var totalProfit = orderedRows.Sum(r => r.Profit);
+            var totalPages = totalRows == 0 ? 1 : (int)Math.Ceiling(totalRows / (double)pageSize);
+            if (page > totalPages) page = totalPages;
+
+            var pageRows = orderedRows
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new RevenueProfitSpecificReportResultDto
+            {
+                FromDate = query.FromDate,
+                ToDate = query.ToDate,
+                WarehouseId = query.WarehouseId,
+                ProductId = query.ProductId,
+                ProductVariantId = query.ProductVariantId,
+                TotalRevenue = totalRevenue,
+                TotalCost = totalCost,
+                TotalProfit = totalProfit,
+                ProfitMarginPercent = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100m : 0m,
+                TotalRows = totalRows,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                Rows = pageRows
+            };
+        }
+
+        public async Task<RevenueProfitSpecificReportResultDto> GetEstimatedRevenueProfitSpecificReportAsync(RevenueProfitSpecificReportQueryDto query)
+        {
+            query ??= new RevenueProfitSpecificReportQueryDto();
+            var page = query.Page <= 0 ? 1 : query.Page;
+            var pageSize = Math.Clamp(query.PageSize, 1, 500);
+            var normalizedFromDate = query.FromDate?.Date;
+            var normalizedToDate = query.ToDate?.Date.AddDays(1).AddTicks(-1);
+
+            var allocations = await _allocationRepo.GetForRevenueEstimateReportAsync(
+                normalizedFromDate,
+                normalizedToDate,
+                query.WarehouseId,
+                query.ProductId,
+                query.ProductVariantId);
+
+            var rows = allocations.Select(a =>
+            {
+                var quantity = a.PickedQuantity ?? a.ReservedQuantity;
+                var saleUnitPrice = a.OrderDetail?.UnitPrice ?? 0m;
+                var costUnitPrice = a.CostUnitPriceSnapshot
+                    ?? a.Box?.Lot?.CostUnitPrice
+                    ?? 0m;
+                var revenue = quantity * saleUnitPrice;
+                var cost = quantity * costUnitPrice;
+                var lot = a.Box?.Lot;
+                var warehouse = lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse;
+                var variant = a.OrderDetail?.ProductVariant;
+                return new RevenueProfitSpecificReportRowDto
+                {
+                    ExportedAt = a.ReservedAt,
+                    ExportId = 0,
+                    ExportCode = "DU_KIEN",
+                    OrderId = a.OrderId,
+                    BoxId = a.BoxId,
+                    BoxCode = a.Box?.BoxCode ?? string.Empty,
+                    LotId = lot?.Id ?? 0,
+                    LotCode = lot?.LotCode ?? string.Empty,
+                    WarehouseId = warehouse?.Id,
+                    WarehouseName = warehouse?.Name ?? string.Empty,
+                    ProductId = variant?.ProductId,
+                    ProductName = variant?.Product?.Name ?? string.Empty,
+                    ProductVariantId = variant?.Id,
+                    VariantName = variant?.Name ?? string.Empty,
+                    QuantityKg = quantity,
+                    SaleUnitPrice = saleUnitPrice,
+                    CostUnitPrice = costUnitPrice,
+                    Revenue = revenue,
+                    Cost = cost,
+                    Profit = revenue - cost
+                };
+            })
+            .OrderByDescending(r => r.ExportedAt)
+            .ToList();
+
+            var totalRows = rows.Count;
+            var totalRevenue = rows.Sum(r => r.Revenue);
+            var totalCost = rows.Sum(r => r.Cost);
+            var totalProfit = rows.Sum(r => r.Profit);
+            var totalPages = totalRows == 0 ? 1 : (int)Math.Ceiling(totalRows / (double)pageSize);
+            if (page > totalPages) page = totalPages;
+            var pageRows = rows
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new RevenueProfitSpecificReportResultDto
+            {
+                FromDate = query.FromDate,
+                ToDate = query.ToDate,
+                WarehouseId = query.WarehouseId,
+                ProductId = query.ProductId,
+                ProductVariantId = query.ProductVariantId,
+                TotalRevenue = totalRevenue,
+                TotalCost = totalCost,
+                TotalProfit = totalProfit,
+                ProfitMarginPercent = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100m : 0m,
+                TotalRows = totalRows,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                Rows = pageRows
+            };
+        }
+
         public async Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport()
         {
             var exportsList = await _exportRepo.GetAllExport();

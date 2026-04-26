@@ -19,5 +19,7 @@ namespace AgriIDMS.Application.Interfaces
 
         /// <summary>Phiếu xuất đã duyệt (Approved) — lịch sử xuất thành công.</summary>
         Task<IList<PendingApproveExportListItemDto>> GetApprovedExportsAsync(GetPendingApproveExportsQuery query);
+        Task<RevenueProfitSpecificReportResultDto> GetRevenueProfitSpecificReportAsync(RevenueProfitSpecificReportQueryDto query);
+        Task<RevenueProfitSpecificReportResultDto> GetEstimatedRevenueProfitSpecificReportAsync(RevenueProfitSpecificReportQueryDto query);
     }
 }

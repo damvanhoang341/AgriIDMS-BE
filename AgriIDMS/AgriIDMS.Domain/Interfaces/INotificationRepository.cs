@@ -8,6 +8,12 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task AddAsync(Notification notification);
 
+        Task<Notification?> GetBySignatureAsync(
+            NotificationType type,
+            string message,
+            string? referenceType,
+            int? referenceId);
+
         Task<bool> ExistsAsync(
             NotificationType type,
             string message,

@@ -450,10 +450,22 @@ namespace AgriIDMS.Application.Services
                 return;
             }
 
-            var exists = await _notificationRepo.ExistsAsync(type, message, referenceType, referenceId);
-            if (exists)
+            // Deploy-safe: if notification already exists, still upsert recipient inbox rows
+            // so newly added managers/admins can receive and click through old notification events.
+            var existingNotification = await _notificationRepo.GetBySignatureAsync(type, message, referenceType, referenceId);
+            if (existingNotification is not null)
             {
-                _logger.LogInformation("Notification already exists. Type={Type}, Ref={RefType}:{RefId}", type, referenceType, referenceId);
+                var existingUserNotifications = recipients
+                    .Select(uid => new UserNotification(uid, existingNotification.Id))
+                    .ToList();
+
+                await _userNotificationRepo.AddRangeAsync(existingUserNotifications);
+                await _uow.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Notification already exists; recipients upserted. NotificationId={NotificationId}, Count={Count}",
+                    existingNotification.Id,
+                    recipients.Count);
                 return;
             }
 

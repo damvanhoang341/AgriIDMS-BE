@@ -121,5 +121,21 @@ namespace AgriIDMS.API.Controllers
             var result = await _exportService.GetAllExport();
             return Ok(result);
         }
+
+        [HttpGet("reports/revenue-profit-specific")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetRevenueProfitSpecificReport([FromQuery] RevenueProfitSpecificReportQueryDto query)
+        {
+            var result = await _exportService.GetRevenueProfitSpecificReportAsync(query);
+            return Ok(result);
+        }
+
+        [HttpGet("reports/revenue-profit-estimated-specific")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetEstimatedRevenueProfitSpecificReport([FromQuery] RevenueProfitSpecificReportQueryDto query)
+        {
+            var result = await _exportService.GetEstimatedRevenueProfitSpecificReportAsync(query);
+            return Ok(result);
+        }
     }
 }

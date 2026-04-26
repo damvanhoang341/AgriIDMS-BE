@@ -118,7 +118,6 @@ namespace AgriIDMS.Infrastructure.Repositories
 
         public async Task<List<Box>> GetUnassignedBoxesByWarehouseIdAsync(int warehouseId)
         {
-            var now = DateTime.UtcNow;
             var query = _context.Boxes
                 .Include(b => b.Lot)
                     .ThenInclude(l => l.GoodsReceiptDetail)
@@ -130,15 +129,14 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .AsNoTracking()
                 .Where(b =>
                     b.SlotId == null &&
-                    b.Status == BoxStatus.Stored &&
+                    b.Status != BoxStatus.Exported &&
+                    b.Status != BoxStatus.Disposed &&
                     b.Weight > 0 &&
-                    b.Lot.Status == LotStatus.Active &&
-                    b.Lot.ExpiryDate > now &&
                     b.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId);
 
-            query = WhereNoPendingDamageReport(query, _context);
-
-            return await query.ToListAsync();
+            return await query
+                .OrderByDescending(b => b.CreatedAt)
+                .ToListAsync();
         }
 
         public async Task<List<Box>> GetDamagedBoxesAsync(int? warehouseId = null)
