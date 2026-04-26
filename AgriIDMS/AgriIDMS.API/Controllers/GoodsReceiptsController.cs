@@ -222,6 +222,19 @@ namespace AgriIDMS.API.Controllers
             });
         }
 
+        [HttpPost("{receiptId}/manager-allow-qc")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ManagerAllowQc(int receiptId)
+        {
+            var userId = await ResolveCurrentUserIdOrThrowAsync();
+            await _goodsReceiptService.ManagerAllowQcAsync(receiptId, userId);
+
+            return Ok(new
+            {
+                Message = "Đã cho phép kiểm tra chất lượng lại"
+            });
+        }
+
         // ===============================
         // MANAGER REVIEW TOLERANCE (Approve/Reject khi status = PendingManagerApproval)
         // ===============================
