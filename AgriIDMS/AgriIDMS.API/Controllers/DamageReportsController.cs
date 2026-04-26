@@ -90,7 +90,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost("{id:int}/approve")]
-        [Authorize(Roles = "Manager")]
+        [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> Approve([FromRoute] int id, [FromBody] ApproveDamageReportRequest request)
         {
             var userId = GetCurrentUserId();
@@ -100,7 +100,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpPost("{id:int}/reject")]
-        [Authorize(Roles = "Manager")]
+        [Authorize(Roles = "Manager,Admin")]
         public async Task<IActionResult> Reject([FromRoute] int id, [FromBody] RejectDamageReportRequest request)
         {
             var userId = GetCurrentUserId();

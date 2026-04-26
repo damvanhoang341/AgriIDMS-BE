@@ -101,5 +101,68 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Take(take)
                 .ToListAsync();
         }
+
+        public async Task<IList<ExportReceipt>> GetApprovedExportsForRevenueReportAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? warehouseId,
+            int? productId,
+            int? productVariantId)
+        {
+            var q = _context.ExportReceipts
+                .AsSplitQuery()
+                .Include(e => e.Order)
+                    .ThenInclude(o => o.Allocations)
+                        .ThenInclude(a => a.OrderDetail)
+                .Include(e => e.Details)
+                    .ThenInclude(d => d.Box)
+                        .ThenInclude(b => b.Lot)
+                            .ThenInclude(l => l.ProductVariant)
+                                .ThenInclude(pv => pv.Product)
+                .Include(e => e.Details)
+                    .ThenInclude(d => d.Box)
+                        .ThenInclude(b => b.Lot)
+                            .ThenInclude(l => l.GoodsReceiptDetail)
+                                .ThenInclude(grd => grd.GoodsReceipt)
+                                    .ThenInclude(gr => gr.Warehouse)
+                .Where(e => e.Status == ExportStatus.Approved);
+
+            if (fromDate.HasValue)
+                q = q.Where(e => e.CreatedAt >= fromDate.Value);
+
+            if (toDate.HasValue)
+                q = q.Where(e => e.CreatedAt <= toDate.Value);
+
+            if (warehouseId.HasValue && warehouseId.Value > 0)
+            {
+                q = q.Where(e => e.Details.Any(d =>
+                    d.Box != null &&
+                    d.Box.Lot != null &&
+                    d.Box.Lot.GoodsReceiptDetail != null &&
+                    d.Box.Lot.GoodsReceiptDetail.GoodsReceipt != null &&
+                    d.Box.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId.Value));
+            }
+
+            if (productId.HasValue && productId.Value > 0)
+            {
+                q = q.Where(e => e.Details.Any(d =>
+                    d.Box != null &&
+                    d.Box.Lot != null &&
+                    d.Box.Lot.ProductVariant != null &&
+                    d.Box.Lot.ProductVariant.ProductId == productId.Value));
+            }
+
+            if (productVariantId.HasValue && productVariantId.Value > 0)
+            {
+                q = q.Where(e => e.Details.Any(d =>
+                    d.Box != null &&
+                    d.Box.Lot != null &&
+                    d.Box.Lot.ProductVariantId == productVariantId.Value));
+            }
+
+            return await q
+                .OrderByDescending(e => e.CreatedAt)
+                .ToListAsync();
+        }
     }
 }

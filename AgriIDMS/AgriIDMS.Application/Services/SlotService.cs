@@ -306,6 +306,7 @@ namespace AgriIDMS.Application.Services
                         Weight = b.Weight,
                         VolumeM3 = BoxVolumeM3(b),
                         Status = b.Status.ToString(),
+                        SupplierName = b.Lot?.GoodsReceiptDetail?.GoodsReceipt?.Supplier?.Name,
                         LotId = b.LotId,
                         LotCode = b.Lot?.LotCode ?? string.Empty,
                         ReceivedDate = b.Lot?.ReceivedDate ?? default,

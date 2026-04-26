@@ -93,4 +93,57 @@ namespace AgriIDMS.Application.DTOs.Export
         public DateTime CreatedAt { get; set; }
         public int BoxCount { get; set; }
     }
+
+    public class RevenueProfitSpecificReportQueryDto
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public int? WarehouseId { get; set; }
+        public int? ProductId { get; set; }
+        public int? ProductVariantId { get; set; }
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 50;
+    }
+
+    public class RevenueProfitSpecificReportRowDto
+    {
+        public DateTime ExportedAt { get; set; }
+        public int ExportId { get; set; }
+        public string ExportCode { get; set; } = string.Empty;
+        public int OrderId { get; set; }
+        public int BoxId { get; set; }
+        public string BoxCode { get; set; } = string.Empty;
+        public int LotId { get; set; }
+        public string LotCode { get; set; } = string.Empty;
+        public int? WarehouseId { get; set; }
+        public string WarehouseName { get; set; } = string.Empty;
+        public int? ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public int? ProductVariantId { get; set; }
+        public string VariantName { get; set; } = string.Empty;
+        public decimal QuantityKg { get; set; }
+        public decimal SaleUnitPrice { get; set; }
+        public decimal CostUnitPrice { get; set; }
+        public decimal Revenue { get; set; }
+        public decimal Cost { get; set; }
+        public decimal Profit { get; set; }
+    }
+
+    public class RevenueProfitSpecificReportResultDto
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public int? WarehouseId { get; set; }
+        public int? ProductId { get; set; }
+        public int? ProductVariantId { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public decimal TotalCost { get; set; }
+        public decimal TotalProfit { get; set; }
+        public decimal ProfitMarginPercent { get; set; }
+        public int TotalRows { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages { get; set; }
+        public List<RevenueProfitSpecificReportRowDto> Rows { get; set; } = new();
+    }
 }
