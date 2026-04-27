@@ -91,11 +91,7 @@ namespace AgriIDMS.Application.Services
                 FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
                 PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
@@ -121,11 +117,7 @@ namespace AgriIDMS.Application.Services
                 FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
                 PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
@@ -216,11 +208,7 @@ namespace AgriIDMS.Application.Services
                 FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
                 PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
@@ -255,11 +243,7 @@ namespace AgriIDMS.Application.Services
                 FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
                 PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
@@ -294,11 +278,7 @@ namespace AgriIDMS.Application.Services
                 FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
                 PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
@@ -333,11 +313,7 @@ namespace AgriIDMS.Application.Services
                 FulfillmentType = o.FulfillmentType.ToString(),
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
-                LatestPaymentStatus = o.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
                 PaymentTiming = o.PaymentTiming?.ToString()
             }).ToList();
         }
@@ -1391,6 +1367,8 @@ namespace AgriIDMS.Application.Services
                 "Order {OrderId} sale-confirmed by {UserId}. Status={Status}",
                 orderId, confirmedByUserId, orderAfter.Status);
 
+            await TryNotifyCustomerOrderSaleConfirmedAsync(orderId);
+
             return new SaleConfirmOrderResponseDto
             {
                 Message =
@@ -2147,11 +2125,7 @@ namespace AgriIDMS.Application.Services
                 PosCheckoutTiming = order.PosCheckoutTiming?.ToString(),
                 PaymentTiming = order.PaymentTiming?.ToString(),
                 CreatedAt = order.CreatedAt,
-                LatestPaymentStatus = order.Payments?
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefault()?
-                    .PaymentStatus
-                    .ToString(),
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(order.Payments),
                 PayBeforeOnlinePaymentDeadlineUtc = payBeforeDeadlineUtc,
                 StaffCanCancelOverduePayBefore = staffCanCancelOverdue,
                 Recipient = ToRecipientSnapshot(order),
@@ -2262,6 +2236,27 @@ namespace AgriIDMS.Application.Services
         private static bool IsTakeAway(Order order) => order.FulfillmentType == FulfillmentType.TakeAway;
         private static bool IsDelivery(Order order) => order.FulfillmentType == FulfillmentType.Delivery;
 
+        private static string? ResolveDisplayPaymentStatus(IEnumerable<Payment>? payments)
+        {
+            if (payments == null)
+                return null;
+
+            var paymentList = payments.ToList();
+            if (paymentList.Count == 0)
+                return null;
+
+            // Nếu đã có bất kỳ giao dịch thành công thì luôn hiển thị Paid để tránh UI bị "kẹt"
+            // ở Processing khi có thêm payment mới được tạo sau đó.
+            if (paymentList.Any(p => p.PaymentStatus == PaymentStatus.Paid))
+                return PaymentStatus.Paid.ToString();
+
+            return paymentList
+                .OrderByDescending(p => p.CreatedAt)
+                .First()
+                .PaymentStatus
+                .ToString();
+        }
+
         private async Task TryNotifySalesOnlineOrderCreatedAsync(int orderId)
         {
             try
@@ -2271,6 +2266,18 @@ namespace AgriIDMS.Application.Services
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to notify staff about new online order {OrderId}", orderId);
+            }
+        }
+
+        private async Task TryNotifyCustomerOrderSaleConfirmedAsync(int orderId)
+        {
+            try
+            {
+                await _notificationService.NotifyOrderSaleConfirmedAsync(orderId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to notify customer about sale-confirmed order {OrderId}", orderId);
             }
         }
 
