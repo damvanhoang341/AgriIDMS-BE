@@ -18,7 +18,7 @@ namespace AgriIDMS.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager,WarehouseStaff")]
         public async Task<IActionResult> GetAll()
         {
             var data = await _boxTypeSpecService.GetAllAsync();
