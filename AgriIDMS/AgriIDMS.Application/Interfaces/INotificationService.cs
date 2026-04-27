@@ -13,6 +13,7 @@ namespace AgriIDMS.Application.Interfaces
         Task NotifyOrderDeliveredForReviewAsync(int orderId);
         Task NotifyOrderPaymentFailedAsync(int orderId);
         Task NotifyOrderPaymentCancelledAsync(int orderId);
+        Task NotifyOrderSaleConfirmedAsync(int orderId);
         /// <summary>Đơn online mới (chờ sale xác nhận / liên hệ khách đặt hay hủy).</summary>
         Task NotifyOnlineOrderPendingSaleConfirmAsync(int orderId);
 

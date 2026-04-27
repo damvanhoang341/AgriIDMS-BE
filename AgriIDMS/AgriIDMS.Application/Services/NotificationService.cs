@@ -137,6 +137,21 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: new[] { order.UserId });
         }
 
+        public async Task NotifyOrderSaleConfirmedAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            var orderCode = $"DH{orderId}";
+            var message = $"Đơn hàng #{orderCode} đã được xác nhận.\nĐơn hàng của bạn đã được nhân viên bán hàng xác nhận.";
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Order,
+                message,
+                referenceType: "OrderSaleConfirmed",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.UserId });
+        }
+
         public async Task NotifyOnlineOrderPendingSaleConfirmAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
