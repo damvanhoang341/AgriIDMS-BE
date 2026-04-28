@@ -1371,8 +1371,7 @@ namespace AgriIDMS.Application.Services
 
             return new SaleConfirmOrderResponseDto
             {
-                Message =
-                    "Sale đã xác nhận đơn. Khách chọn trả trước hoặc trả sau trên app; nếu trả trước thì phải thanh toán thành công trước khi xuất kho.",
+                Message ="",
                 Order = new OrderListItemDto
                 {
                     OrderId = orderAfter.Id,
