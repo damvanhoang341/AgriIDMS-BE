@@ -85,6 +85,11 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(l => l.GoodsReceiptDetail)
                             .ThenInclude(grd => grd.GoodsReceipt)
                                 .ThenInclude(gr => gr.Warehouse)
+                .Include(a => a.Box)
+                    .ThenInclude(b => b.Lot)
+                        .ThenInclude(l => l.GoodsReceiptDetail)
+                            .ThenInclude(grd => grd.GoodsReceipt)
+                                .ThenInclude(gr => gr.Supplier)
                 .Where(a =>
                     a.Status != AllocationStatus.Cancelled &&
                     (a.Status == AllocationStatus.Reserved ||

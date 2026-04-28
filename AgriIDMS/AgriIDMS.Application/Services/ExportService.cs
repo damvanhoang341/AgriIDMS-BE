@@ -536,6 +536,8 @@ namespace AgriIDMS.Application.Services
                     var lot = box?.Lot;
                     var pv = lot?.ProductVariant;
                     var wh = lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse;
+                    var supplier = lot?.GoodsReceiptDetail?.GoodsReceipt?.Supplier;
+                    var customerDisplayName = BuildCustomerDisplayName(receipt.Order);
 
                     if (query.WarehouseId.HasValue && query.WarehouseId.Value > 0 && wh?.Id != query.WarehouseId.Value)
                         continue;
@@ -564,10 +566,14 @@ namespace AgriIDMS.Application.Services
                         ExportId = receipt.Id,
                         ExportCode = receipt.ExportCode,
                         OrderId = receipt.OrderId,
+                        CustomerUserId = receipt.Order?.CustomerUserId,
+                        CustomerName = customerDisplayName,
                         BoxId = d.BoxId,
                         BoxCode = box?.BoxCode ?? string.Empty,
                         LotId = lot?.Id ?? 0,
                         LotCode = lot?.LotCode ?? string.Empty,
+                        SupplierId = supplier?.Id,
+                        SupplierName = supplier?.Name?.Trim() ?? "Không xác định",
                         WarehouseId = wh?.Id,
                         WarehouseName = wh?.Name ?? string.Empty,
                         ProductId = pv?.ProductId,
@@ -600,6 +606,32 @@ namespace AgriIDMS.Application.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
+            var revenueByCustomers = orderedRows
+                .GroupBy(r => BuildCustomerKey(r.CustomerUserId, r.CustomerName))
+                .Select(g => new RevenueProfitByCustomerDto
+                {
+                    CustomerKey = g.Key,
+                    CustomerName = g.First().CustomerName,
+                    Revenue = g.Sum(x => x.Revenue),
+                    Cost = g.Sum(x => x.Cost),
+                    Profit = g.Sum(x => x.Profit)
+                })
+                .OrderByDescending(x => x.Revenue)
+                .ThenBy(x => x.CustomerName)
+                .ToList();
+            var revenueBySuppliers = orderedRows
+                .GroupBy(r => BuildSupplierKey(r.SupplierId, r.SupplierName))
+                .Select(g => new RevenueProfitBySupplierDto
+                {
+                    SupplierKey = g.Key,
+                    SupplierName = g.First().SupplierName,
+                    Revenue = g.Sum(x => x.Revenue),
+                    Cost = g.Sum(x => x.Cost),
+                    Profit = g.Sum(x => x.Profit)
+                })
+                .OrderByDescending(x => x.Cost)
+                .ThenBy(x => x.SupplierName)
+                .ToList();
 
             return new RevenueProfitSpecificReportResultDto
             {
@@ -616,6 +648,8 @@ namespace AgriIDMS.Application.Services
                 Page = page,
                 PageSize = pageSize,
                 TotalPages = totalPages,
+                RevenueByCustomers = revenueByCustomers,
+                RevenueBySuppliers = revenueBySuppliers,
                 Rows = pageRows
             };
         }
@@ -646,17 +680,23 @@ namespace AgriIDMS.Application.Services
                 var cost = quantity * costUnitPrice;
                 var lot = a.Box?.Lot;
                 var warehouse = lot?.GoodsReceiptDetail?.GoodsReceipt?.Warehouse;
+                var supplier = lot?.GoodsReceiptDetail?.GoodsReceipt?.Supplier;
                 var variant = a.OrderDetail?.ProductVariant;
+                var customerDisplayName = BuildCustomerDisplayName(a.Order);
                 return new RevenueProfitSpecificReportRowDto
                 {
                     ExportedAt = a.ReservedAt,
                     ExportId = 0,
                     ExportCode = "DU_KIEN",
                     OrderId = a.OrderId,
+                    CustomerUserId = a.Order?.CustomerUserId,
+                    CustomerName = customerDisplayName,
                     BoxId = a.BoxId,
                     BoxCode = a.Box?.BoxCode ?? string.Empty,
                     LotId = lot?.Id ?? 0,
                     LotCode = lot?.LotCode ?? string.Empty,
+                    SupplierId = supplier?.Id,
+                    SupplierName = supplier?.Name?.Trim() ?? "Không xác định",
                     WarehouseId = warehouse?.Id,
                     WarehouseName = warehouse?.Name ?? string.Empty,
                     ProductId = variant?.ProductId,
@@ -684,6 +724,32 @@ namespace AgriIDMS.Application.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
+            var revenueByCustomers = rows
+                .GroupBy(r => BuildCustomerKey(r.CustomerUserId, r.CustomerName))
+                .Select(g => new RevenueProfitByCustomerDto
+                {
+                    CustomerKey = g.Key,
+                    CustomerName = g.First().CustomerName,
+                    Revenue = g.Sum(x => x.Revenue),
+                    Cost = g.Sum(x => x.Cost),
+                    Profit = g.Sum(x => x.Profit)
+                })
+                .OrderByDescending(x => x.Revenue)
+                .ThenBy(x => x.CustomerName)
+                .ToList();
+            var revenueBySuppliers = rows
+                .GroupBy(r => BuildSupplierKey(r.SupplierId, r.SupplierName))
+                .Select(g => new RevenueProfitBySupplierDto
+                {
+                    SupplierKey = g.Key,
+                    SupplierName = g.First().SupplierName,
+                    Revenue = g.Sum(x => x.Revenue),
+                    Cost = g.Sum(x => x.Cost),
+                    Profit = g.Sum(x => x.Profit)
+                })
+                .OrderByDescending(x => x.Cost)
+                .ThenBy(x => x.SupplierName)
+                .ToList();
 
             return new RevenueProfitSpecificReportResultDto
             {
@@ -700,8 +766,45 @@ namespace AgriIDMS.Application.Services
                 Page = page,
                 PageSize = pageSize,
                 TotalPages = totalPages,
+                RevenueByCustomers = revenueByCustomers,
+                RevenueBySuppliers = revenueBySuppliers,
                 Rows = pageRows
             };
+        }
+
+        private static string BuildCustomerDisplayName(Order? order)
+        {
+            if (order == null)
+                return "Khách lẻ / không xác định";
+
+            if (!string.IsNullOrWhiteSpace(order.RecipientFullName))
+                return order.RecipientFullName.Trim();
+            if (!string.IsNullOrWhiteSpace(order.CustomerName))
+                return order.CustomerName.Trim();
+            if (!string.IsNullOrWhiteSpace(order.CustomerPhone))
+                return order.CustomerPhone.Trim();
+
+            return "Khách lẻ / không xác định";
+        }
+
+        private static string BuildCustomerKey(string? customerUserId, string customerName)
+        {
+            if (!string.IsNullOrWhiteSpace(customerUserId))
+                return $"user:{customerUserId.Trim()}";
+            if (!string.IsNullOrWhiteSpace(customerName))
+                return $"name:{customerName.Trim().ToLowerInvariant()}";
+
+            return "guest:unknown";
+        }
+
+        private static string BuildSupplierKey(int? supplierId, string supplierName)
+        {
+            if (supplierId.HasValue && supplierId.Value > 0)
+                return $"supplier:{supplierId.Value}";
+            if (!string.IsNullOrWhiteSpace(supplierName))
+                return $"name:{supplierName.Trim().ToLowerInvariant()}";
+
+            return "supplier:unknown";
         }
 
         public async Task<IEnumerable<ExportReceiptResponseDto>> GetAllExport()

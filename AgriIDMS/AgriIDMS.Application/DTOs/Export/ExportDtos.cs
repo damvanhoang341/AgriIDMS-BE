@@ -111,10 +111,14 @@ namespace AgriIDMS.Application.DTOs.Export
         public int ExportId { get; set; }
         public string ExportCode { get; set; } = string.Empty;
         public int OrderId { get; set; }
+        public string? CustomerUserId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
         public int BoxId { get; set; }
         public string BoxCode { get; set; } = string.Empty;
         public int LotId { get; set; }
         public string LotCode { get; set; } = string.Empty;
+        public int? SupplierId { get; set; }
+        public string SupplierName { get; set; } = string.Empty;
         public int? WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
         public int? ProductId { get; set; }
@@ -144,6 +148,26 @@ namespace AgriIDMS.Application.DTOs.Export
         public int Page { get; set; }
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
+        public List<RevenueProfitByCustomerDto> RevenueByCustomers { get; set; } = new();
+        public List<RevenueProfitBySupplierDto> RevenueBySuppliers { get; set; } = new();
         public List<RevenueProfitSpecificReportRowDto> Rows { get; set; } = new();
+    }
+
+    public class RevenueProfitByCustomerDto
+    {
+        public string CustomerKey { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public decimal Revenue { get; set; }
+        public decimal Cost { get; set; }
+        public decimal Profit { get; set; }
+    }
+
+    public class RevenueProfitBySupplierDto
+    {
+        public string SupplierKey { get; set; } = string.Empty;
+        public string SupplierName { get; set; } = string.Empty;
+        public decimal Revenue { get; set; }
+        public decimal Cost { get; set; }
+        public decimal Profit { get; set; }
     }
 }

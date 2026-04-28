@@ -125,6 +125,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                             .ThenInclude(l => l.GoodsReceiptDetail)
                                 .ThenInclude(grd => grd.GoodsReceipt)
                                     .ThenInclude(gr => gr.Warehouse)
+                .Include(e => e.Details)
+                    .ThenInclude(d => d.Box)
+                        .ThenInclude(b => b.Lot)
+                            .ThenInclude(l => l.GoodsReceiptDetail)
+                                .ThenInclude(grd => grd.GoodsReceipt)
+                                    .ThenInclude(gr => gr.Supplier)
                 .Where(e => e.Status == ExportStatus.Approved);
 
             if (fromDate.HasValue)

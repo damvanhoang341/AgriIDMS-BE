@@ -22,6 +22,7 @@ namespace AgriIDMS.Application.Services
         private readonly ILotRepository _lotRepo;
         private readonly IExportReceiptRepository _exportRepo;
         private readonly IStockCheckRepository _stockCheckRepo;
+        private readonly IPurchaseOrderRepository _purchaseOrderRepo;
         private readonly IUnitOfWork _uow;
         private readonly ILogger<NotificationService> _logger;
 
@@ -34,6 +35,7 @@ namespace AgriIDMS.Application.Services
             ILotRepository lotRepo,
             IExportReceiptRepository exportRepo,
             IStockCheckRepository stockCheckRepo,
+            IPurchaseOrderRepository purchaseOrderRepo,
             IUnitOfWork uow,
             ILogger<NotificationService> logger)
         {
@@ -45,6 +47,7 @@ namespace AgriIDMS.Application.Services
             _lotRepo = lotRepo;
             _exportRepo = exportRepo;
             _stockCheckRepo = stockCheckRepo;
+            _purchaseOrderRepo = purchaseOrderRepo;
             _uow = uow;
             _logger = logger;
         }
@@ -257,6 +260,22 @@ namespace AgriIDMS.Application.Services
                 message,
                 referenceType: "StockCheck",
                 referenceId: stockCheckId,
+                recipientUserIds: recipients);
+        }
+
+        public async Task NotifyPurchaseOrderPendingApprovalAsync(int purchaseOrderId)
+        {
+            var order = await _purchaseOrderRepo.GetByIdAsync(purchaseOrderId)
+                ?? throw new NotFoundException($"Đơn mua #{purchaseOrderId} không tồn tại");
+
+            var message = $"Đơn mua {order.OrderCode} đang chờ Quản lý/Admin duyệt.";
+            var recipients = await _userRepo.GetUserIdsInRolesAsync("Admin", "Manager");
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Warning,
+                message,
+                referenceType: "PurchaseOrderApprovalRequest",
+                referenceId: order.Id,
                 recipientUserIds: recipients);
         }
 
