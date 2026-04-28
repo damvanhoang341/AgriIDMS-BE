@@ -55,6 +55,8 @@ namespace AgriIDMS.Application.DTOs.Export
         public int LineNo { get; set; }
         public int BoxId { get; set; }
         public string BoxCode { get; set; } = null!;
+        public int? ProductVariantId { get; set; }
+        public string MaSo { get; set; } = string.Empty;
         public string LotCode { get; set; } = null!;
         public string ProductName { get; set; } = null!;
         public string Grade { get; set; } = null!;

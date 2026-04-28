@@ -65,4 +65,22 @@ namespace AgriIDMS.Application.DTOs.Review
         public int Count { get; set; }
         public IList<ApprovedReviewItemDto> Items { get; set; } = new List<ApprovedReviewItemDto>();
     }
+
+    public static class ReviewEligibilityStatuses
+    {
+        public const string NotDelivered = "NotDelivered";
+        public const string TooEarly = "TooEarly";
+        public const string Expired = "Expired";
+        public const string AlreadyReviewed = "AlreadyReviewed";
+        public const string HasPendingComplaint = "HasPendingComplaint";
+        public const string Reviewable = "Reviewable";
+    }
+
+    public class ReviewEligibilityResponseDto
+    {
+        public bool IsReviewable { get; set; }
+        public string Status { get; set; } = ReviewEligibilityStatuses.NotDelivered;
+        public string Message { get; set; } = string.Empty;
+        public bool HasReviewed { get; set; }
+    }
 }
