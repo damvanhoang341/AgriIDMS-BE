@@ -97,6 +97,8 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(r => r.Supplier)
                 .Include(r => r.Warehouse)
                 .Include(r => r.PurchaseOrder)
+                    .ThenInclude(po => po.SupplierPlans)
+                        .ThenInclude(sp => sp.Supplier)
                 .Include(r => r.CreatedUser)
                 .Include(r => r.ApprovedUser)
                 .Include(r => r.Details)

@@ -15,6 +15,7 @@ public class PurchaseOrderService : IPurchaseOrderService
     private readonly ISupplierService _supplierRepository;
     private readonly IProductRepository _productRepository;
     private readonly IUserRepository _userRepository;
+    private readonly INotificationService _notificationService;
 
     public PurchaseOrderService(
         IPurchaseOrderRepository repository,
@@ -22,7 +23,8 @@ public class PurchaseOrderService : IPurchaseOrderService
         ILogger<PurchaseOrderService> logger,
         ISupplierService supplierRepository,
         IProductRepository productRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        INotificationService notificationService)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -30,6 +32,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         _supplierRepository = supplierRepository;
         _productRepository = productRepository;
         _userRepository = userRepository;
+        _notificationService = notificationService;
 
     }
 
@@ -112,6 +115,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         });
 
         _logger.LogInformation("PurchaseOrder {OrderCode} created successfully", logOrderCode);
+        await _notificationService.NotifyPurchaseOrderPendingApprovalAsync(createdOrderId);
         return createdOrderId;
     }
 
@@ -193,6 +197,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             createdOrderId = order.Id;
         });
 
+        await _notificationService.NotifyPurchaseOrderPendingApprovalAsync(createdOrderId);
         return createdOrderId;
     }
 

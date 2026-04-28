@@ -850,7 +850,11 @@ namespace AgriIDMS.Application.Services
             if (p == "afterqc")
             {
                 if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterQcJson))
-                    return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterQcJson);
+                {
+                    var dto = DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterQcJson);
+                    dto.SupplierName = BuildReceiptSupplierDisplayName(receipt);
+                    return dto;
+                }
                 if (receipt.Status == GoodsReceiptStatus.QCCompleted
                     || receipt.Status == GoodsReceiptStatus.PendingManagerApproval)
                     return BuildGoodsReceiptPrintDataDto(receipt, "afterQc", isPreview: false);
@@ -861,7 +865,11 @@ namespace AgriIDMS.Application.Services
             if (p == "afterapprove")
             {
                 if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterApproveJson))
-                    return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterApproveJson);
+                {
+                    var dto = DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterApproveJson);
+                    dto.SupplierName = BuildReceiptSupplierDisplayName(receipt);
+                    return dto;
+                }
                 if (receipt.Status == GoodsReceiptStatus.Approved)
                     return BuildGoodsReceiptPrintDataDto(receipt, "afterApprove", isPreview: false);
                 throw new InvalidBusinessRuleException(
@@ -869,9 +877,17 @@ namespace AgriIDMS.Application.Services
             }
 
             if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterApproveJson))
-                return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterApproveJson);
+            {
+                var dto = DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterApproveJson);
+                dto.SupplierName = BuildReceiptSupplierDisplayName(receipt);
+                return dto;
+            }
             if (!string.IsNullOrWhiteSpace(receipt.PrintSnapshotAfterQcJson))
-                return DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterQcJson);
+            {
+                var dto = DeserializeGoodsReceiptPrint(receipt.PrintSnapshotAfterQcJson);
+                dto.SupplierName = BuildReceiptSupplierDisplayName(receipt);
+                return dto;
+            }
             if (receipt.Status == GoodsReceiptStatus.Approved)
                 return BuildGoodsReceiptPrintDataDto(receipt, "afterApprove", isPreview: false);
             if (receipt.Status == GoodsReceiptStatus.QCCompleted
@@ -985,8 +1001,10 @@ namespace AgriIDMS.Application.Services
                 ReceiptStatus = receipt.Status.ToString(),
                 PurchaseOrderId = receipt.PurchaseOrderId,
                 PurchaseOrderCode = receipt.PurchaseOrder?.OrderCode,
-                SupplierName = receipt.Supplier?.Name?.Trim() ?? "N/A",
+                SupplierName = BuildReceiptSupplierDisplayName(receipt),
                 WarehouseName = receipt.Warehouse?.Name?.Trim() ?? "N/A",
+                SourceWarehouseName = receipt.Warehouse?.Name?.Trim(),
+                SourceWarehouseAddress = receipt.Warehouse?.Location?.Trim(),
                 VehicleNumber = receipt.VehicleNumber,
                 DriverName = receipt.DriverName,
                 TransportCompany = receipt.TransportCompany,
@@ -1150,7 +1168,7 @@ namespace AgriIDMS.Application.Services
 
                 if (names.Count > 0)
                 {
-                    return string.Join(" | ", names);
+                    return string.Join(", ", names);
                 }
             }
 

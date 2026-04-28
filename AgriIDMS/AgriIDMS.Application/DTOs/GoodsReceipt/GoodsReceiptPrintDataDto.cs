@@ -39,6 +39,8 @@ namespace AgriIDMS.Application.DTOs.GoodsReceipt
 
         public string SupplierName { get; set; } = null!;
         public string WarehouseName { get; set; } = null!;
+        public string? SourceWarehouseName { get; set; }
+        public string? SourceWarehouseAddress { get; set; }
 
         public string VehicleNumber { get; set; } = null!;
         public string? DriverName { get; set; }
