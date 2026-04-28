@@ -674,6 +674,7 @@ namespace AgriIDMS.Application.Services
         public async Task<IReadOnlyList<BoxCreatedItemDto>> GenerateBoxesAsync(CreateBoxesRequest request, string userId)
         {
             const int maxBoxesPerRequest = 5000;
+            const decimal boxUsableRatio = 0.8m;
 
             var lot = await _lotRepo.GetByIdWithDetailAndReceiptAsync(request.LotId);
             if (lot == null)
@@ -689,14 +690,20 @@ namespace AgriIDMS.Application.Services
             decimal total = Math.Max(0, lot.TotalQuantity - alreadyBoxed);
             if (lot.RemainingQuantity != total)
                 lot.RemainingQuantity = total;
-            decimal boxSize = request.BoxSize;
-            if (boxSize <= 0)
+            decimal requestedBoxSize = request.BoxSize;
+            if (requestedBoxSize <= 0)
                 throw new InvalidBusinessRuleException("BoxSize phải lớn hơn 0");
+            decimal boxSize = decimal.Round(requestedBoxSize * boxUsableRatio, 6, MidpointRounding.AwayFromZero);
+            if (boxSize <= 0)
+                throw new InvalidBusinessRuleException("BoxSize hiệu dụng (80%) phải lớn hơn 0");
             if (request.BoxType == BoxType.Unknown)
                 throw new InvalidBusinessRuleException("Vui lòng chọn BoxType khác Unknown khi tạo box");
             if (total <= 0)
                 throw new InvalidBusinessRuleException("Lot đã hết khối lượng khả dụng để tạo box");
-            var densityKgPerM3 = lot.GoodsReceiptDetail?.ProductVariant?.DensityKgPerM3 ?? 0m;
+            var densityKgPerM3 =
+                lot.ProductVariant?.DensityKgPerM3
+                ?? lot.GoodsReceiptDetail?.ProductVariant?.DensityKgPerM3
+                ?? 0m;
             if (densityKgPerM3 <= 0)
                 throw new InvalidBusinessRuleException("Biến thể sản phẩm chưa có khối lượng riêng hợp lệ để quy đổi thể tích.");
 
