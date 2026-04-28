@@ -64,25 +64,9 @@ namespace AgriIDMS.Application.Services
             };
         }
 
-        public async Task<bool> IsReviewableAsync(int orderDetailId, string customerId)
+        public async Task<ReviewEligibilityResponseDto> GetReviewabilityAsync(int orderDetailId, string customerId)
         {
-            try
-            {
-                await ValidateReviewEligibility(orderDetailId, customerId);
-                return true;
-            }
-            catch (DomainException)
-            {
-                return false;
-            }
-            catch (ForbiddenException)
-            {
-                return false;
-            }
-            catch (NotFoundException)
-            {
-                return false;
-            }
+            return await EvaluateReviewabilityAsync(orderDetailId, customerId);
         }
 
         public async Task<ApprovedReviewListResponseDto> GetApprovedReviewsByProductVariantAsync(int productVariantId, int skip, int take)
@@ -116,37 +100,107 @@ namespace AgriIDMS.Application.Services
 
         public async Task ValidateReviewEligibility(int orderDetailId, string customerId)
         {
+            var reviewability = await EvaluateReviewabilityAsync(orderDetailId, customerId);
+            if (!reviewability.IsReviewable)
+                throw new InvalidBusinessRuleException(reviewability.Message);
+        }
+
+        private async Task<ReviewEligibilityResponseDto> EvaluateReviewabilityAsync(int orderDetailId, string customerId)
+        {
             var orderDetail = await _reviewRepository.GetOrderDetailForReviewAsync(orderDetailId)
                 ?? throw new NotFoundException("Order detail không tồn tại");
 
             var order = orderDetail.Order ?? throw new NotFoundException("Order không tồn tại");
-
             if (order.UserId != customerId)
                 throw new ForbiddenException("Bạn không có quyền review sản phẩm của đơn hàng này");
 
-            if (order.Status != OrderStatus.Delivered)
-                throw new InvalidBusinessRuleException("Chỉ được review khi đơn hàng ở trạng thái Delivered");
-
             if (orderDetail.Review != null)
-                throw new InvalidBusinessRuleException("Mỗi OrderDetail chỉ được review 1 lần");
+            {
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.AlreadyReviewed,
+                    Message = "Bạn đã đánh giá đơn hàng này.",
+                    HasReviewed = true,
+                };
+            }
+
+            if (order.Status != OrderStatus.Delivered)
+            {
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.NotDelivered,
+                    Message = "Đơn chưa giao thành công.",
+                    HasReviewed = false,
+                };
+            }
 
             if (!order.DeliveredAt.HasValue)
-                throw new InvalidBusinessRuleException("Đơn chưa có mốc DeliveredAt để tính thời gian review");
+            {
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.NotDelivered,
+                    Message = "Đơn chưa giao thành công.",
+                    HasReviewed = false,
+                };
+            }
 
             var daysAfterDelivered = (DateTime.UtcNow - order.DeliveredAt.Value).TotalDays;
-            if (daysAfterDelivered < ReviewWindowStartDays || daysAfterDelivered > ReviewWindowEndDays)
-                throw new InvalidBusinessRuleException(
-                    $"Chỉ được review trong khoảng {ReviewWindowStartDays}-{ReviewWindowEndDays} ngày sau khi giao hàng");
+            if (daysAfterDelivered < ReviewWindowStartDays)
+            {
+                var remainingDays = Math.Max(1, (int)Math.Ceiling(ReviewWindowStartDays - daysAfterDelivered));
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.TooEarly,
+                    Message = $"Chưa tới thời gian đánh giá. Bạn có thể đánh giá sau {remainingDays} ngày kể từ khi nhận hàng.",
+                    HasReviewed = false,
+                };
+            }
+
+            if (daysAfterDelivered > ReviewWindowEndDays)
+            {
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.Expired,
+                    Message = "Đã hết hạn đánh giá.",
+                    HasReviewed = false,
+                };
+            }
 
             var latestComplaintStatus = await _reviewRepository.GetLatestComplaintStatusAsync(order.Id, orderDetail.Id);
-            if (latestComplaintStatus.HasValue)
+            if (latestComplaintStatus.HasValue && latestComplaintStatus.Value != ComplaintStatus.Verified)
             {
-                if (latestComplaintStatus.Value != ComplaintStatus.Verified)
-                    throw new InvalidBusinessRuleException("Đơn có khiếu nại và chưa Verified, không thể review");
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.HasPendingComplaint,
+                    Message = "Đơn đang có khiếu nại chờ xử lý.",
+                    HasReviewed = false,
+                };
             }
 
             if (await _reviewRepository.HasNonResolvedComplaintAsync(order.Id, orderDetail.Id))
-                throw new InvalidBusinessRuleException("Đơn có khiếu nại chưa Verified, không thể review");
+            {
+                return new ReviewEligibilityResponseDto
+                {
+                    IsReviewable = false,
+                    Status = ReviewEligibilityStatuses.HasPendingComplaint,
+                    Message = "Đơn đang có khiếu nại chờ xử lý.",
+                    HasReviewed = false,
+                };
+            }
+
+            return new ReviewEligibilityResponseDto
+            {
+                IsReviewable = true,
+                Status = ReviewEligibilityStatuses.Reviewable,
+                Message = "Bạn có thể đánh giá sản phẩm.",
+                HasReviewed = false,
+            };
         }
     }
 }

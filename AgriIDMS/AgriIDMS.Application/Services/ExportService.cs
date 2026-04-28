@@ -376,6 +376,7 @@ namespace AgriIDMS.Application.Services
 
                 decimal requestedQuantity = 0;
                 decimal unitPrice = 0;
+                var variantId = box?.Lot?.GoodsReceiptDetail?.ProductVariantId;
                 if (allocationByBoxId.TryGetValue(d.BoxId, out var alloc))
                 {
                     requestedQuantity = alloc.ReservedQuantity;
@@ -384,7 +385,6 @@ namespace AgriIDMS.Application.Services
                 else
                 {
                     // Backward-compatible fallback: map by variant when allocation is missing.
-                    var variantId = box?.Lot?.GoodsReceiptDetail?.ProductVariantId;
                     var orderDetail = variantId.HasValue
                         ? order.Details.FirstOrDefault(od => od.ProductVariantId == variantId.Value)
                         : null;
@@ -398,6 +398,8 @@ namespace AgriIDMS.Application.Services
                     LineNo = n,
                     BoxId = d.BoxId,
                     BoxCode = box?.BoxCode ?? "N/A",
+                    ProductVariantId = variantId,
+                    MaSo = variantId.HasValue ? $"PV-{variantId.Value:D4}" : "N/A",
                     LotCode = lotCode,
                     ProductName = productName,
                     Grade = grade,

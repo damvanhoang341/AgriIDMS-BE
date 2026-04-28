@@ -37,8 +37,8 @@ namespace AgriIDMS.API.Controllers
             var customerId = User.FindFirstValue(ClaimTypes.NameIdentifier)
                 ?? throw new Application.Exceptions.UnauthorizedException("Không xác định được người dùng hiện tại");
 
-            var isReviewable = await _reviewService.IsReviewableAsync(orderDetailId, customerId);
-            return Ok(new { OrderDetailId = orderDetailId, IsReviewable = isReviewable });
+            var result = await _reviewService.GetReviewabilityAsync(orderDetailId, customerId);
+            return Ok(result);
         }
 
         [HttpGet("product-variants/{productVariantId:int:min(1)}/approved")]
