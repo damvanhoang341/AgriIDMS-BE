@@ -49,7 +49,10 @@ namespace AgriIDMS.Infrastructure.Repositories
             return await _context.Payments
                 .Include(p => p.Order)
                 .Where(p => p.OrderId == orderId)
-                .OrderByDescending(p => p.CreatedAt)
+                // Nếu đã có bản ghi Paid thì ưu tiên trả về Paid để UI staff/customer
+                // không bị "kẹt" ở Processing khi có thêm payment tạo sau đó.
+                .OrderByDescending(p => p.PaymentStatus == PaymentStatus.Paid)
+                .ThenByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync();
         }
 
