@@ -13,7 +13,7 @@ namespace AgriIDMS.Application.Services
 {
     public class ReviewService : IReviewService
     {
-        private const int ReviewWindowStartDays = 3;
+        private const int ReviewWindowStartDays = 0;
         private const int ReviewWindowEndDays = 7;
 
         private readonly IReviewRepository _reviewRepository;
