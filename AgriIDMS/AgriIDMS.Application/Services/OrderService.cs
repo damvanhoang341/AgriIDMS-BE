@@ -320,7 +320,7 @@ namespace AgriIDMS.Application.Services
 
         public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
         {
-            var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
             if (order.Status != OrderStatus.PendingWarehouseConfirm
@@ -495,8 +495,14 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Chỉ chọn trả trước/trả sau khi đơn đã được sale xác nhận (Confirmed). Hiện tại: {order.Status}");
 
-            if (order.PaymentTiming.HasValue)
-                throw new InvalidBusinessRuleException("Đơn đã chọn hình thức thanh toán, không thể đổi.");
+            var hasBlockingPayment = (order.Payments ?? new List<Payment>())
+                .Any(p =>
+                    p.PaymentStatus == PaymentStatus.Pending ||
+                    p.PaymentStatus == PaymentStatus.Processing ||
+                    p.PaymentStatus == PaymentStatus.Paid);
+            if (hasBlockingPayment)
+                throw new InvalidBusinessRuleException(
+                    "Đơn đang có hoặc đã hoàn tất thanh toán, không thể đổi hình thức thanh toán.");
 
             order.PaymentTiming = paymentTiming;
             await _uow.SaveChangesAsync();
