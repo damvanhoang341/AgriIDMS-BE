@@ -9,6 +9,12 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task CreateAsync(InventoryTransaction transaction);
         Task AddRangeAsync(IEnumerable<InventoryTransaction> transactions);
+        Task<List<(int lotId, string lotCode, decimal disposedKg, decimal stockAdjustmentLossKg)>> GetLossByLotSummaryAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? warehouseId,
+            int? productId,
+            int? productVariantId);
         Task<(decimal disposedKg, decimal stockAdjustmentLossKg)> GetLossSummaryAsync(
             DateTime? fromDate,
             DateTime? toDate,
