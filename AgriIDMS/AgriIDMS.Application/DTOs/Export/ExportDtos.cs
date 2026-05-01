@@ -154,6 +154,7 @@ namespace AgriIDMS.Application.DTOs.Export
         public int TotalPages { get; set; }
         public List<RevenueProfitByCustomerDto> RevenueByCustomers { get; set; } = new();
         public List<RevenueProfitBySupplierDto> RevenueBySuppliers { get; set; } = new();
+        public List<RevenueLossByLotDto> LossByLots { get; set; } = new();
         public List<RevenueProfitSpecificReportRowDto> Rows { get; set; } = new();
     }
 
@@ -173,5 +174,13 @@ namespace AgriIDMS.Application.DTOs.Export
         public decimal Revenue { get; set; }
         public decimal Cost { get; set; }
         public decimal Profit { get; set; }
+    }
+
+    public class RevenueLossByLotDto
+    {
+        public int LotId { get; set; }
+        public string LotCode { get; set; } = string.Empty;
+        public decimal DisposedKg { get; set; }
+        public decimal StockAdjustmentLossKg { get; set; }
     }
 }
