@@ -61,6 +61,26 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .OrderByDescending(r => r.RequestedAt)
                 .ToListAsync();
         }
+
+        public Task<List<int>> GetPendingBoxIdsAsync(IEnumerable<int> boxIds, int warehouseId)
+        {
+            var ids = boxIds
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList();
+
+            if (ids.Count == 0)
+                return Task.FromResult(new List<int>());
+
+            return _db.DisposalRequestItems
+                .Where(i =>
+                    ids.Contains(i.BoxId) &&
+                    i.DisposalRequest.WarehouseId == warehouseId &&
+                    i.DisposalRequest.Status == DisposalRequestStatus.Pending)
+                .Select(i => i.BoxId)
+                .Distinct()
+                .ToListAsync();
+        }
     }
 }
 

@@ -9,6 +9,7 @@ namespace AgriIDMS.Domain.Interfaces
     {
         Task<DisposalRequest?> GetByIdWithItemsAsync(int id);
         Task<List<DisposalRequest>> GetListAsync(DisposalRequestStatus? status, int? warehouseId);
+        Task<List<int>> GetPendingBoxIdsAsync(IEnumerable<int> boxIds, int warehouseId);
         Task CreateAsync(DisposalRequest request);
     }
 }

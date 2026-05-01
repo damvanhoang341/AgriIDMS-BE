@@ -145,6 +145,8 @@ namespace AgriIDMS.Application.DTOs.Export
         public decimal TotalRevenue { get; set; }
         public decimal TotalCost { get; set; }
         public decimal TotalProfit { get; set; }
+        public decimal TotalDisposedKg { get; set; }
+        public decimal TotalStockAdjustmentLossKg { get; set; }
         public decimal ProfitMarginPercent { get; set; }
         public int TotalRows { get; set; }
         public int Page { get; set; }
