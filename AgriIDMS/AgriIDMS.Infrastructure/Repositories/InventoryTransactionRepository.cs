@@ -28,6 +28,75 @@ namespace AgriIDMS.Infrastructure.Repositories
             await _context.InventoryTransactions.AddRangeAsync(transactions);
         }
 
+        public async Task<List<(int lotId, string lotCode, decimal disposedKg, decimal stockAdjustmentLossKg)>> GetLossByLotSummaryAsync(
+            DateTime? fromDate,
+            DateTime? toDate,
+            int? warehouseId,
+            int? productId,
+            int? productVariantId)
+        {
+            var query = _context.InventoryTransactions
+                .AsNoTracking()
+                .Where(t => t.TransactionType == InventoryTransactionType.Dispose
+                            || t.TransactionType == InventoryTransactionType.Adjust);
+
+            if (fromDate.HasValue)
+                query = query.Where(t => t.CreatedAt >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(t => t.CreatedAt <= toDate.Value);
+
+            if (warehouseId.HasValue && warehouseId.Value > 0)
+            {
+                query = query.Where(t =>
+                    t.Box != null &&
+                    t.Box.Lot != null &&
+                    t.Box.Lot.GoodsReceiptDetail != null &&
+                    t.Box.Lot.GoodsReceiptDetail.GoodsReceipt != null &&
+                    t.Box.Lot.GoodsReceiptDetail.GoodsReceipt.WarehouseId == warehouseId.Value);
+            }
+
+            if (productId.HasValue && productId.Value > 0)
+            {
+                query = query.Where(t =>
+                    t.Box != null &&
+                    t.Box.Lot != null &&
+                    t.Box.Lot.GoodsReceiptDetail != null &&
+                    t.Box.Lot.GoodsReceiptDetail.ProductVariant != null &&
+                    t.Box.Lot.GoodsReceiptDetail.ProductVariant.ProductId == productId.Value);
+            }
+
+            if (productVariantId.HasValue && productVariantId.Value > 0)
+            {
+                query = query.Where(t =>
+                    t.Box != null &&
+                    t.Box.Lot != null &&
+                    t.Box.Lot.GoodsReceiptDetail != null &&
+                    t.Box.Lot.GoodsReceiptDetail.ProductVariantId == productVariantId.Value);
+            }
+
+            var grouped = await query
+                .GroupBy(t => new
+                {
+                    LotId = t.Box.Lot.Id,
+                    LotCode = t.Box.Lot.LotCode
+                })
+                .Select(g => new
+                {
+                    g.Key.LotId,
+                    g.Key.LotCode,
+                    DisposedKg = g.Where(t => t.TransactionType == InventoryTransactionType.Dispose)
+                                  .Sum(t => Math.Abs(t.Quantity)),
+                    StockAdjustmentLossKg = g.Where(t => t.TransactionType == InventoryTransactionType.Adjust && t.Quantity < 0)
+                                             .Sum(t => Math.Abs(t.Quantity))
+                })
+                .ToListAsync();
+
+            return grouped
+                .Select(x => (x.LotId, x.LotCode ?? string.Empty, x.DisposedKg, x.StockAdjustmentLossKg))
+                .ToList();
+        }
+
         public async Task<(decimal disposedKg, decimal stockAdjustmentLossKg)> GetLossSummaryAsync(
             DateTime? fromDate,
             DateTime? toDate,

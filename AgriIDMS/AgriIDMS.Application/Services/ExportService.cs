@@ -529,6 +529,12 @@ namespace AgriIDMS.Application.Services
                 query.WarehouseId,
                 query.ProductId,
                 query.ProductVariantId);
+            var lossByLots = await _inventoryTranRepo.GetLossByLotSummaryAsync(
+                normalizedFromDate,
+                normalizedToDate,
+                query.WarehouseId,
+                query.ProductId,
+                query.ProductVariantId);
 
             var rows = new List<RevenueProfitSpecificReportRowDto>();
 
@@ -660,6 +666,13 @@ namespace AgriIDMS.Application.Services
                 TotalPages = totalPages,
                 RevenueByCustomers = revenueByCustomers,
                 RevenueBySuppliers = revenueBySuppliers,
+                LossByLots = lossByLots.Select(x => new RevenueLossByLotDto
+                {
+                    LotId = x.lotId,
+                    LotCode = x.lotCode,
+                    DisposedKg = x.disposedKg,
+                    StockAdjustmentLossKg = x.stockAdjustmentLossKg
+                }).ToList(),
                 Rows = pageRows
             };
         }
@@ -679,6 +692,12 @@ namespace AgriIDMS.Application.Services
                 query.ProductId,
                 query.ProductVariantId);
             var (disposedKg, stockAdjustmentLossKg) = await _inventoryTranRepo.GetLossSummaryAsync(
+                normalizedFromDate,
+                normalizedToDate,
+                query.WarehouseId,
+                query.ProductId,
+                query.ProductVariantId);
+            var lossByLots = await _inventoryTranRepo.GetLossByLotSummaryAsync(
                 normalizedFromDate,
                 normalizedToDate,
                 query.WarehouseId,
@@ -786,6 +805,13 @@ namespace AgriIDMS.Application.Services
                 TotalPages = totalPages,
                 RevenueByCustomers = revenueByCustomers,
                 RevenueBySuppliers = revenueBySuppliers,
+                LossByLots = lossByLots.Select(x => new RevenueLossByLotDto
+                {
+                    LotId = x.lotId,
+                    LotCode = x.lotCode,
+                    DisposedKg = x.disposedKg,
+                    StockAdjustmentLossKg = x.stockAdjustmentLossKg
+                }).ToList(),
                 Rows = pageRows
             };
         }
