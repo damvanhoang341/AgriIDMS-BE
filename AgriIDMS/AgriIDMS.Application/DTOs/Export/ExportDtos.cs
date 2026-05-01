@@ -74,6 +74,8 @@ namespace AgriIDMS.Application.DTOs.Export
         public int Id { get; set; }
         public int BoxId { get; set; }
         public string BoxCode { get; set; } = null!;
+        public string WarehouseName { get; set; } = string.Empty;
+        public string? BoxQrCode { get; set; }
         public decimal ActualQuantity { get; set; }
         public string BoxStatus { get; set; } = null!;
     }

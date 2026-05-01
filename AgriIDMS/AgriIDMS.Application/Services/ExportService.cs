@@ -339,6 +339,8 @@ namespace AgriIDMS.Application.Services
                     Id = d.Id,
                     BoxId = d.BoxId,
                     BoxCode = d.Box?.BoxCode ?? "N/A",
+                    WarehouseName = d.Box?.Slot?.Rack?.Zone?.Warehouse?.Name ?? "Chưa rõ kho",
+                    BoxQrCode = d.Box?.QRCode ?? d.Box?.QrImageUrl,
                     ActualQuantity = d.ActualQuantity,
                     BoxStatus = d.Box?.Status.ToString() ?? "N/A"
                 }).ToList()

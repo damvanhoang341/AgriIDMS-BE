@@ -320,8 +320,8 @@ namespace AgriIDMS.API.Controllers
         }
 
         /// <summary>
-        /// Xác nhận giao thành công (Delivery, ApprovedExport). Đơn trả sau: đồng thời quyết toán tiền
-        /// (tạo thanh toán tiền mặt Paid nếu chưa có; Cash/Banking Pending hoặc Processing → Paid).
+        /// Xác nhận giao thành công (Delivery, ApprovedExport).
+        /// Nghiệp vụ thanh toán được xử lý riêng, không tự quyết toán khi bấm xác nhận đã giao.
         /// </summary>
         [HttpPatch("{id:int:min(1)}/delivery/confirm")]
         [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]

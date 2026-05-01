@@ -31,6 +31,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Include(e => e.Details)
                     .ThenInclude(d => d.Box)
                         .ThenInclude(b => b.Slot)
+                            .ThenInclude(s => s.Rack)
+                                .ThenInclude(r => r.Zone)
+                                    .ThenInclude(z => z.Warehouse)
                 .FirstOrDefaultAsync(e => e.Id == id);
         }
 
