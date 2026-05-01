@@ -47,6 +47,8 @@ namespace AgriIDMS.Application.Services
             var box = await _boxRepo.GetByIdWithLotAndReceiptAsync(request.BoxId);
             if (box == null)
                 throw new NotFoundException("Box không tồn tại");
+            if (box.Status == BoxStatus.Exported || box.Status == BoxStatus.Disposed)
+                throw new InvalidBusinessRuleException("Box đã xuất hoặc đã tiêu hủy, không thể xếp vào vị trí.");
 
             var slot = await _slotRepo.GetByIdWithWarehouseAsync(request.SlotId);
             if (slot == null)
@@ -147,9 +149,11 @@ namespace AgriIDMS.Application.Services
             {
                 int? boxWarehouseId = box.Lot?.GoodsReceiptDetail?.GoodsReceipt?.WarehouseId;
                 if (!boxWarehouseId.HasValue)
-                    throw new InvalidBusinessRuleException($"Box Id={box.Id} không thuộc phiếu nhập hợp lệ");
+                    throw new InvalidBusinessRuleException($"Thùng #{box.Id} không thuộc phiếu nhập hợp lệ");
                 if (boxWarehouseId.Value != slotWarehouseId)
-                    throw new InvalidBusinessRuleException($"Box Id={box.Id} và slot phải thuộc cùng một kho");
+                    throw new InvalidBusinessRuleException($"Thùng #{box.Id} và vị trí chứa phải thuộc cùng một kho");
+                if (box.Status == BoxStatus.Exported || box.Status == BoxStatus.Disposed)
+                    throw new InvalidBusinessRuleException($"Thùng #{box.Id} đã xuất hoặc đã tiêu hủy, không thể xếp vào vị trí.");
             }
 
             // Rule: 1 slot chỉ chứa 1 loại sản phẩm (ProductVariant)

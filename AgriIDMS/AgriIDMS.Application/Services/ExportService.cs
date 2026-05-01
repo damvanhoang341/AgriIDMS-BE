@@ -523,6 +523,12 @@ namespace AgriIDMS.Application.Services
                 query.WarehouseId,
                 query.ProductId,
                 query.ProductVariantId);
+            var (disposedKg, stockAdjustmentLossKg) = await _inventoryTranRepo.GetLossSummaryAsync(
+                normalizedFromDate,
+                normalizedToDate,
+                query.WarehouseId,
+                query.ProductId,
+                query.ProductVariantId);
 
             var rows = new List<RevenueProfitSpecificReportRowDto>();
 
@@ -645,6 +651,8 @@ namespace AgriIDMS.Application.Services
                 TotalRevenue = totalRevenue,
                 TotalCost = totalCost,
                 TotalProfit = totalProfit,
+                TotalDisposedKg = disposedKg,
+                TotalStockAdjustmentLossKg = stockAdjustmentLossKg,
                 ProfitMarginPercent = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100m : 0m,
                 TotalRows = totalRows,
                 Page = page,
@@ -665,6 +673,12 @@ namespace AgriIDMS.Application.Services
             var normalizedToDate = query.ToDate?.Date.AddDays(1).AddTicks(-1);
 
             var allocations = await _allocationRepo.GetForRevenueEstimateReportAsync(
+                normalizedFromDate,
+                normalizedToDate,
+                query.WarehouseId,
+                query.ProductId,
+                query.ProductVariantId);
+            var (disposedKg, stockAdjustmentLossKg) = await _inventoryTranRepo.GetLossSummaryAsync(
                 normalizedFromDate,
                 normalizedToDate,
                 query.WarehouseId,
@@ -763,6 +777,8 @@ namespace AgriIDMS.Application.Services
                 TotalRevenue = totalRevenue,
                 TotalCost = totalCost,
                 TotalProfit = totalProfit,
+                TotalDisposedKg = disposedKg,
+                TotalStockAdjustmentLossKg = stockAdjustmentLossKg,
                 ProfitMarginPercent = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100m : 0m,
                 TotalRows = totalRows,
                 Page = page,

@@ -46,6 +46,25 @@ namespace AgriIDMS.Application.Services
             if (!hasNonExpired)
                 throw new InvalidBusinessRuleException("Box đã hết hạn thì tiêu hủy trực tiếp, không cần gửi yêu cầu duyệt.");
 
+            var pendingBoxIds = await _repo.GetPendingBoxIdsAsync(ids, dto.WarehouseId);
+            if (pendingBoxIds.Count > 0)
+            {
+                var pendingCodeSet = boxes
+                    .Where(b => pendingBoxIds.Contains(b.Id))
+                    .Select(b => b.BoxCode)
+                    .Where(code => !string.IsNullOrWhiteSpace(code))
+                    .Distinct()
+                    .Take(5)
+                    .ToList();
+
+                var codePart = pendingCodeSet.Count > 0
+                    ? $" ({string.Join(", ", pendingCodeSet)})"
+                    : string.Empty;
+
+                throw new InvalidBusinessRuleException(
+                    $"Một hoặc nhiều box đã có yêu cầu tiêu hủy đang chờ duyệt{codePart}. Vui lòng chờ Admin xử lý.");
+            }
+
             var req = new DisposalRequest
             {
                 WarehouseId = dto.WarehouseId,
