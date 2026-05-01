@@ -1825,13 +1825,21 @@ namespace AgriIDMS.Application.Services
                 }
             }
 
+            // Quá hạn chờ sale xác nhận: trả lỗi timeout rõ ràng, không chạy xuống validate thiếu thùng.
+            if (saleConfirmWindowExpired)
+            {
+                throw new InvalidBusinessRuleException(
+                    $"Đơn đã quá thời gian chờ sale xác nhận ({_onlineOrderSoftLockDuration.TotalMinutes:0} phút). " +
+                    "Vui lòng tạo đơn mới.");
+            }
+
             var activeReserved = (await _allocationRepo.GetByOrderIdAsync(order.Id, AllocationStatus.Reserved))
                 .Where(a => !a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)
                 .ToList();
 
             if (!ActiveReservedCoversAllOrderDetails(order, activeReserved, utcNow))
             {
-                await FillReservedGapsForOnlineOrderAsync(order, utcNow, activeReserved, saleConfirmWindowExpired);
+                await FillReservedGapsForOnlineOrderAsync(order, utcNow, activeReserved);
                 activeReserved = (await _allocationRepo.GetByOrderIdAsync(order.Id, AllocationStatus.Reserved))
                     .Where(a => !a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)
                     .ToList();
@@ -1839,11 +1847,7 @@ namespace AgriIDMS.Application.Services
 
             if (!ActiveReservedCoversAllOrderDetails(order, activeReserved, utcNow))
             {
-                var timeoutPrefix = saleConfirmWindowExpired
-                    ? $"Đơn đã quá thời gian chờ sale xác nhận ({_onlineOrderSoftLockDuration.TotalMinutes:0} phút). "
-                    : string.Empty;
                 throw new InvalidBusinessRuleException(
-                    timeoutPrefix +
                     "Không đủ thùng khả dụng đúng quy cách để xác nhận sale. " +
                     "Vui lòng điều chỉnh đơn hoặc tạo đơn mới.");
             }
@@ -1864,8 +1868,7 @@ namespace AgriIDMS.Application.Services
         private async Task FillReservedGapsForOnlineOrderAsync(
             Order order,
             DateTime utcNow,
-            List<OrderAllocation> activeReserved,
-            bool saleConfirmWindowExpired)
+            List<OrderAllocation> activeReserved)
         {
             var selectedBoxIds = new HashSet<int>(activeReserved.Select(a => a.BoxId));
             var reserveUntil = utcNow.AddHours(AllocationExpirationHours);
@@ -1921,12 +1924,8 @@ namespace AgriIDMS.Application.Services
                 if (picked < need)
                 {
                     var variantLabel = await GetVariantDisplayLabelAsync(detail.ProductVariantId, detail.ProductVariant);
-                    var timeoutPrefix = saleConfirmWindowExpired
-                        ? $"Đơn đã quá thời gian chờ sale xác nhận ({_onlineOrderSoftLockDuration.TotalMinutes:0} phút). "
-                        : string.Empty;
                     throw new InvalidBusinessRuleException(
-                        timeoutPrefix +
-                        $"Không đủ thùng khả dụng để bù cho {variantLabel}. " +
+                        $"Không đủ thùng khả dụng cho {variantLabel}. " +
                         $"Thiếu {need - picked} thùng (cần {need}, bù được {picked}), " +
                         $"quy cách {(detail.IsPartial ? "thùng lẻ" : "thùng đầy")} {detail.BoxWeight:N2} kg/thùng.");
                 }
