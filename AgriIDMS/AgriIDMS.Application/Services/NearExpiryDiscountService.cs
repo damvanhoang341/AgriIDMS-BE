@@ -42,7 +42,37 @@ namespace AgriIDMS.Application.Services
             }
 
             var now = DateTime.UtcNow;
+            var hasAnyOverrideConfig = (await _overrideRepo.GetAllAsync()).Count > 0;
+            // Nghiệp vụ mới: danh sách override trống => tắt toàn bộ giảm giá.
+            if (!hasAnyOverrideConfig)
+            {
+                return new NearExpiryDiscountResultDto
+                {
+                    AppliedPercent = 0,
+                    FinalUnitPrice = baseUnitPrice,
+                    DiscountAmount = 0,
+                    SourceType = NearExpiryDiscountSourceType.None
+                };
+            }
+
+            var activeOverride = await _overrideRepo.GetActiveOverrideForVariantAsync(productVariantId, now);
             var availableBoxes = await _boxRepo.GetAvailableBoxesForVariantAsync(productVariantId, includeOfflineOnly);
+
+            // Override theo lot: áp trực tiếp cho lot được chỉ định, không phụ thuộc điều kiện near-expiry.
+            var overrideLotId = TryParseEmbeddedLotId(activeOverride?.Reason);
+            if (activeOverride != null
+                && activeOverride.OverrideNearExpiryDiscountPercent > 0
+                && overrideLotId.HasValue
+                && availableBoxes.Any(b => b.LotId == overrideLotId.Value))
+            {
+                return BuildResult(
+                    baseUnitPrice,
+                    activeOverride.OverrideNearExpiryDiscountPercent,
+                    null,
+                    activeOverride.Id,
+                    NearExpiryDiscountSourceType.ProductOverride);
+            }
+
             var nearestExpiry = availableBoxes
                 .Select(b => b.Lot?.ExpiryDate)
                 .Where(d => d.HasValue)
@@ -65,7 +95,6 @@ namespace AgriIDMS.Application.Services
                 };
             }
 
-            var activeOverride = await _overrideRepo.GetActiveOverrideForVariantAsync(productVariantId, now);
             if (activeOverride != null && activeOverride.OverrideNearExpiryDiscountPercent > 0)
             {
                 return BuildResult(
@@ -135,6 +164,23 @@ namespace AgriIDMS.Application.Services
                 DiscountAmount = discountAmount,
                 FinalUnitPrice = finalUnitPrice
             };
+        }
+
+        private static int? TryParseEmbeddedLotId(string? rawReason)
+        {
+            if (string.IsNullOrWhiteSpace(rawReason))
+                return null;
+
+            var text = rawReason.Trim();
+            if (!text.StartsWith("[LOT:", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var closeBracket = text.IndexOf(']');
+            if (closeBracket <= 5)
+                return null;
+
+            var numberPart = text.Substring(5, closeBracket - 5);
+            return int.TryParse(numberPart, out var lotId) && lotId > 0 ? lotId : null;
         }
     }
 }
