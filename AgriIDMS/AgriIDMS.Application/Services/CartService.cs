@@ -50,36 +50,6 @@ namespace AgriIDMS.Application.Services
             return result.FinalUnitPrice;
         }
 
-        private const decimal CartPriceRefreshTolerance = 0.02m;
-
-        /// <summary>Cập nhật đơn giá các dòng theo ưu đãi hiện tại (dòng cũ có thể còn giá niêm yết).</summary>
-        private async Task RefreshCartItemUnitPricesAsync(Cart cart)
-        {
-            if (cart.Items == null || !cart.Items.Any())
-                return;
-
-            var changed = false;
-            foreach (var item in cart.Items)
-            {
-                var basePrice = item.ProductVariant?.Price ?? 0m;
-                if (basePrice <= 0)
-                    continue;
-
-                var resolved = await ResolveCartUnitPricePerKgAsync(item.ProductVariantId, basePrice);
-                if (Math.Abs(item.UnitPrice - resolved) > CartPriceRefreshTolerance)
-                {
-                    item.UnitPrice = resolved;
-                    changed = true;
-                }
-            }
-
-            if (!changed)
-                return;
-
-            cart.UpdatedAt = DateTime.UtcNow;
-            await _uow.SaveChangesAsync();
-        }
-
         public async Task<CartDto> GetMyCartAsync(string userId)
         {
             var cart = await _cartRepo.GetByUserIdWithItemsAsync(userId);
@@ -91,8 +61,6 @@ namespace AgriIDMS.Application.Services
                     UpdatedAt = DateTime.UtcNow
                 };
             }
-
-            await RefreshCartItemUnitPricesAsync(cart);
 
             var items = _cartItemService.GetCartItemDtos(cart);
             return new CartDto
@@ -158,8 +126,9 @@ namespace AgriIDMS.Application.Services
                 }
                 else
                 {
+                    // Giá của dòng đã có trong giỏ được "khóa" tại thời điểm thêm lần đầu.
+                    // Không ghi đè theo cấu hình giảm giá hiện tại để giữ quyền lợi khách.
                     existingItem.Quantity += request.Quantity;
-                    existingItem.UnitPrice = unitPricePerKg;
                 }
 
                 cart.UpdatedAt = DateTime.UtcNow;
@@ -189,12 +158,7 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException(
                     $"Số lượng box yêu cầu ({request.Quantity}) vượt số box khả dụng ({availableBoxes}).");
 
-            var variant = await _variantRepo.GetProductVariantByIdAsync(productVariantId)
-                ?? throw new NotFoundException("Không tìm thấy biến thể sản phẩm.");
-            var unitPricePerKg = await ResolveCartUnitPricePerKgAsync(variant.Id, variant.Price);
-
             item.Quantity = request.Quantity;
-            item.UnitPrice = unitPricePerKg;
             cart.UpdatedAt = DateTime.UtcNow;
 
             await _uow.SaveChangesAsync();

@@ -185,6 +185,17 @@ namespace AgriIDMS.Application.Services
             var order = payment.Order
                 ?? throw new NotFoundException($"Order liên kết với payment #{paymentId} không tồn tại");
 
+            // PayAfter + Delivery: chỉ cho phép xác nhận đã thu tiền mặt
+            // khi đơn đã vào luồng vận chuyển (phiếu xuất đã duyệt).
+            if (order.PaymentTiming == PaymentTiming.PayAfter
+                && order.FulfillmentType == FulfillmentType.Delivery
+                && order.Status != OrderStatus.ApprovedExport
+                && order.Status != OrderStatus.Delivered)
+            {
+                throw new InvalidBusinessRuleException(
+                    $"Chưa thể xác nhận đã thu tiền mặt: đơn giao hàng trả sau chỉ được xác nhận khi đã duyệt xuất hoặc đã giao hàng (ApprovedExport/Delivered). Hiện tại: {order.Status}");
+            }
+
             payment.PaymentStatus = PaymentStatus.Paid;
             payment.PaidAt = DateTime.UtcNow;
 

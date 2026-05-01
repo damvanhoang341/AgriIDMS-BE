@@ -537,69 +537,13 @@ namespace AgriIDMS.Application.Services
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefault();
 
-            var notifyOrderPaid = false;
-
-            if (order.PaymentTiming == PaymentTiming.PayAfter)
+            // Tách riêng nghiệp vụ: xác nhận giao hàng KHÔNG tự xác nhận thanh toán.
+            // Đơn PayBefore vẫn bắt buộc đã Paid trước khi được Delivered.
+            if (order.PaymentTiming == PaymentTiming.PayBefore && latestPayment == null)
             {
-                if (latestPayment == null)
-                {
-                    order.Payments ??= new List<Payment>();
-                    order.Payments.Add(new Payment
-                    {
-                        OrderId = order.Id,
-                        PaymentMethod = PaymentMethod.Cash,
-                        PaymentStatus = PaymentStatus.Paid,
-                        Amount = order.TotalAmount,
-                        PaidAt = DateTime.UtcNow,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                    notifyOrderPaid = true;
-                }
-                else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
-                {
-                    if (latestPayment.PaymentMethod == PaymentMethod.Cash && latestPayment.PaymentStatus == PaymentStatus.Pending)
-                    {
-                        latestPayment.PaymentStatus = PaymentStatus.Paid;
-                        latestPayment.PaidAt = DateTime.UtcNow;
-                        notifyOrderPaid = true;
-                    }
-                    else if (latestPayment.PaymentMethod == PaymentMethod.Banking
-                             && (latestPayment.PaymentStatus == PaymentStatus.Processing
-                                 || latestPayment.PaymentStatus == PaymentStatus.Pending))
-                    {
-                        latestPayment.PaymentStatus = PaymentStatus.Paid;
-                        latestPayment.PaidAt = DateTime.UtcNow;
-                        notifyOrderPaid = true;
-                    }
-                    else
-                    {
-                        throw new InvalidBusinessRuleException(
-                            $"Đơn trả sau: không thể xác nhận giao khi thanh toán {latestPayment.PaymentMethod} đang {latestPayment.PaymentStatus}.");
-                    }
-                }
-            }
-            else if (latestPayment == null)
-            {
-                if (order.PaymentTiming == PaymentTiming.PayAfter)
-                    throw new InvalidBusinessRuleException(
-                        "Đơn trả sau: vui lòng ghi nhận thanh toán (ví dụ tạo thanh toán tiền mặt và xác nhận đã thu) trước khi xác nhận đã giao.");
                 throw new InvalidBusinessRuleException("Không tìm thấy thông tin thanh toán của đơn hàng");
             }
-            else if (order.PaymentTiming == PaymentTiming.PayAfter && latestPayment.PaymentMethod == PaymentMethod.Cash)
-            {
-                if (latestPayment.PaymentStatus == PaymentStatus.Pending)
-                {
-                    latestPayment.PaymentStatus = PaymentStatus.Paid;
-                    latestPayment.PaidAt = DateTime.UtcNow;
-                    notifyOrderPaid = true;
-                }
-                else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
-                {
-                    throw new InvalidBusinessRuleException(
-                        $"Không thể xác nhận Delivered khi tiền mặt có trạng thái thanh toán {latestPayment.PaymentStatus}");
-                }
-            }
-            else if (latestPayment.PaymentStatus != PaymentStatus.Paid)
+            if (order.PaymentTiming == PaymentTiming.PayBefore && latestPayment!.PaymentStatus != PaymentStatus.Paid)
             {
                 throw new InvalidBusinessRuleException("Đơn chưa thanh toán thành công (Paid), không thể xác nhận Delivered");
             }
@@ -608,9 +552,6 @@ namespace AgriIDMS.Application.Services
             order.ShippingStatus = ShippingStatus.DeliveredShip;
             order.DeliveredAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync();
-
-            if (notifyOrderPaid)
-                await _notificationService.NotifyOrderPaidAsync(order.Id);
 
             await _notificationService.NotifyOrderDeliveredForReviewAsync(order.Id);
         }
@@ -661,6 +602,18 @@ namespace AgriIDMS.Application.Services
 
             var order = await _orderRepo.GetByIdWithPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.PaymentTiming != PaymentTiming.PayAfter)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ xác nhận thu tiền mặt cho đơn trả sau (PayAfter). Hiện tại: {order.PaymentTiming}");
+
+            // Delivery: chỉ được xác nhận đã thu tiền khi đơn đã vào luồng vận chuyển
+            // (phiếu xuất đã duyệt hoặc đã giao hàng).
+            if (IsDelivery(order)
+                && order.Status != OrderStatus.ApprovedExport
+                && order.Status != OrderStatus.Delivered)
+                throw new InvalidBusinessRuleException(
+                    $"Chưa thể xác nhận đã thu tiền mặt: đơn giao hàng chỉ được xác nhận khi đã duyệt xuất hoặc đã giao hàng (ApprovedExport/Delivered). Hiện tại: {order.Status}");
 
             var latestCashPayment = order.Payments?
                 .Where(p => p.PaymentMethod == PaymentMethod.Cash)
@@ -1825,13 +1778,21 @@ namespace AgriIDMS.Application.Services
                 }
             }
 
+            // Quá hạn chờ sale xác nhận: trả lỗi timeout rõ ràng, không chạy xuống validate thiếu thùng.
+            if (saleConfirmWindowExpired)
+            {
+                throw new InvalidBusinessRuleException(
+                    $"Đơn đã quá thời gian chờ sale xác nhận ({_onlineOrderSoftLockDuration.TotalMinutes:0} phút). " +
+                    "Vui lòng tạo đơn mới.");
+            }
+
             var activeReserved = (await _allocationRepo.GetByOrderIdAsync(order.Id, AllocationStatus.Reserved))
                 .Where(a => !a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)
                 .ToList();
 
             if (!ActiveReservedCoversAllOrderDetails(order, activeReserved, utcNow))
             {
-                await FillReservedGapsForOnlineOrderAsync(order, utcNow, activeReserved, saleConfirmWindowExpired);
+                await FillReservedGapsForOnlineOrderAsync(order, utcNow, activeReserved);
                 activeReserved = (await _allocationRepo.GetByOrderIdAsync(order.Id, AllocationStatus.Reserved))
                     .Where(a => !a.ExpiredAt.HasValue || a.ExpiredAt > utcNow)
                     .ToList();
@@ -1839,11 +1800,7 @@ namespace AgriIDMS.Application.Services
 
             if (!ActiveReservedCoversAllOrderDetails(order, activeReserved, utcNow))
             {
-                var timeoutPrefix = saleConfirmWindowExpired
-                    ? $"Đơn đã quá thời gian chờ sale xác nhận ({_onlineOrderSoftLockDuration.TotalMinutes:0} phút). "
-                    : string.Empty;
                 throw new InvalidBusinessRuleException(
-                    timeoutPrefix +
                     "Không đủ thùng khả dụng đúng quy cách để xác nhận sale. " +
                     "Vui lòng điều chỉnh đơn hoặc tạo đơn mới.");
             }
@@ -1864,8 +1821,7 @@ namespace AgriIDMS.Application.Services
         private async Task FillReservedGapsForOnlineOrderAsync(
             Order order,
             DateTime utcNow,
-            List<OrderAllocation> activeReserved,
-            bool saleConfirmWindowExpired)
+            List<OrderAllocation> activeReserved)
         {
             var selectedBoxIds = new HashSet<int>(activeReserved.Select(a => a.BoxId));
             var reserveUntil = utcNow.AddHours(AllocationExpirationHours);
@@ -1921,12 +1877,8 @@ namespace AgriIDMS.Application.Services
                 if (picked < need)
                 {
                     var variantLabel = await GetVariantDisplayLabelAsync(detail.ProductVariantId, detail.ProductVariant);
-                    var timeoutPrefix = saleConfirmWindowExpired
-                        ? $"Đơn đã quá thời gian chờ sale xác nhận ({_onlineOrderSoftLockDuration.TotalMinutes:0} phút). "
-                        : string.Empty;
                     throw new InvalidBusinessRuleException(
-                        timeoutPrefix +
-                        $"Không đủ thùng khả dụng để bù cho {variantLabel}. " +
+                        $"Không đủ thùng khả dụng cho {variantLabel}. " +
                         $"Thiếu {need - picked} thùng (cần {need}, bù được {picked}), " +
                         $"quy cách {(detail.IsPartial ? "thùng lẻ" : "thùng đầy")} {detail.BoxWeight:N2} kg/thùng.");
                 }

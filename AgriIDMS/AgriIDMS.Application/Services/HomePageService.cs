@@ -44,6 +44,7 @@ namespace AgriIDMS.Application.Services
             var variants = await _repo.GetAllAsync();
             var now = DateTime.UtcNow;
             var activeRules = await _nearExpiryRuleRepo.GetActiveRulesAsync(now);
+            var hasAnyOverrideConfig = (await _variantOverrideRepo.GetAllAsync()).Count > 0;
             var activeOverrides = await _variantOverrideRepo.GetActiveOverridesByVariantIdsAsync(
                 variants.Select(v => v.Id),
                 now);
@@ -54,7 +55,8 @@ namespace AgriIDMS.Application.Services
                     x.Id,
                     x.Price,
                     activeRules,
-                    activeOverrides.TryGetValue(x.Id, out var ov) ? ov : null);
+                    activeOverrides.TryGetValue(x.Id, out var ov) ? ov : null,
+                    hasAnyOverrideConfig);
                 result.Add(new ProductVariantResponseCustomerHomeDto
                 {
                     Id = x.Id,
@@ -83,12 +85,14 @@ namespace AgriIDMS.Application.Services
 
             var now = DateTime.UtcNow;
             var activeRules = await _nearExpiryRuleRepo.GetActiveRulesAsync(now);
+            var hasAnyOverrideConfig = (await _variantOverrideRepo.GetAllAsync()).Count > 0;
             var activeOverride = await _variantOverrideRepo.GetActiveOverrideForVariantAsync(variant.Id, now);
             var pricing = await BuildNearExpiryPricingAsync(
                 variant.Id,
                 variant.Price,
                 activeRules,
-                activeOverride);
+                activeOverride,
+                hasAnyOverrideConfig);
 
             var boxTypeSummaries = await _boxRepo.GetAvailableBoxTypeSummaryByVariantIdAsync(variant.Id);
 
@@ -130,9 +134,14 @@ namespace AgriIDMS.Application.Services
             int productVariantId,
             decimal basePricePerKg,
             List<NearExpiryDiscountRule> activeRules,
-            ProductVariantDiscountOverride? activeOverride)
+            ProductVariantDiscountOverride? activeOverride,
+            bool hasAnyOverrideConfig)
         {
             if (basePricePerKg <= 0)
+                return (false, null, null, new List<NearExpiryPriceTierDto>());
+
+            // Nghiệp vụ mới: danh sách override trống => tắt toàn bộ giảm giá trên shop.
+            if (!hasAnyOverrideConfig)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
 
             var orderedRules = (activeRules ?? new List<NearExpiryDiscountRule>())
@@ -150,6 +159,73 @@ namespace AgriIDMS.Application.Services
             var boxes = await _boxRepo.GetAvailableBoxesForVariantAsync(productVariantId, includeOfflineOnly: false);
             if (boxes == null || boxes.Count == 0)
                 return (false, null, null, new List<NearExpiryPriceTierDto>());
+
+            // Override theo lot: áp trực tiếp cho lot được chỉ định, không phụ thuộc điều kiện near-expiry.
+            var overrideLotId = TryParseEmbeddedLotId(activeOverride?.Reason);
+            if (overrideLotId.HasValue
+                && activeOverride != null
+                && activeOverride.OverrideNearExpiryDiscountPercent > 0)
+            {
+                var lotBoxes = boxes.Where(b => b.LotId == overrideLotId.Value).ToList();
+                if (lotBoxes.Count > 0)
+                {
+                    var percent = activeOverride.OverrideNearExpiryDiscountPercent;
+                    var pricePerKg = Math.Round(
+                        Math.Max(basePricePerKg * (1 - (percent / 100m)), 0.01m),
+                        2,
+                        MidpointRounding.AwayFromZero);
+
+                    var lotDaysLeft = lotBoxes
+                        .Select(b => b.Lot?.ExpiryDate.Date)
+                        .Where(d => d.HasValue)
+                        .Select(d => (d!.Value - today).Days)
+                        .DefaultIfEmpty(0)
+                        .Max();
+
+                    var tiersByLot = new List<NearExpiryPriceTierDto>
+                    {
+                        new NearExpiryPriceTierDto
+                        {
+                            MaxDaysLeft = Math.Max(0, lotDaysLeft),
+                            DiscountPercent = percent,
+                            PricePerKg = pricePerKg,
+                            BoxCount = lotBoxes.Count
+                        }
+                    };
+
+                    return (true, percent, pricePerKg, tiersByLot);
+                }
+            }
+
+            // Override theo toàn biến thể: hiển thị ưu đãi nếu có tồn khả dụng, không bắt buộc near-expiry.
+            if (activeOverride != null && activeOverride.OverrideNearExpiryDiscountPercent > 0)
+            {
+                var percent = activeOverride.OverrideNearExpiryDiscountPercent;
+                var pricePerKg = Math.Round(
+                    Math.Max(basePricePerKg * (1 - (percent / 100m)), 0.01m),
+                    2,
+                    MidpointRounding.AwayFromZero);
+
+                var allDaysLeft = boxes
+                    .Select(b => b.Lot?.ExpiryDate.Date)
+                    .Where(d => d.HasValue)
+                    .Select(d => (d!.Value - today).Days)
+                    .Where(daysLeft => daysLeft >= 0)
+                    .ToList();
+
+                var tiersByVariant = new List<NearExpiryPriceTierDto>
+                {
+                    new NearExpiryPriceTierDto
+                    {
+                        MaxDaysLeft = allDaysLeft.Count > 0 ? allDaysLeft.Max() : 0,
+                        DiscountPercent = percent,
+                        PricePerKg = pricePerKg,
+                        BoxCount = boxes.Count
+                    }
+                };
+
+                return (true, percent, pricePerKg, tiersByVariant);
+            }
 
             var nearExpiryDaysLeft = boxes
                 .Select(b => b.Lot?.ExpiryDate.Date)
@@ -294,6 +370,23 @@ namespace AgriIDMS.Application.Services
                 MidpointRounding.AwayFromZero);
 
             return (true, percent, discounted, tiers);
+        }
+
+        private static int? TryParseEmbeddedLotId(string? rawReason)
+        {
+            if (string.IsNullOrWhiteSpace(rawReason))
+                return null;
+
+            var text = rawReason.Trim();
+            if (!text.StartsWith("[LOT:", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var closeBracket = text.IndexOf(']');
+            if (closeBracket <= 5)
+                return null;
+
+            var numberPart = text.Substring(5, closeBracket - 5);
+            return int.TryParse(numberPart, out var lotId) && lotId > 0 ? lotId : null;
         }
     }
 }
