@@ -66,6 +66,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(r => r.Warehouse)
                 .Include(l => l.ProductVariant)
                     .ThenInclude(v => v.Product)
+                .Include(l => l.Boxes)
                 .Where(l => l.GoodsReceiptDetail.GoodsReceiptId == goodsReceiptId)
                 .ToListAsync();
         }
@@ -89,6 +90,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(r => r.Warehouse)
                 .Include(l => l.ProductVariant)
                     .ThenInclude(v => v.Product)
+                .Include(l => l.Boxes)
                 .OrderByDescending(l => l.ReceivedDate)
                 .ToListAsync();
         }
@@ -101,6 +103,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                         .ThenInclude(r => r.Warehouse)
                 .Include(l => l.ProductVariant)
                     .ThenInclude(v => v.Product)
+                .Include(l => l.Boxes)
                 .Where(l => l.ProductVariantId == productVariantId)
                 .OrderBy(l => l.ExpiryDate)
                 .ThenByDescending(l => l.ReceivedDate)

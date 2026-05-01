@@ -38,13 +38,16 @@ namespace AgriIDMS.Application.Services
             {
                 var detail = l.GoodsReceiptDetail;
                 var productVariant = l.ProductVariant;
+                var remainingFromBoxes = l.Boxes
+                    .Where(b => (b.Status == BoxStatus.Stored || b.Status == BoxStatus.Reserved) && b.Weight > 0m)
+                    .Sum(b => b.Weight);
                 return new LotListItemDto
                 {
                     LotId = l.Id,
                     LotCode = l.LotCode,
                     QrImageUrl = l.QrImageUrl,
                     TotalQuantity = l.TotalQuantity,
-                    RemainingQuantity = l.RemainingQuantity,
+                    RemainingQuantity = remainingFromBoxes,
                     ReceivedDate = l.ReceivedDate,
                     ExpiryDate = l.ExpiryDate,
                     Status = l.Status.ToString(),
@@ -118,13 +121,16 @@ namespace AgriIDMS.Application.Services
             {
                 var detail = l.GoodsReceiptDetail;
                 var productVariant = l.ProductVariant;
+                var remainingFromBoxes = l.Boxes
+                    .Where(b => (b.Status == BoxStatus.Stored || b.Status == BoxStatus.Reserved) && b.Weight > 0m)
+                    .Sum(b => b.Weight);
                 return new LotListItemDto
                 {
                     LotId = l.Id,
                     LotCode = l.LotCode,
                     QrImageUrl = l.QrImageUrl,
                     TotalQuantity = l.TotalQuantity,
-                    RemainingQuantity = l.RemainingQuantity,
+                    RemainingQuantity = remainingFromBoxes,
                     ReceivedDate = l.ReceivedDate,
                     ExpiryDate = l.ExpiryDate,
                     Status = l.Status.ToString(),
@@ -150,13 +156,16 @@ namespace AgriIDMS.Application.Services
             {
                 var detail = l.GoodsReceiptDetail;
                 var productVariant = l.ProductVariant;
+                var remainingFromBoxes = l.Boxes
+                    .Where(b => (b.Status == BoxStatus.Stored || b.Status == BoxStatus.Reserved) && b.Weight > 0m)
+                    .Sum(b => b.Weight);
                 return new LotListItemDto
                 {
                     LotId = l.Id,
                     LotCode = l.LotCode,
                     QrImageUrl = l.QrImageUrl,
                     TotalQuantity = l.TotalQuantity,
-                    RemainingQuantity = l.RemainingQuantity,
+                    RemainingQuantity = remainingFromBoxes,
                     ReceivedDate = l.ReceivedDate,
                     ExpiryDate = l.ExpiryDate,
                     Status = l.Status.ToString(),
