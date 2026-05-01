@@ -176,6 +176,8 @@ namespace AgriIDMS.Application.Services
 
                         await _detailService.AddGoodsReceiptDetailAsync(addDetailRequest);
                     }
+
+                    await EnsureWarehouseCapacityAtCreateAsync(request.WarehouseId, request.Details);
                 }
 
                 // Không gọi auto approve ngay trong transaction hiện tại để tránh nested transaction.
@@ -579,6 +581,66 @@ namespace AgriIDMS.Application.Services
             if (operationalRequiredVolume - remainingCapacity > CapacityTolerance)
             {
                 var warehouseName = receipt.Warehouse?.Name ?? $"Id={receipt.WarehouseId}";
+                throw new InvalidBusinessRuleException(
+                    $"Kho [{warehouseName}] chỉ còn {remainingCapacity:N4} m³ trống (đã gồm hàng chưa xếp slot). " +
+                    $"Phiếu nhập cần khoảng {operationalRequiredVolume:N4} m³ (đã tính đệm vận hành 80% từ thể tích quy đổi). " +
+                    $"Kho đang áp dụng ngưỡng vận hành tối đa 80% sức chứa để chừa lối thao tác. Không đủ dung lượng.");
+            }
+        }
+
+        /// <summary>
+        /// Check Capacity sớm khi tạo phiếu nhập có kèm dòng chi tiết.
+        /// Dùng ReceivedWeight theo ProductVariant của PO line để ước tính thể tích cần nhập.
+        /// </summary>
+        private async Task EnsureWarehouseCapacityAtCreateAsync(
+            int warehouseId,
+            IEnumerable<CreateGoodsReceiptDetailLineRequest> detailLines)
+        {
+            var allVariants = (await _productVariantRepo.GetAllAsync())?.ToList() ?? new List<ProductVariant>();
+            var minDensityByProductId = allVariants
+                .Where(v => v.ProductId > 0 && v.DensityKgPerM3 > 0)
+                .GroupBy(v => v.ProductId)
+                .ToDictionary(g => g.Key, g => g.Min(v => v.DensityKgPerM3));
+
+            decimal totalInboundVolumeM3 = 0m;
+            foreach (var line in detailLines)
+            {
+                if (line.ReceivedWeight <= 0) continue;
+
+                var poDetail = await _purchaseOrderRepo.GetDetailByIdAsync(line.PurchaseOrderDetailId)
+                    ?? throw new NotFoundException($"Không tìm thấy dòng chi tiết đơn mua #{line.PurchaseOrderDetailId}");
+
+                var productId = poDetail.ProductId;
+                if (productId <= 0)
+                    throw new InvalidBusinessRuleException(
+                        $"Dòng chi tiết đơn mua #{poDetail.Id} chưa xác định sản phẩm để quy đổi dung tích.");
+
+                var density = minDensityByProductId.TryGetValue(productId, out var minDensity)
+                    ? minDensity
+                    : 0m;
+                if (density <= 0)
+                {
+                    throw new InvalidBusinessRuleException(
+                        $"Sản phẩm mã #{productId} chưa có biến thể cấu hình khối lượng riêng lớn hơn 0.");
+                }
+
+                totalInboundVolumeM3 += line.ReceivedWeight / density;
+            }
+
+            if (totalInboundVolumeM3 <= 0) return;
+
+            var operationalRequiredVolume = totalInboundVolumeM3 / OperationalBufferRatio;
+            decimal totalCapacity = await _warehouseRepo.GetTotalCapacityByWarehouseIdAsync(warehouseId);
+            decimal effectiveCapacity = totalCapacity * MaxSlotUtilizationRatio;
+            decimal assignedVolume = await _boxRepo.GetAssignedStockVolumeByWarehouseIdAsync(warehouseId);
+            decimal unassignedVolume = await _boxRepo.GetUnassignedStockVolumeByWarehouseIdAsync(warehouseId);
+            decimal usedCapacity = assignedVolume + unassignedVolume;
+            decimal remainingCapacity = Math.Max(0, effectiveCapacity - usedCapacity);
+
+            if (operationalRequiredVolume - remainingCapacity > CapacityTolerance)
+            {
+                var warehouse = await _warehouseRepo.GetWarehouseByIdAsync(warehouseId);
+                var warehouseName = warehouse?.Name ?? $"Id={warehouseId}";
                 throw new InvalidBusinessRuleException(
                     $"Kho [{warehouseName}] chỉ còn {remainingCapacity:N4} m³ trống (đã gồm hàng chưa xếp slot). " +
                     $"Phiếu nhập cần khoảng {operationalRequiredVolume:N4} m³ (đã tính đệm vận hành 80% từ thể tích quy đổi). " +
