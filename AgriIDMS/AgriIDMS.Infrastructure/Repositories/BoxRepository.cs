@@ -217,6 +217,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(b =>
                     b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
+                    b.SlotId != null &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > System.DateTime.UtcNow)
                 .AsQueryable();
@@ -260,6 +261,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(b =>
                     b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
+                    b.SlotId != null &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > utcNow);
 
@@ -282,6 +284,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(b =>
                     b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
+                    b.SlotId != null &&
                     b.Lot.Status == LotStatus.Active &&
                     b.IsPartial == isPartial &&
                     b.Weight == weight)
@@ -394,6 +397,7 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .Where(b =>
                     b.Lot.ProductVariantId == productVariantId &&
                     b.Status == BoxStatus.Stored &&
+                    b.SlotId != null &&
                     b.Lot.Status == LotStatus.Active &&
                     b.Lot.ExpiryDate > utcNow &&
                     !_context.StockCheckDetails.Any(d =>
