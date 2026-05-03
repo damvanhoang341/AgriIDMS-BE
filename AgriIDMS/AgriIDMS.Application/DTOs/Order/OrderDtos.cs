@@ -217,6 +217,10 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? LatestPaymentStatus { get; set; }
         /// <summary>Null nếu đơn online chưa chọn trả trước/trả sau (sau sale-confirm).</summary>
         public string? PaymentTiming { get; set; }
+        /// <summary>Tên khách / người nhận (ưu tiên CustomerName).</summary>
+        public string? CustomerName { get; set; }
+        /// <summary>SĐT khách (ưu tiên CustomerPhone).</summary>
+        public string? CustomerPhone { get; set; }
     }
 
     public class SaleConfirmOrderResponseDto
