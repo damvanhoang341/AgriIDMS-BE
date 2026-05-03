@@ -47,6 +47,10 @@ namespace AgriIDMS.Application.DTOs.Payment
         public int PaymentId { get; set; }
         public int OrderId { get; set; }
         public string CustomerUserId { get; set; } = null!;
+        /// <summary>Tên khách (POS / guest) hoặc người nhận — ưu tiên CustomerName.</summary>
+        public string? CustomerName { get; set; }
+        /// <summary>SĐT khách — ưu tiên CustomerPhone.</summary>
+        public string? CustomerPhone { get; set; }
         public decimal Amount { get; set; }
         public string PaymentStatus { get; set; } = null!;
         public string PaymentMethod { get; set; } = null!;
