@@ -769,6 +769,13 @@ namespace AgriIDMS.Application.Services
             if (densityKgPerM3 <= 0)
                 throw new InvalidBusinessRuleException("Biến thể sản phẩm chưa có khối lượng riêng hợp lệ để quy đổi thể tích.");
 
+            // Thể tích một thùng đầy theo kích cỡ chuẩn (không nhân 80%). Hệ số 80% chỉ áp dụng cho KL hàng/thùng
+            // khi chia lô; chiếm chỗ kho/slot phải theo thùng vật lý (vd. 0,1 m³), tránh đếm thiếu so với thực tế.
+            var nominalFullBoxVolumeM3 = decimal.Round(
+                requestedBoxSize / densityKgPerM3,
+                6,
+                MidpointRounding.AwayFromZero);
+
             int fullCount = (int)(total / boxSize);
             decimal remainder = total - fullCount * boxSize;
             int estimatedBoxes = fullCount + (remainder > 0 ? 1 : 0);
@@ -788,7 +795,7 @@ namespace AgriIDMS.Application.Services
                 {
                     LotId = lot.Id,
                     Weight = boxSize,
-                    VolumeM3 = boxSize / densityKgPerM3,
+                    VolumeM3 = nominalFullBoxVolumeM3,
                     Status = BoxStatus.Stored,
                     BoxCode = boxCode,
                     QRCode = boxCode,
