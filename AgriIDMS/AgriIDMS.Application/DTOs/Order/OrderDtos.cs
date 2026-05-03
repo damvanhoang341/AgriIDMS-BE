@@ -105,12 +105,24 @@ namespace AgriIDMS.Application.DTOs.Order
         public string? CustomerUserId { get; set; }
         public string? CustomerName { get; set; }
         public string? CustomerPhone { get; set; }
+        /// <summary>Địa chỉ giao / ghi nhận tại quầy (snapshot trên đơn, optional).</summary>
+        public string? CustomerAddress { get; set; }
         public FulfillmentType FulfillmentType { get; set; } = FulfillmentType.TakeAway;
         /// <summary>
         /// Chỉ áp dụng <see cref="FulfillmentType.Delivery"/>: trả trước / trả sau (cùng quy tắc xuất kho &amp; giao như đơn online). Bỏ qua nếu TakeAway. Mặc định PayBefore khi null.
         /// </summary>
         public PaymentTiming? PaymentTiming { get; set; }
         public List<CreatePosOrderItemRequest> Items { get; set; } = new();
+    }
+
+    /// <summary>Kết quả tra cứu khách theo SĐT (màn POS).</summary>
+    public class PosCustomerLookupResponseDto
+    {
+        public bool Found { get; set; }
+        public string? CustomerUserId { get; set; }
+        public string? FullName { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
     }
 
     public class CreatePosOrderItemRequest
@@ -139,6 +151,13 @@ namespace AgriIDMS.Application.DTOs.Order
     {
         public string? CustomerUserId { get; set; }
         public string? Source { get; set; } // Online | POS
+        public int Skip { get; set; } = 0;
+        public int Take { get; set; } = 50;
+    }
+
+    /// <summary>Danh sách đơn POS nhận tại quầy chờ kho xác nhận đã giao cho khách.</summary>
+    public class GetPendingPosCounterHandoverOrdersQuery
+    {
         public int Skip { get; set; } = 0;
         public int Take { get; set; } = 50;
     }

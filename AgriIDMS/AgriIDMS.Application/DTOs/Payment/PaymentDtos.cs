@@ -55,6 +55,10 @@ namespace AgriIDMS.Application.DTOs.Payment
         public string PaymentStatus { get; set; } = null!;
         public string PaymentMethod { get; set; } = null!;
         public string OrderStatus { get; set; } = null!;
+        /// <summary>Nguồn đơn (Online / POS) — dùng cho UI (ví dụ xác nhận tiền mặt tại quầy).</summary>
+        public string OrderSource { get; set; } = string.Empty;
+        public string FulfillmentType { get; set; } = string.Empty;
+        public string? PaymentTiming { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

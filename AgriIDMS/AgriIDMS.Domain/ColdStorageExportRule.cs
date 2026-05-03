@@ -3,7 +3,7 @@ using System;
 namespace AgriIDMS.Domain
 {
     /// <summary>
-    /// Quy tắc xuất kho lạnh: box phải nằm trong kho lạnh đủ thời gian (theo Warehouse.MinColdStorageHours, mặc định 48h) mới được xuất.
+    /// Quy tắc thời gian lưu lạnh (theo Warehouse.MinColdStorageHours, mặc định 48h). Luồng xác nhận lấy hàng không chặn — chỉ dùng để cảnh báo / kiểm tra mềm.
     /// </summary>
     public static class ColdStorageExportRule
     {
@@ -12,10 +12,12 @@ namespace AgriIDMS.Domain
         /// </summary>
         /// <param name="placedInColdAt">Thời điểm box được đặt vào slot kho lạnh (Box.PlacedInColdAt).</param>
         /// <param name="minColdStorageHours">Số giờ tối thiểu (Warehouse.MinColdStorageHours, ví dụ 48).</param>
-        /// <returns>True nếu đủ điều kiện xuất; false nếu chưa có dữ liệu hoặc chưa đủ giờ.</returns>
+        /// <returns>True nếu không có ngưỡng (≤0), hoặc đủ giờ; false nếu có ngưỡng nhưng thiếu mốc thời gian hoặc chưa đủ giờ.</returns>
         public static bool CanExportFromCold(DateTime? placedInColdAt, decimal minColdStorageHours)
         {
-            if (!placedInColdAt.HasValue || minColdStorageHours <= 0)
+            if (minColdStorageHours <= 0)
+                return true;
+            if (!placedInColdAt.HasValue)
                 return false;
             var hoursElapsed = (DateTime.UtcNow - placedInColdAt.Value).TotalHours;
             return hoursElapsed >= (double)minColdStorageHours;

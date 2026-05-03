@@ -1466,10 +1466,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
 
             entity.Property(x => x.PaidAt)
-                  .IsRequired(false);
+                  .IsRequired(false)
+                  .HasConversion(
+                      v => v,
+                      v => v == null ? null : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
 
             entity.Property(x => x.CreatedAt)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             entity.HasOne(x => x.Order)
                   .WithMany(o => o.Payments)

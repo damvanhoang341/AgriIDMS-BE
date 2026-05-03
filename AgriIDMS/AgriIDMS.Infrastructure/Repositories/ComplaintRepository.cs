@@ -71,7 +71,12 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .AsNoTracking()
                 .Include(c => c.Order)
                 .Include(c => c.Box)
-                .Where(c => c.Order.UserId == userId && !c.IsDeleted)
+                .Where(c =>
+                    !c.IsDeleted
+                    && (c.Order.UserId == userId
+                        || (c.Order.Source == OrderSource.POS
+                            && c.Order.CustomerUserId != null
+                            && c.Order.CustomerUserId == userId)))
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
         }

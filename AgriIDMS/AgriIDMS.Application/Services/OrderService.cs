@@ -1,3 +1,4 @@
+using AgriIDMS.Application;
 using AgriIDMS.Application.DTOs.Order;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
@@ -330,6 +331,67 @@ namespace AgriIDMS.Application.Services
             }).ToList();
         }
 
+        public async Task<IList<OrderListItemDto>> GetPendingPosCounterHandoverOrdersAsync(
+            GetPendingPosCounterHandoverOrdersQuery query)
+        {
+            query ??= new GetPendingPosCounterHandoverOrdersQuery();
+            var take = Math.Clamp(query.Take, 1, 200);
+            var skip = Math.Max(0, query.Skip);
+
+            var orders = await _orderRepo.GetPendingPosCounterHandoverOrdersAsync(skip, take);
+
+            return orders.Select(o => new OrderListItemDto
+            {
+                OrderId = o.Id,
+                TotalAmount = o.TotalAmount,
+                Status = o.Status.ToString(),
+                ShippingStatus = o.ShippingStatus.ToString(),
+                Source = o.Source.ToString(),
+                FulfillmentType = o.FulfillmentType.ToString(),
+                CreatedAt = o.CreatedAt,
+                ItemCount = o.Details?.Count ?? 0,
+                LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
+            }).ToList();
+        }
+
+        public async Task ConfirmPosCounterHandoverAsync(int orderId, string operatorUserId)
+        {
+            _ = operatorUserId;
+
+            var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.POS || order.FulfillmentType != FulfillmentType.TakeAway)
+                throw new InvalidBusinessRuleException(
+                    "Chỉ đơn POS nhận tại quầy mới được xác nhận giao hàng tại quầy.");
+
+            if (order.Status == OrderStatus.Delivered)
+                return;
+
+            if (order.Status != OrderStatus.ApprovedExport)
+                throw new InvalidBusinessRuleException(
+                    $"Chỉ xác nhận giao tại quầy khi đơn đã duyệt xuất (ApprovedExport). Hiện tại: {order.Status}");
+
+            var hasPaid = order.Payments != null && order.Payments.Any(p => p.PaymentStatus == PaymentStatus.Paid);
+            if (!hasPaid)
+                throw new InvalidBusinessRuleException(
+                    "Đơn chưa thanh toán thành công (Paid), không thể xác nhận giao tại quầy.");
+
+            if (!await _exportRepo.HasApprovedExportForOrderAsync(orderId))
+                throw new InvalidBusinessRuleException(
+                    "Chưa có phiếu xuất đã duyệt cho đơn này, không thể xác nhận giao tại quầy.");
+
+            order.Status = OrderStatus.Delivered;
+            order.DeliveredAt = DateTime.UtcNow;
+            order.ShippingStatus = ShippingStatus.None;
+            await _uow.SaveChangesAsync();
+
+            await _notificationService.NotifyOrderDeliveredForReviewAsync(order.Id);
+        }
+
         public async Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
@@ -436,7 +498,7 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(order, userId))
                 throw new ForbiddenException("Bạn không có quyền xem đơn hàng này");
 
             return await MapOrderToDetailDtoAsync(order);
@@ -497,7 +559,7 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdWithDetailsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(order, userId))
                 throw new ForbiddenException("Bạn không có quyền cập nhật đơn hàng này");
 
             if (order.Source != OrderSource.Online)
@@ -680,7 +742,7 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdWithDetailsAndPaymentsAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(order, userId))
                 throw new ForbiddenException("Bạn không có quyền hủy đơn hàng này");
 
             var canCancelBeforeShip =
@@ -1109,6 +1171,9 @@ namespace AgriIDMS.Application.Services
                 throw new InvalidBusinessRuleException("Đơn POS phải có ít nhất 1 dòng sản phẩm");
 
             var posCustomer = await ResolvePosCustomerAsync(request, operatorUserId);
+            var recipientAddressSnapshot = string.IsNullOrWhiteSpace(request.CustomerAddress)
+                ? string.Empty
+                : request.CustomerAddress.Trim();
 
             var now = DateTime.UtcNow;
             CreateOrderFromCartResponse response = null!;
@@ -1128,21 +1193,21 @@ namespace AgriIDMS.Application.Services
                     CustomerName = posCustomer.CustomerName,
                     CustomerPhone = posCustomer.CustomerPhone,
                     IsGuest = posCustomer.IsGuest,
-                    RecipientFullName = string.Empty,
-                    RecipientPhone = string.Empty,
-                    RecipientAddress = string.Empty
+                    RecipientFullName = posCustomer.CustomerName?.Trim() ?? string.Empty,
+                    RecipientPhone = posCustomer.CustomerPhone?.Trim() ?? string.Empty,
+                    RecipientAddress = recipientAddressSnapshot
                 };
 
                 if (request.FulfillmentType == FulfillmentType.TakeAway)
                 {
-                    // TakeAway: chỉ trả trước — thu đủ (Paid) mới được tạo/xử lý phiếu xuất; Delivered khi duyệt xuất.
+                    // TakeAway: chỉ trả trước — thu đủ (Paid) mới được xử lý phiếu xuất; Delivered khi kho xác nhận giao tại quầy (sau manager duyệt xuất).
                     order.PosCheckoutTiming = PosCheckoutTiming.PayBeforePick;
                     order.PaymentTiming = PaymentTiming.PayBefore;
                 }
                 else
                 {
-                    // POS Delivery: staff chọn PayBefore / PayAfter khi tạo (giống đơn online sau khi chọn timing).
-                    order.PaymentTiming = request.PaymentTiming ?? PaymentTiming.PayBefore;
+                    // POS tại quầy: chỉ trả trước (không trả sau như đơn online).
+                    order.PaymentTiming = PaymentTiming.PayBefore;
                 }
 
                 var responseItems = new List<OrderItemDto>();
@@ -1221,7 +1286,39 @@ namespace AgriIDMS.Application.Services
                 };
             });
 
+            await TryNotifyCustomerPosOrderCreatedAsync(response.OrderId);
+
             return response;
+        }
+
+        public async Task<PosCustomerLookupResponseDto> LookupPosCustomerByPhoneAsync(string operatorUserId, string phone)
+        {
+            if (string.IsNullOrWhiteSpace(phone))
+                return new PosCustomerLookupResponseDto { Found = false };
+
+            var normalized = phone.Trim();
+            var user = await _userRepo.GetByPhoneAsync(normalized);
+            if (user == null)
+                return new PosCustomerLookupResponseDto { Found = false };
+
+            if (string.Equals(user.Id, operatorUserId, StringComparison.Ordinal))
+                return new PosCustomerLookupResponseDto { Found = false };
+
+            if (user.Status != UserStatus.Active)
+                return new PosCustomerLookupResponseDto { Found = false };
+
+            var roles = await _userRepo.GetRolesAsync(user);
+            if (roles == null || !roles.Any(r => string.Equals(r, "Customer", StringComparison.OrdinalIgnoreCase)))
+                return new PosCustomerLookupResponseDto { Found = false };
+
+            return new PosCustomerLookupResponseDto
+            {
+                Found = true,
+                CustomerUserId = user.Id,
+                FullName = string.IsNullOrWhiteSpace(user.FullName) ? null : user.FullName.Trim(),
+                PhoneNumber = string.IsNullOrWhiteSpace(user.PhoneNumber) ? null : user.PhoneNumber.Trim(),
+                Address = string.IsNullOrWhiteSpace(user.Address) ? null : user.Address.Trim()
+            };
         }
 
         private async Task<PosCustomerInfo> ResolvePosCustomerAsync(CreatePosOrderRequest request, string operatorUserId)
@@ -2263,6 +2360,18 @@ namespace AgriIDMS.Application.Services
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to notify customer about sale-confirmed order {OrderId}", orderId);
+            }
+        }
+
+        private async Task TryNotifyCustomerPosOrderCreatedAsync(int orderId)
+        {
+            try
+            {
+                await _notificationService.NotifyPosOrderCreatedForCustomerAsync(orderId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to notify customer about POS order created {OrderId}", orderId);
             }
         }
 

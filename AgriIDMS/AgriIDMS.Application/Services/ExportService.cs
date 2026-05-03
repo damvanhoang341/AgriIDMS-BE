@@ -118,6 +118,7 @@ namespace AgriIDMS.Application.Services
 
             var allocations = await _allocationRepo.GetByOrderIdAsync(receipt.OrderId, AllocationStatus.Reserved);
             var allocByBox = allocations.ToDictionary(a => a.BoxId);
+            var pickWarnings = new List<string>();
 
             await _uow.ExecuteInRetryableTransactionAsync(async () =>
             {
@@ -125,8 +126,8 @@ namespace AgriIDMS.Application.Services
                 {
                     if (detail.Box != null)
                     {
-                        if (!IsColdStorageEligibleForExport(detail.Box, out var notEligibleMessage))
-                            throw new InvalidBusinessRuleException(notEligibleMessage!);
+                        if (TryGetColdStoragePickNotice(detail.Box, out var notice) && !string.IsNullOrWhiteSpace(notice))
+                            pickWarnings.Add(notice);
 
                         detail.Box.Status = BoxStatus.Picking;
                         await _boxRepo.UpdateAsync(detail.Box);
@@ -142,6 +143,13 @@ namespace AgriIDMS.Application.Services
                 receipt.Status = ExportStatus.ReadyToExport;
             });
 
+            if (pickWarnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "ExportReceipt {ExportId} confirm-pick with cold-storage notices: {Messages}",
+                    exportId, string.Join(" | ", pickWarnings));
+            }
+
             _logger.LogInformation(
                 "ExportReceipt {ExportId} confirmed pick → ReadyToExport. {Count} boxes picking.",
                 exportId, receipt.Details.Count);
@@ -152,7 +160,9 @@ namespace AgriIDMS.Application.Services
             forPrint.PrintDataSnapshotJson = JsonSerializer.Serialize(printDto, PrintJsonOptions);
             await _uow.SaveChangesAsync();
 
-            return MapToDto(forPrint);
+            var dto = MapToDto(forPrint);
+            dto.Warnings = pickWarnings;
+            return dto;
         }
 
         public async Task<ExportReceiptResponseDto> ApproveExportAsync(int exportId, string userId)
@@ -216,9 +226,8 @@ namespace AgriIDMS.Application.Services
                          && ord.Payments.Any(p => p.PaymentStatus == PaymentStatus.Paid)
                          && ord.Status != OrderStatus.Delivered)
                 {
-                    // TakeAway POS: đã Paid mới xuất được; hoàn tất tại quầy — không dùng tiến trình ship (khách tự mang).
-                    ord.Status = OrderStatus.Delivered;
-                    ord.DeliveredAt = DateTime.UtcNow;
+                    // TakeAway POS: đã Paid mới duyệt xuất; kho xác nhận giao tại quầy mới chuyển Delivered.
+                    ord.Status = OrderStatus.ApprovedExport;
                     ord.ShippingStatus = ShippingStatus.None;
                 }
             });
@@ -441,27 +450,33 @@ namespace AgriIDMS.Application.Services
         }
 
         /// <summary>
-        /// Chặn pick/export cho box kho lạnh khi chưa đủ thời gian lưu lạnh.
-        /// Reserve vẫn cho phép để giữ hàng.
+        /// Kho lạnh: không chặn lấy hàng; trả về cảnh báo nếu chưa đủ thời gian lưu lạnh hoặc thiếu mốc PlacedInColdAt.
         /// </summary>
-        private static bool IsColdStorageEligibleForExport(Box box, out string? message)
+        private static bool TryGetColdStoragePickNotice(Box box, out string? notice)
         {
+            notice = null;
             var warehouse = box.Slot?.Rack?.Zone?.Warehouse;
             if (warehouse == null || warehouse.TitleWarehouse != TitleWarehouse.Cold)
-            {
-                message = null;
-                return true;
-            }
+                return false;
 
             var minHours = warehouse.MinColdStorageHours ?? DefaultColdStorageHours;
-            if (ColdStorageExportRule.CanExportFromCold(box.PlacedInColdAt, minHours))
+            if (minHours <= 0)
+                return false;
+
+            if (!box.PlacedInColdAt.HasValue)
             {
-                message = null;
+                notice =
+                    $"Chú ý: Box {box.BoxCode} đang ở kho lạnh nhưng chưa có thời điểm vào kho lạnh — vẫn cho phép lấy hàng.";
                 return true;
             }
 
-            message = ColdStorageExportRule.GetNotEligibleMessage(box.BoxCode, minHours, box.PlacedInColdAt);
-            return false;
+            if (ColdStorageExportRule.CanExportFromCold(box.PlacedInColdAt, minHours))
+                return false;
+
+            var hoursElapsed = (DateTime.UtcNow - box.PlacedInColdAt.Value).TotalHours;
+            notice =
+                $"Chú ý: Box {box.BoxCode} chưa đủ thời gian lưu lạnh (yêu cầu tối thiểu {minHours} giờ, đã {hoursElapsed:F1} giờ) — đã cho phép lấy hàng.";
+            return true;
         }
 
         /// <summary>Xuất kho: đơn Confirmed + payment theo <see cref="PaymentTiming"/>.</summary>
