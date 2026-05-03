@@ -438,12 +438,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(150);
 
             entity.Property(x => x.ReceivedDate)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
-            entity.Property(x => x.ApprovedAt);
+            entity.Property(x => x.ApprovedAt)
+                  .HasConversion(
+                      v => v,
+                      v => v == null ? v : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
 
             entity.Property(x => x.PendingReason)
                   .HasMaxLength(500);
@@ -582,7 +591,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(x => x.InspectedBy)
                   .HasMaxLength(450);
 
-            entity.Property(x => x.InspectedAt);
+            entity.Property(x => x.InspectedAt)
+                  .HasConversion(
+                      v => v,
+                      v => v == null ? v : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
 
             entity.HasOne(x => x.GoodsReceiptDetail)
                   .WithOne(d => d.QcRecord)
@@ -656,13 +668,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
 
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             entity.Property(x => x.ExpiryDate)
                   .IsRequired();
 
             entity.Property(x => x.ReceivedDate)
-                  .IsRequired();
+                  .IsRequired()
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             // ================= RELATIONSHIPS =================
 
@@ -741,7 +759,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(500);
 
             entity.Property(x => x.PlacedInColdAt)
-                  .HasColumnType("datetime2");
+                  .HasColumnType("datetime2")
+                  .HasConversion(
+                      v => v,
+                      v => v == null ? v : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
 
             entity.Property(x => x.Status)
                   .HasConversion<string>()
@@ -749,7 +770,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
 
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             // =============================
             // Relationships
@@ -846,7 +870,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(50);
 
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             // Box (1 - many)
             entity.HasOne(x => x.Box)
@@ -1583,7 +1610,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .IsRequired();
 
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             entity.Property(x => x.PrintDataSnapshotJson)
                   .HasColumnType("nvarchar(max)");
