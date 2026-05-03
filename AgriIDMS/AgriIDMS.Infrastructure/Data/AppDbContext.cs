@@ -1305,8 +1305,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                   .HasMaxLength(30)
                   .IsRequired(false);
 
+            // DB/SQL lưu UTC (UtcNow / GETUTCDATE); EF trả về Kind=Unspecified → JSON không có Z và client dễ hiểu sai múi giờ.
             entity.Property(x => x.CreatedAt)
-                  .HasDefaultValueSql("GETUTCDATE()");
+                  .HasDefaultValueSql("GETUTCDATE()")
+                  .HasConversion(
+                      v => v,
+                      v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
 
             entity.Property(x => x.BackorderExpiryNotifiedAt)
                   .IsRequired(false);
