@@ -92,7 +92,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
-                PaymentTiming = o.PaymentTiming?.ToString()
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
             }).ToList();
         }
 
@@ -118,7 +120,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
-                PaymentTiming = o.PaymentTiming?.ToString()
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
             }).ToList();
         }
 
@@ -209,7 +213,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
-                PaymentTiming = o.PaymentTiming?.ToString()
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
             }).ToList();
         }
 
@@ -244,7 +250,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
-                PaymentTiming = o.PaymentTiming?.ToString()
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
             }).ToList();
         }
 
@@ -279,7 +287,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
-                PaymentTiming = o.PaymentTiming?.ToString()
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
             }).ToList();
         }
 
@@ -314,7 +324,9 @@ namespace AgriIDMS.Application.Services
                 CreatedAt = o.CreatedAt,
                 ItemCount = o.Details?.Count ?? 0,
                 LatestPaymentStatus = ResolveDisplayPaymentStatus(o.Payments),
-                PaymentTiming = o.PaymentTiming?.ToString()
+                PaymentTiming = o.PaymentTiming?.ToString(),
+                CustomerName = MapOrderListCustomerName(o),
+                CustomerPhone = MapOrderListCustomerPhone(o)
             }).ToList();
         }
 
@@ -1342,7 +1354,9 @@ namespace AgriIDMS.Application.Services
                     CreatedAt = orderAfter.CreatedAt,
                     ItemCount = orderAfter.Details?.Count ?? 0,
                     LatestPaymentStatus = null,
-                    PaymentTiming = orderAfter.PaymentTiming?.ToString()
+                    PaymentTiming = orderAfter.PaymentTiming?.ToString(),
+                    CustomerName = MapOrderListCustomerName(orderAfter),
+                    CustomerPhone = MapOrderListCustomerPhone(orderAfter)
                 }
             };
         }
@@ -2192,6 +2206,20 @@ namespace AgriIDMS.Application.Services
 
         private static bool IsTakeAway(Order order) => order.FulfillmentType == FulfillmentType.TakeAway;
         private static bool IsDelivery(Order order) => order.FulfillmentType == FulfillmentType.Delivery;
+
+        private static string? MapOrderListCustomerName(Order o)
+        {
+            if (!string.IsNullOrWhiteSpace(o.CustomerName)) return o.CustomerName.Trim();
+            if (!string.IsNullOrWhiteSpace(o.RecipientFullName)) return o.RecipientFullName.Trim();
+            return null;
+        }
+
+        private static string? MapOrderListCustomerPhone(Order o)
+        {
+            if (!string.IsNullOrWhiteSpace(o.CustomerPhone)) return o.CustomerPhone.Trim();
+            if (!string.IsNullOrWhiteSpace(o.RecipientPhone)) return o.RecipientPhone.Trim();
+            return null;
+        }
 
         private static string? ResolveDisplayPaymentStatus(IEnumerable<Payment>? payments)
         {

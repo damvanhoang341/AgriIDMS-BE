@@ -311,6 +311,8 @@ namespace AgriIDMS.Application.Services
                 PaymentId = p.Id,
                 OrderId = p.OrderId,
                 CustomerUserId = p.Order?.UserId ?? string.Empty,
+                CustomerName = MapPendingCashCustomerName(p.Order),
+                CustomerPhone = MapPendingCashCustomerPhone(p.Order),
                 Amount = p.Amount,
                 PaymentStatus = p.PaymentStatus.ToString(),
                 PaymentMethod = p.PaymentMethod.ToString(),
@@ -435,6 +437,22 @@ namespace AgriIDMS.Application.Services
         }
 
         // ===================== Mapping =====================
+
+        private static string? MapPendingCashCustomerName(Order? order)
+        {
+            if (order == null) return null;
+            if (!string.IsNullOrWhiteSpace(order.CustomerName)) return order.CustomerName.Trim();
+            if (!string.IsNullOrWhiteSpace(order.RecipientFullName)) return order.RecipientFullName.Trim();
+            return null;
+        }
+
+        private static string? MapPendingCashCustomerPhone(Order? order)
+        {
+            if (order == null) return null;
+            if (!string.IsNullOrWhiteSpace(order.CustomerPhone)) return order.CustomerPhone.Trim();
+            if (!string.IsNullOrWhiteSpace(order.RecipientPhone)) return order.RecipientPhone.Trim();
+            return null;
+        }
 
         private static PaymentResponseDto MapToDto(Payment payment)
         {
