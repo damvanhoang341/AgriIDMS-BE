@@ -21,6 +21,8 @@ namespace AgriIDMS.Application.DTOs.Export
         public DateTime CreatedAt { get; set; }
         /// <summary>Đã chốt snapshot in khi chuyển ReadyToExport.</summary>
         public bool HasPrintSnapshot { get; set; }
+        /// <summary>Cảnh báo không chặn (ví dụ thời gian lưu lạnh), chủ yếu khi PATCH confirm-pick.</summary>
+        public List<string> Warnings { get; set; } = new();
         public List<ExportDetailDto> Details { get; set; } = new();
     }
 

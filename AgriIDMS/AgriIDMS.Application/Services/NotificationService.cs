@@ -176,6 +176,42 @@ namespace AgriIDMS.Application.Services
                 recipientUserIds: recipients);
         }
 
+        public async Task NotifyPosOrderCreatedForCustomerAsync(int orderId)
+        {
+            var order = await _orderRepo.GetByIdAsync(orderId)
+                ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
+
+            if (order.Source != OrderSource.POS)
+                return;
+
+            if (string.IsNullOrWhiteSpace(order.CustomerUserId))
+                return;
+
+            string message;
+            if (order.FulfillmentType == FulfillmentType.TakeAway)
+            {
+                message =
+                    $"Nhân viên đã tạo đơn mua tại quầy #{orderId} cho tài khoản của bạn. Hàng đã được giữ theo đơn — vui lòng đến quầy thanh toán và nhận hàng theo hướng dẫn của sale.";
+            }
+            else if (order.PaymentTiming == PaymentTiming.PayAfter)
+            {
+                message =
+                    $"Nhân viên đã tạo đơn giao hàng (POS) #{orderId} cho tài khoản của bạn. Kho đã giữ thùng — đơn sẽ được xử lý xuất kho và giao hàng; bạn thanh toán theo hình thức trả sau đã thỏa thuận.";
+            }
+            else
+            {
+                message =
+                    $"Nhân viên đã tạo đơn giao hàng (POS) #{orderId} cho tài khoản của bạn. Kho đã giữ thùng — vui lòng theo dõi đơn và hoàn tất thanh toán trả trước theo hướng dẫn của sale để tiếp tục xuất kho và giao hàng.";
+            }
+
+            await CreateNotificationIfNotExistsAsync(
+                NotificationType.Order,
+                message,
+                referenceType: "PosOrderCreated",
+                referenceId: orderId,
+                recipientUserIds: new[] { order.CustomerUserId });
+        }
+
         public async Task NotifyOnlineOrderPayBeforeDeadlineOverdueAsync(int orderId)
         {
             var order = await _orderRepo.GetByIdAsync(orderId)
@@ -202,8 +238,12 @@ namespace AgriIDMS.Application.Services
             var receipt = await _exportRepo.GetByIdWithDetailsAsync(exportReceiptId)
                 ?? throw new NotFoundException($"Phiếu xuất #{exportReceiptId} không tồn tại");
 
-            var message =
-                $"Phiếu xuất {receipt.ExportCode} đã được Quản lý duyệt xuất thành công. Đơn hàng #{receipt.OrderId} đang trong luồng giao hàng — kho tiếp tục bàn giao/shipper theo quy trình.";
+            var ord = receipt.Order;
+            var isPosTakeAway = ord.Source == OrderSource.POS && ord.FulfillmentType == FulfillmentType.TakeAway;
+
+            var message = isPosTakeAway
+                ? $"Phiếu xuất {receipt.ExportCode} đã được Quản lý duyệt. Đơn POS nhận tại quầy #{receipt.OrderId}: vui lòng xác nhận đã giao hàng cho khách tại quầy."
+                : $"Phiếu xuất {receipt.ExportCode} đã được Quản lý duyệt xuất thành công. Đơn hàng #{receipt.OrderId} đang trong luồng giao hàng — kho tiếp tục bàn giao/shipper theo quy trình.";
 
             var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -214,11 +254,14 @@ namespace AgriIDMS.Application.Services
             foreach (var id in warehouseStaff)
                 recipients.Add(id);
 
+            var referenceType = isPosTakeAway ? "PosCounterHandover" : "ExportReceipt";
+            var referenceId = isPosTakeAway ? receipt.OrderId : receipt.Id;
+
             await CreateNotificationIfNotExistsAsync(
                 NotificationType.Order,
                 message,
-                referenceType: "ExportReceipt",
-                referenceId: receipt.Id,
+                referenceType: referenceType,
+                referenceId: referenceId,
                 recipientUserIds: recipients);
         }
 

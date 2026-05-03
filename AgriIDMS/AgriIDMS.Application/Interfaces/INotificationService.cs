@@ -17,6 +17,9 @@ namespace AgriIDMS.Application.Interfaces
         /// <summary>Đơn online mới (chờ sale xác nhận / liên hệ khách đặt hay hủy).</summary>
         Task NotifyOnlineOrderPendingSaleConfirmAsync(int orderId);
 
+        /// <summary>Đơn POS tại quầy: gửi thông báo inbox cho khách có tài khoản (<c>CustomerUserId</c>) khi đơn được tạo.</summary>
+        Task NotifyPosOrderCreatedForCustomerAsync(int orderId);
+
         /// <summary>Đơn online PayBefore đã quá hạn thanh toán (theo ExpiredAt allocation sau sale confirm). Sale liên hệ khách hoặc hủy đơn.</summary>
         Task NotifyOnlineOrderPayBeforeDeadlineOverdueAsync(int orderId);
         Task NotifyExportApprovedAsync(int exportReceiptId);

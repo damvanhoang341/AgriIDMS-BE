@@ -86,6 +86,15 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>POS TakeAway: đã duyệt xuất, chờ kho xác nhận đã giao cho khách tại quầy.</summary>
+        [HttpGet("staff/pending-pos-counter-handover")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> GetPendingPosCounterHandoverOrders([FromQuery] GetPendingPosCounterHandoverOrdersQuery query)
+        {
+            var result = await _orderService.GetPendingPosCounterHandoverOrdersAsync(query);
+            return Ok(result);
+        }
+
         /// <summary>Chi tiết box đang được propose FEFO cho 1 đơn.</summary>
         [HttpGet("{id:int:min(1)}/allocation/proposals")]
         [Authorize(Roles = "SalesStaff,WarehouseStaff,Admin,Manager")]
@@ -218,6 +227,16 @@ namespace AgriIDMS.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>Tra cứu khách (Customer, Active) theo SĐT — điền form tạo đơn POS.</summary>
+        [HttpGet("staff/pos-customer-lookup")]
+        [Authorize(Roles = "SalesStaff,Admin,Manager,WarehouseStaff")]
+        public async Task<IActionResult> LookupPosCustomerByPhone([FromQuery] string? phone)
+        {
+            var operatorUserId = GetCurrentUserId();
+            var result = await _orderService.LookupPosCustomerByPhoneAsync(operatorUserId, phone ?? string.Empty);
+            return Ok(result);
+        }
+
         /// <summary>Sale xác nhận đơn (IF OK → Confirmed).</summary>
         [HttpPatch("{id:int:min(1)}/sale-confirm")]
         [Authorize(Roles = "SalesStaff,Admin,Manager")]
@@ -330,6 +349,16 @@ namespace AgriIDMS.API.Controllers
             var operatorUserId = GetCurrentUserId();
             await _orderService.ConfirmDeliveredAsync(id, operatorUserId);
             return Ok(new { Message = "Đã xác nhận giao hàng thành công", OrderId = id, Status = OrderStatus.Delivered.ToString() });
+        }
+
+        /// <summary>POS TakeAway: kho xác nhận đã giao hàng cho khách tại quầy (sau khi manager duyệt phiếu xuất).</summary>
+        [HttpPatch("{id:int:min(1)}/pos-counter-handover/confirm")]
+        [Authorize(Roles = "WarehouseStaff,Admin,Manager")]
+        public async Task<IActionResult> ConfirmPosCounterHandover(int id)
+        {
+            var operatorUserId = GetCurrentUserId();
+            await _orderService.ConfirmPosCounterHandoverAsync(id, operatorUserId);
+            return Ok(new { Message = "Đã xác nhận giao hàng cho khách tại quầy", OrderId = id, Status = OrderStatus.Delivered.ToString() });
         }
 
         [HttpPatch("{id:int:min(1)}/delivery/failed")]

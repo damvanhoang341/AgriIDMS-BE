@@ -1,3 +1,4 @@
+using AgriIDMS.Application;
 using AgriIDMS.Application.DTOs.Complaint;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
@@ -47,7 +48,7 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdAsync(request.OrderId)
                 ?? throw new NotFoundException($"Đơn hàng #{request.OrderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(order, userId))
                 throw new ForbiddenException("Bạn không có quyền khiếu nại trên đơn hàng này");
 
             if (!AllowedOrderStatusesForComplaint.Contains(order.Status))
@@ -100,7 +101,7 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdAsync(orderId)
                 ?? throw new NotFoundException($"Đơn hàng #{orderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(order, userId))
                 throw new ForbiddenException("Bạn không có quyền khiếu nại trên đơn hàng này");
 
             if (!AllowedOrderStatusesForComplaint.Contains(order.Status))
@@ -150,7 +151,7 @@ namespace AgriIDMS.Application.Services
             var c = await _complaintRepo.GetByIdWithDetailsAsync(complaintId)
                 ?? throw new NotFoundException($"Khiếu nại #{complaintId} không tồn tại");
 
-            if (c.Order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(c.Order, userId))
                 throw new ForbiddenException("Bạn không có quyền xem khiếu nại này");
 
             return MapToDto(c, c.Box?.BoxCode);
@@ -204,7 +205,7 @@ namespace AgriIDMS.Application.Services
             var complaint = await _complaintRepo.GetByIdWithDetailsAsync(complaintId)
                 ?? throw new NotFoundException($"Khiếu nại #{complaintId} không tồn tại");
 
-            if (complaint.Order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(complaint.Order, userId))
                 throw new ForbiddenException("Bạn không có quyền hủy khiếu nại này");
 
             if (complaint.Status != ComplaintStatus.Pending)

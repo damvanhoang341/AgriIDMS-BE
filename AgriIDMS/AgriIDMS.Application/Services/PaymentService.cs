@@ -1,3 +1,4 @@
+using AgriIDMS.Application;
 using AgriIDMS.Application.DTOs.Payment;
 using AgriIDMS.Application.Exceptions;
 using AgriIDMS.Application.Interfaces;
@@ -64,7 +65,7 @@ namespace AgriIDMS.Application.Services
 
             if (forCustomer)
             {
-                if (order.UserId != actorUserId)
+                if (!CustomerOrderAccess.IsBuyer(order, actorUserId))
                     throw new ForbiddenException("Bạn không có quyền thanh toán đơn hàng này");
             }
             else
@@ -199,7 +200,7 @@ namespace AgriIDMS.Application.Services
             payment.PaymentStatus = PaymentStatus.Paid;
             payment.PaidAt = DateTime.UtcNow;
 
-            // TakeAway: Paid không đặt Delivered ở đây — Delivered khi duyệt xuất kho.
+            // POS TakeAway: Paid không đặt Delivered ở đây — Delivered khi kho xác nhận giao tại quầy (sau duyệt xuất).
 
             await _uow.SaveChangesAsync();
 
@@ -283,7 +284,7 @@ namespace AgriIDMS.Application.Services
             var order = await _orderRepo.GetByIdAsync(orderId)
                 ?? throw new NotFoundException($"Order #{orderId} không tồn tại");
 
-            if (order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(order, userId))
                 throw new ForbiddenException("Bạn không có quyền xem thanh toán của đơn hàng này");
 
             var payment = await _paymentRepo.GetLatestByOrderIdAsync(orderId)
@@ -317,6 +318,9 @@ namespace AgriIDMS.Application.Services
                 PaymentStatus = p.PaymentStatus.ToString(),
                 PaymentMethod = p.PaymentMethod.ToString(),
                 OrderStatus = p.Order?.Status.ToString() ?? string.Empty,
+                OrderSource = p.Order?.Source.ToString() ?? string.Empty,
+                FulfillmentType = p.Order?.FulfillmentType.ToString() ?? string.Empty,
+                PaymentTiming = p.Order?.PaymentTiming?.ToString(),
                 CreatedAt = p.CreatedAt
             }).ToList();
         }
@@ -403,7 +407,7 @@ namespace AgriIDMS.Application.Services
             if (payment.Order == null)
                 throw new NotFoundException($"Order liên kết với payment #{paymentId} không tồn tại");
 
-            if (payment.Order.UserId != userId)
+            if (!CustomerOrderAccess.IsBuyer(payment.Order, userId))
                 throw new ForbiddenException("Bạn không có quyền hủy thanh toán này");
 
             if (payment.PaymentMethod != PaymentMethod.Banking)

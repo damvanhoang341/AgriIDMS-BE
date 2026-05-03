@@ -24,7 +24,7 @@ namespace AgriIDMS.Domain.Enums
         /// <summary>Legacy (trước đây gắn PayAfter).</summary>
         PickBeforePay = 0,
 
-        /// <summary>Trả trước: Paid mới tạo phiếu xuất; Delivered khi duyệt xuất.</summary>
+        /// <summary>Trả trước: Paid mới tạo/xử lý phiếu xuất; Delivered khi kho xác nhận giao tại quầy (sau duyệt xuất).</summary>
         PayBeforePick = 1
     }
 

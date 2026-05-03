@@ -15,6 +15,9 @@ namespace AgriIDMS.Domain.Interfaces
         Task<IEnumerable<ExportReceipt>> GetAllExport();
         Task<bool> ExistsForOrderAsync(int orderId);
 
+        /// <summary>Đơn có ít nhất một phiếu xuất đã duyệt (Approved).</summary>
+        Task<bool> HasApprovedExportForOrderAsync(int orderId);
+
         /// <summary>Phiếu ReadyToExport chờ Manager/Admin duyệt.</summary>
         Task<IList<ExportReceipt>> GetReadyToExportPendingApproveAsync(int skip, int take, string? sort);
 

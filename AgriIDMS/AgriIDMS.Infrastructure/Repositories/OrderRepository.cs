@@ -25,7 +25,9 @@ namespace AgriIDMS.Infrastructure.Repositories
                     .ThenInclude(d => d.ProductVariant)
                         .ThenInclude(v => v.Product)
                 .Include(o => o.Payments)
-                .Where(o => o.UserId == userId)
+                .Where(o =>
+                    o.UserId == userId
+                    || (o.Source == OrderSource.POS && o.CustomerUserId != null && o.CustomerUserId == userId))
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
         }
@@ -220,12 +222,32 @@ namespace AgriIDMS.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IList<Order>> GetPendingPosCounterHandoverOrdersAsync(int skip, int take)
+        {
+            return await _context.Orders
+                .Include(o => o.Details)
+                    .ThenInclude(d => d.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .Include(o => o.Payments)
+                .Where(o =>
+                    o.Source == OrderSource.POS
+                    && o.FulfillmentType == FulfillmentType.TakeAway
+                    && o.Status == OrderStatus.ApprovedExport
+                    && _context.ExportReceipts.Any(e =>
+                        e.OrderId == o.Id && e.Status == ExportStatus.Approved))
+                .OrderByDescending(o => o.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
+
         public async Task<IList<Order>> GetCustomerOrdersForComplaintAsync(string userId, int skip, int take)
         {
             var query = _context.Orders
                 .Include(o => o.Allocations)
                 .Where(o =>
-                    o.UserId == userId
+                    (o.UserId == userId
+                     || (o.Source == OrderSource.POS && o.CustomerUserId != null && o.CustomerUserId == userId))
                     && (o.Status == OrderStatus.ApprovedExport || o.Status == OrderStatus.Delivered || o.Status == OrderStatus.Completed));
 
             return await query

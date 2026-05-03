@@ -31,6 +31,12 @@ namespace AgriIDMS.Application.Interfaces
         /// <summary>Đơn đang ApprovedExport (đã duyệt xuất, trong luồng giao).</summary>
         Task<IList<OrderListItemDto>> GetApprovedExportOrdersAsync(GetPendingAllocationOrdersQuery query);
 
+        /// <summary>POS TakeAway: đã duyệt xuất, chờ kho xác nhận đã giao cho khách tại quầy.</summary>
+        Task<IList<OrderListItemDto>> GetPendingPosCounterHandoverOrdersAsync(GetPendingPosCounterHandoverOrdersQuery query);
+
+        /// <summary>Kho xác nhận đã bàn giao hàng cho khách tại quầy (POS TakeAway sau khi manager duyệt xuất).</summary>
+        Task ConfirmPosCounterHandoverAsync(int orderId, string operatorUserId);
+
         Task<AllocationProposalOverviewDto> GetAllocationProposalsAsync(int orderId);
 
         Task<AllocationHistoryDto> GetAllocationHistoryAsync(int orderId);
@@ -99,6 +105,9 @@ namespace AgriIDMS.Application.Interfaces
             OrderRecipientCheckoutDto recipient);
 
         Task<CreateOrderFromCartResponse> CreatePosOrderAsync(string operatorUserId, CreatePosOrderRequest request);
+
+        /// <summary>Tra cứu khách (role Customer, Active) theo SĐT — màn tạo đơn POS.</summary>
+        Task<PosCustomerLookupResponseDto> LookupPosCustomerByPhoneAsync(string operatorUserId, string phone);
 
 
 
